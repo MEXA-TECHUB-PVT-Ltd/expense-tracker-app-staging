@@ -33,6 +33,10 @@ local.properties
 .cxx/
 *.keystore
 !debug.keystore
+/android/app/build
+/ios/Pods
+/ios/build
+/ios/Podfile.lock
 
 # node.js
 #
