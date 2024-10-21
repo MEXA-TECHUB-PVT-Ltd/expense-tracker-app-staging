@@ -1,12 +1,20 @@
+import 'react-native-gesture-handler';
 import { StyleSheet, Text, View } from 'react-native'
 import React from 'react'
+import { NavigationContainer } from '@react-navigation/native';
+import MainStack from './src/navigation/mainstack/MainStack';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
-export default function App() {
+const App = () => {
   return (
-    <View>
-      <Text>App</Text>
-    </View>
-  )
-}
+    // <GestureHandlerRootView style={{ flex: 1 }}>
+      <NavigationContainer>
+        <MainStack />
+      </NavigationContainer>
+    // </GestureHandlerRootView>
+  );
+};
+
+export default App
 
 const styles = StyleSheet.create({})
