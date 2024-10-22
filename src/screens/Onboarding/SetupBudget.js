@@ -1,18 +1,16 @@
 import React, { useState, useRef } from 'react';
 import { StyleSheet, Text, View, Pressable, Animated, Image, Dimensions, TouchableOpacity, TouchableHighlight } from 'react-native';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
-import CustomHeader from '../../components/CustomHeader';
+import { Appbar, Button } from 'react-native-paper';
+import { VectorIcon } from '../../constants/vectoricons';
 import CustomButton from '../../components/CustomButton';
-import MCIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import ADicons from 'react-native-vector-icons/AntDesign';
-
-import Ionicons from 'react-native-vector-icons/Ionicons';
 import colors from '../../constants/colors';
 import { useNavigation } from '@react-navigation/native';
 import { TouchableWithoutFeedback } from 'react-native-gesture-handler';
 import Images from '../../constants/images';
+import dimensions from '../../constants/dimensions';
 
-const { width: screenWidth } = Dimensions.get('window');
+const { width: screenWidth } = dimensions;
 
 const SetupBudget = () => {
     const navigation = useNavigation();
@@ -64,21 +62,18 @@ const SetupBudget = () => {
     return (
         <Pressable style={styles.container} onPress={handleOutsidePress}>
             <View>
-                <CustomHeader
-                    containerStyle={{ backgroundColor: colors.brightgreen }}
-                    leftIcon={<MCIcons name="keyboard-backspace" size={24} color={colors.white} />}
-                    leftIconPress={handleLeftIconPress}
-                    headerText="Setup Budget"
-                    headerTextStyle={{ color: colors.white }}
-                    secondRightIcon={<MCIcons name="dots-vertical" size={24} color={colors.white} />}
-                    secondRightIconPress={handleRightIconPress}
-                />
+                <Appbar.Header style={styles.appBar}>
+                    <Appbar.BackAction onPress={handleLeftIconPress} size={24} color={colors.white} />
+                    <Appbar.Content title="Setup Budget" titleStyle={styles.appbar_title} />
+                    <Appbar.Action onPress={handleRightIconPress} icon="dots-vertical" color={colors.white} />
+                </Appbar.Header>
             </View>
             <Animated.View style={[styles.tooltipContainer, { transform: [{ translateX: slideAnim }] }]}>
                 <TouchableOpacity onPress={handleTooltipPress}>
                     <Text style={styles.tooltipText}>Help</Text>
                 </TouchableOpacity>
             </Animated.View>
+        
             <CustomButton
                 title="ADD ENVELOPE"
                 titleStyle={styles.buttontitle}
@@ -87,7 +82,7 @@ const SetupBudget = () => {
             />
             <TouchableWithoutFeedback onPress={() => navigation.navigate('ChangeBudgetPeriod')} style={styles.budget_period_view}>
                 <Text style={styles.monthly_txt}>Monthly (2) </Text>
-                <MCIcons name="menu-down" size={24} color={colors.black} />
+                <VectorIcon name="menu-down" size={24} color={colors.black} type="mci" />
                 <Text style={styles.envelope_left_txt}>8 of 10 free Envelopes left</Text>
             </TouchableWithoutFeedback>
 
@@ -114,7 +109,7 @@ const SetupBudget = () => {
                         <Text style={styles.monthlyIncomeText}>Monthly{"\n"}30,000</Text>
                     </View>
                     <View style={styles.icon_view}>
-                        <MCIcons name="menu-down" size={24} color={colors.gray} />
+                        <VectorIcon name="menu-down" size={24} color={colors.gray} type="mci"/>
                     </View>
                 </Pressable>
                 <View style={styles.remainingContainer}>
@@ -124,7 +119,7 @@ const SetupBudget = () => {
                     <View style={styles.total_txt_icon_view}>
                         <Text style={styles.remainingText}>55,000</Text>
                         <View style={styles.icon_remaining_view}>
-                            <ADicons name="exclamationcircle" size={16} color={colors.lightGray} />
+                            <VectorIcon name="exclamationcircle" size={16} color={colors.lightGray} type="ad" />
                         </View>
                     </View>
                 </View>
@@ -132,13 +127,13 @@ const SetupBudget = () => {
 
             <View style={styles.secondView}>
                 <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
-                    <Ionicons name="chevron-back" size={20} color={colors.androidbluebtn} />
+                    <VectorIcon name="chevron-back" size={20} color={colors.androidbluebtn} type="ii"/>
                     <Text style={styles.backText}>BACK</Text>
                 </Pressable>
 
-                <Pressable style={styles.nextButton}>
+                <Pressable onPress={()=> navigation.navigate('Calculator')} style={styles.nextButton}>
                     <Text style={styles.nextText}>NEXT</Text>
-                    <Ionicons name="chevron-forward" size={20} color={colors.androidbluebtn} />
+                    <VectorIcon name="chevron-forward" size={20} color={colors.androidbluebtn} type="ii"/>
                 </Pressable>
             </View>
         </Pressable>
@@ -151,6 +146,15 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: colors.white,
+    },
+    appBar: {
+        backgroundColor: colors.brightgreen,
+        height: 55,
+    },
+    appbar_title: {
+        color: colors.white,
+        fontSize: hp('2.5%'),
+        fontWeight: 'bold',
     },
     tooltipContainer: {
         position: 'absolute',
@@ -245,7 +249,7 @@ const styles = StyleSheet.create({
     },
     texts_view: {
         flexDirection: 'row',
-        
+
     },
     icon_view: {
         justifyContent: 'center',
@@ -257,7 +261,7 @@ const styles = StyleSheet.create({
         textAlign: 'left',
         color: colors.black,
         fontWeight: '400',
-       
+
     },
     monthlyIncomeText: {
         fontSize: hp('2%'),
