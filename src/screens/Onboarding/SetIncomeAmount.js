@@ -42,6 +42,7 @@ const IncomeInput = ({ index, onRemove, selectedIndex, setSelectedIndex }) => {
                         <VectorIcon name="arrow-drop-down" size={24} color={colors.gray} type="mi" />
                     </TouchableOpacity>
                 }
+                contentStyle={styles.menuContentStyle}
             >
                 {frequencyOptions.map((option, idx) => (
                     <Menu.Item key={idx} onPress={() => handleFrequencySelect(option)} title={option} />
@@ -131,8 +132,6 @@ const SetIncomeAmount = () => {
             <View style={styles.estimated_income_view}>
                 <Text style={styles.estimated_income_txt}>Enter your estimated income...</Text>
             </View>
-
-
 
             <FlatList
                 data={incomeInputs}
@@ -241,12 +240,19 @@ const styles = StyleSheet.create({
     },
     //menu selector
     frequencySelector: {
-        width: hp('20%'),
+        width: hp('22%'),
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'baseline',
         marginRight: 8,
         // backgroundColor: colors.gray,
+    },
+    menuContentStyle: {
+        width: hp('19%'),
+        height: 'auto',
+        backgroundColor: colors.white,
+        borderRadius: 1,
+        paddingVertical: 0,
     },
     //text monthly weekly...
     frequencyText: {
@@ -259,22 +265,22 @@ const styles = StyleSheet.create({
         width: wp('33%'),
         backgroundColor: colors.androidbluebtn,
         borderRadius: 2,
-        marginLeft: wp('12%'),
+        marginLeft: wp('10%'),
         marginBottom: hp('1%'),
         marginTop: hp('2%'),
     },
     buttonContent: {
-        justifyContent: 'center',    // Center content vertically
-        alignItems: 'center',        // Center content horizontally
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     addIncome_label: {
         fontSize: hp('1.6%'),
-        textTransform: 'none',  // Avoids capitalizing which takes more space
-        letterSpacing: 0,  // Adjust if needed
+        textTransform: 'none',
+        letterSpacing: 0,
     },
 
     incomeList: {
-        marginBottom: 56, // Space for potential bottom elements
+        marginBottom: 56,
     },
 
     bottomButtonContainer: {

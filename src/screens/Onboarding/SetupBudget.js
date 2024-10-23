@@ -1,9 +1,8 @@
 import React, { useState, useRef } from 'react';
-import { StyleSheet, Text, View, Pressable, Animated, Image, Dimensions, TouchableOpacity, TouchableHighlight } from 'react-native';
+import { StyleSheet, Text, View, Pressable, Animated, Image,TouchableOpacity } from 'react-native';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import { Appbar, Button } from 'react-native-paper';
 import { VectorIcon } from '../../constants/vectoricons';
-import CustomButton from '../../components/CustomButton';
 import colors from '../../constants/colors';
 import { useNavigation } from '@react-navigation/native';
 import { TouchableWithoutFeedback } from 'react-native-gesture-handler';
@@ -15,7 +14,7 @@ const { width: screenWidth } = dimensions;
 const SetupBudget = () => {
     const navigation = useNavigation();
     const [isTooltipVisible, setIsTooltipVisible] = useState(false);
-    const slideAnim = useRef(new Animated.Value(screenWidth)).current; // Start out of the screen (to the right)
+    const slideAnim = useRef(new Animated.Value(screenWidth)).current;
 
     const handleLeftIconPress = () => {
         navigation.goBack();
@@ -27,17 +26,15 @@ const SetupBudget = () => {
 
     const toggleTooltip = () => {
         if (isTooltipVisible) {
-            // Slide out
             Animated.timing(slideAnim, {
-                toValue: screenWidth, // Hide by moving off-screen
+                toValue: screenWidth,
                 duration: 200,
                 useNativeDriver: true,
             }).start(() => setIsTooltipVisible(false));
         } else {
             setIsTooltipVisible(true);
-            // Slide in
             Animated.timing(slideAnim, {
-                toValue: screenWidth * 0.5, // Show at 50% width from the right
+                toValue: screenWidth * 0.5,
                 duration: 200,
                 useNativeDriver: true,
             }).start();
@@ -46,7 +43,7 @@ const SetupBudget = () => {
 
     const handleOutsidePress = () => {
         if (isTooltipVisible) {
-            toggleTooltip(); // Hide if open
+            toggleTooltip();
         }
     };
 
@@ -73,13 +70,18 @@ const SetupBudget = () => {
                     <Text style={styles.tooltipText}>Help</Text>
                 </TouchableOpacity>
             </Animated.View>
-        
-            <CustomButton
-                title="ADD ENVELOPE"
-                titleStyle={styles.buttontitle}
-                buttonStyle={styles.buttonbody}
+
+            <Button
+                mode="contained"
+                style={styles.buttonbody}
+                contentStyle={styles.buttonContent}
+                labelStyle={styles.buttontitle}
+                textColor={colors.white}
                 onPress={handleAddEnvelope}
-            />
+            >
+                ADD ENVELOPE
+            </Button>
+        
             <TouchableWithoutFeedback onPress={() => navigation.navigate('ChangeBudgetPeriod')} style={styles.budget_period_view}>
                 <Text style={styles.monthly_txt}>Monthly (2) </Text>
                 <VectorIcon name="menu-down" size={24} color={colors.black} type="mci" />
@@ -172,20 +174,22 @@ const styles = StyleSheet.create({
         fontSize: hp('2.3%'),
         fontWeight: '400',
     },
-    buttontitle: {
-        fontSize: hp('2%'),
-        fontWeight: '500',
-        color: colors.white,
-        textAlign: 'center'
-    },
     buttonbody: {
-        width: wp('32%'),
-        height: hp('5%'),
+        width: wp('33%'),
         borderRadius: 2,
         backgroundColor: colors.androidbluebtn,
         marginTop: hp('1.7%'),
         marginBottom: hp('1.3%'),
         marginLeft: hp('1.2%'),
+    },
+    buttonContent: {
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    buttontitle: {
+        fontSize: hp('1.3%'),
+        fontWeight: 'bold',
+        color: colors.white,
     },
     budget_period_view: {
         height: hp('5%'),
@@ -319,4 +323,6 @@ const styles = StyleSheet.create({
         color: colors.androidbluebtn,
         marginRight: wp('5%')
     },
+
+    
 });
