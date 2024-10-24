@@ -1,10 +1,10 @@
 import { StyleSheet, Text, View, Animated, Pressable, TouchableOpacity } from 'react-native'
-import React, { useState, useRef, useMemo } from 'react'
+import React, { useState, useRef, useMemo, useEffect } from 'react'
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import { Appbar, TextInput, Menu, Button } from 'react-native-paper';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import colors from '../../constants/colors';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import dimensions from '../../constants/dimensions';
 import { VectorIcon } from '../../constants/vectoricons';
 import { debounce } from 'lodash';
@@ -14,6 +14,7 @@ const { width: screenWidth } = dimensions;
 
 const AddEnvelope = () => {
     const navigation = useNavigation();
+    const route = useRoute();
     const [isTooltipVisible, setIsTooltipVisible] = useState(false);
     const slideAnim = useRef(new Animated.Value(screenWidth)).current;
     const [envelopeNameFocused, setEnvelopeNameFocused] = useState(false);
@@ -24,7 +25,65 @@ const AddEnvelope = () => {
     const [budgetPeriod, setBudgetPeriod] = useState('Monthly');
     const [dueDate, setDueDate] = useState(new Date());
     const [showDatePicker, setShowDatePicker] = useState(false);
-    const [editEnvelope, setEditEnvelope] = useState(false);
+
+    const { addEnvelope, editEnvelope, categories, setCategories,  } = route.params;
+    useEffect(() => {
+        // If editing, set the initial values
+        if (editEnvelope) {
+            setEnvelopeName(route.params.envelopeName);
+            setAmount(route.params.amount);
+            setBudgetPeriod(route.params.budgetPeriod);
+        }
+    }, [editEnvelope, route.params.envelopeName, route.params.amount, route.params.budgetPeriod]);
+
+    const handleDelete = () => {
+        navigation.navigate('SetupBudget', {
+            deleteEnvelope: true,
+            envelopeName: envelopeName,
+            budgetPeriod: budgetPeriod,
+        });
+    };
+
+    const handleSave = () => {
+        const newEnvelope = { envelopeName, amount };
+        if (editEnvelope) {
+            handleEdit(newEnvelope);
+        } else {
+            addEnvelope(newEnvelope, budgetPeriod);
+        }
+        navigation.goBack();
+    };
+
+    const handleEdit = (updatedEnvelope) => {
+        //move envelope to relevent selected category
+        const currentCategory = budgetPeriod; // Current category
+        const previousCategory = route.params.budgetPeriod; // Category before editing
+
+        // Remove from the previous category if it's different
+        if (previousCategory !== currentCategory) {
+            const updatedCategories = {
+                ...categories,
+                [previousCategory]: categories[previousCategory].filter(item => item.envelopeName !== route.params.envelopeName),
+            };
+            // Add to the new category
+            updatedCategories[currentCategory].push(updatedEnvelope);
+            setCategories(updatedCategories);
+        } else {
+            // If the category hasn't changed, just update the existing envelope
+            const updatedCategories = {
+                ...categories,
+            };
+            // Find the index of the envelope being edited
+            const envelopeIndex = updatedCategories[previousCategory].findIndex(item => item.envelopeName === route.params.envelopeName);
+
+            if (envelopeIndex !== -1) {
+                // Update the existing envelope
+                updatedCategories[previousCategory][envelopeIndex] = updatedEnvelope;
+            }
+            // Update the categories state in SetupBudget
+            setCategories(updatedCategories);
+        }
+    };
 
     const handleLeftIconPress = () => {
         navigation.goBack();
@@ -123,6 +182,7 @@ const AddEnvelope = () => {
                         onFocus={() => setBudgetAmountFocused(true)}
                         onBlur={() => setBudgetAmountFocused(false)}
                         theme={{ colors: { text: 'black', primary: colors.brightgreen } }}
+                        keyboardType='numeric'
                     />
                 </View>
             </View>
@@ -153,9 +213,9 @@ const AddEnvelope = () => {
                         }
                         contentStyle={styles.menuContentStyle}
                     >
-                        <Menu.Item onPress={() => { setBudgetPeriod('Monthly'); setMenuVisible(false); }} title="Monthly" />
-                        <Menu.Item onPress={() => { setBudgetPeriod('Every Year'); setMenuVisible(false); }} title="Every Year" />
-                        <Menu.Item onPress={() => { setBudgetPeriod('Goal'); setMenuVisible(false); }} title="Goal" />
+                        <Menu.Item onPress={() => { setBudgetPeriod('Monthly'); setMenuVisible(false); }} title="Monthly" titleStyle={{ color: colors.black }} />
+                        <Menu.Item onPress={() => { setBudgetPeriod('Every Year'); setMenuVisible(false); }} title="Every Year" titleStyle={{ color: colors.black }} />
+                        <Menu.Item onPress={() => { setBudgetPeriod('Goal'); setMenuVisible(false); }} title="Goal" titleStyle={{ color: colors.black }} />
                     </Menu>
                 </View>
                 <View style={styles.amt_view}>
@@ -192,7 +252,7 @@ const AddEnvelope = () => {
                     <>
                         <Button
                             mode="text"
-                            onPress={() => console.log('abc')}
+                            onPress={handleDelete}
                             contentStyle={styles.backButton}
                             labelStyle={styles.backText}
                             rippleColor={colors.lightGray}
@@ -200,10 +260,9 @@ const AddEnvelope = () => {
                         >
                             DELETE
                         </Button>
-
                         <Button
                             mode="text"
-                            onPress={() => console.log('abc')}
+                            onPress={handleSave}
                             contentStyle={styles.nextButton}
                             labelStyle={styles.nextText}
                             rippleColor={colors.lightGray}
@@ -216,7 +275,7 @@ const AddEnvelope = () => {
                     <View style={styles.centerContainer}>
                     <Button
                         mode="text"
-                        onPress={() => console.log('abc')}
+                        onPress={handleSave}
                         contentStyle={styles.centerButton}
                         labelStyle={styles.nextText}
                         rippleColor={colors.lightGray}
@@ -227,7 +286,6 @@ const AddEnvelope = () => {
                     </View>
                 )}
             </View>
-
         </Pressable>
     )
 }
@@ -331,6 +389,7 @@ const styles = StyleSheet.create({
         backgroundColor: colors.white,
         borderRadius: 1,
         paddingVertical: 0,
+        color: colors.black,
     },
     additionalInfo: {
         marginLeft: hp('1.5%'),
@@ -349,7 +408,6 @@ const styles = StyleSheet.create({
         fontSize: hp('2.5%'),
         color: colors.black,
     },
-
     secondView: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -390,5 +448,4 @@ const styles = StyleSheet.create({
     centerbtn: {
         borderRadius: 0,
     },
-
 })
