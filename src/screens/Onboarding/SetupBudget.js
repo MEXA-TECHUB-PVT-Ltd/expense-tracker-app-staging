@@ -261,14 +261,32 @@ const SetupBudget = () => {
             </View>
 
             <View style={styles.secondView}>
-                <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
+                <View style={styles.left_icon_btn_view}>
                     <VectorIcon name="chevron-back" size={20} color={colors.androidbluebtn} type="ii" />
-                    <Text style={styles.backText}>BACK</Text>
-                </Pressable>
-                <Pressable onPress={() => navigation.navigate('FillEnvelopes')} style={styles.nextButton}>
-                    <Text style={styles.nextText}>NEXT</Text>
+                    <Button
+                        mode="text"
+                        onPress={() => navigation.goBack()}
+                        // onPress={() => console.log('later press')}
+                        style={styles.backButton}
+                        labelStyle={styles.backText}
+                        rippleColor={colors.gray}
+                    >
+                        BACK
+                    </Button>
+                </View>
+                <View style={styles.right_icon_btn_view}>
+                    <Button
+                        mode="text" // Use 'contained' for a filled button
+                        onPress={() => navigation.navigate('FillEnvelopes')}
+                        // onPress={() => console.log('later press')}
+                        style={styles.nextButton}
+                        labelStyle={styles.nextText}
+                        rippleColor={colors.gray}
+                    >
+                        NEXT
+                    </Button>
                     <VectorIcon name="chevron-forward" size={20} color={colors.androidbluebtn} type="ii" />
-                </Pressable>
+                </View>
             </View>
         </Pressable>
     );
@@ -426,34 +444,42 @@ const styles = StyleSheet.create({
         marginLeft: hp('2%'),
     },
     secondView: {
-        backgroundColor: colors.white,
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         height: hp('7%'),
-        paddingHorizontal: 20,
+        paddingHorizontal: hp('3%'),
+        marginHorizontal: hp('3%'),
         position: 'absolute',
         bottom: 0,
         left: 0,
         right: 0,
     },
-    backButton: {
+    left_icon_btn_view: {
+        alignItems: 'center',
+        flexDirection: 'row',
+    },
+    right_icon_btn_view: {
         flexDirection: 'row',
         alignItems: 'center',
     },
-    backText: {
-        fontSize: hp('2%'),
-        color: colors.androidbluebtn,
-        marginLeft: wp('5%')
+    backButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 0,
     },
     nextButton: {
         flexDirection: 'row',
         alignItems: 'center',
+        padding: 0,
+    },
+    backText: {
+        fontSize: hp('2%'),
+        color: colors.androidbluebtn,
     },
     nextText: {
         fontSize: hp('2%'),
         color: colors.androidbluebtn,
-        marginRight: wp('5%')
     },
 
     flatListContainer: {

@@ -5,6 +5,7 @@ import colors from '../../constants/colors';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import dimensions from '../../constants/dimensions';
 import { useNavigation } from '@react-navigation/native';
+import { VectorIcon } from '../../constants/vectoricons';
 
 const { width: screenWidth } = dimensions;
 
@@ -74,29 +75,34 @@ const FillEnvelopes = () => {
       </ScrollView>
       
         <View style={styles.secondView}>
-              <Button
-                mode="text"
-            icon="chevron-left"
-                // onPress={handleDelete}
-                contentStyle={styles.backButton}
-                labelStyle={styles.backText}
-                rippleColor={colors.lightGray}
-                style={styles.btn}
-              >
-                DELETE
-              </Button>
-              <Button
-                mode="text"
-                icon="chevron-left"
-                // onPress={handleSave}
-                contentStyle={styles.nextButton}
-                labelStyle={styles.nextText}
-                rippleColor={colors.lightGray}
-                style={styles.btn}
-              >
-                SAVE
-              </Button>
+          <View style={styles.left_icon_btn_view}>
+            <VectorIcon name="chevron-back" size={20} color={colors.androidbluebtn} type="ii" />
+            <Button
+              mode="text"
+              onPress={()=> navigation.goBack()}
+              // onPress={() => console.log('later press')}
+              style={styles.backButton}
+              labelStyle={styles.backText}
+              rippleColor={colors.gray}
+            >
+              BACK
+            </Button>
+          </View>
+          <View style={styles.right_icon_btn_view}>
+            <Button
+              mode="text" // Use 'contained' for a filled button
+              onPress={()=> navigation.navigate('RegisterAccount')}
+              // onPress={() => console.log('later press')}
+              style={styles.nextButton}
+              labelStyle={styles.nextText}
+              rippleColor={colors.gray}
+            >
+              NEXT
+            </Button>
+            <VectorIcon name="chevron-forward" size={20} color={colors.androidbluebtn} type="ii" />
+          </View>
         </View>
+       
     </View>
     </TouchableWithoutFeedback>
   );
@@ -140,32 +146,49 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    height: hp('10%'),
-    paddingHorizontal: hp('7%'),
+    height: hp('7%'),
+    paddingHorizontal: hp('3%'),
+    marginHorizontal: hp('3%'),
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
   },
+  left_icon_btn_view: {
+    alignItems: 'center',
+    flexDirection: 'row',
+  },
+  right_icon_btn_view: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   backButton: {
-    justifyContent: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 0,
+  },
+  nextButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 0,
   },
   backText: {
     fontSize: hp('2%'),
-    color: colors.gray,
-    marginLeft: wp('5%'),
-  },
-  btn: {
-    borderRadius: 0,
-  },
-  nextButton: {
-    justifyContent: 'flex-end',
+    color: colors.androidbluebtn,
   },
   nextText: {
     fontSize: hp('2%'),
     color: colors.androidbluebtn,
-    marginRight: wp('5%'),
   },
+
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  finishButton: {
+    marginLeft: 10,
+  },
+
 });
 
 export default FillEnvelopes;

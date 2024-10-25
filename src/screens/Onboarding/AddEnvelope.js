@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
         marginLeft: wp('5%'),
     },
     btn: {
-        borderRadius: 0,
+        borderRadius: 50,
     },
     nextButton: {
         justifyContent: 'flex-end',
@@ -446,6 +446,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     centerbtn: {
-        borderRadius: 0,
+        borderRadius: 50,
     },
 })
