@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { StyleSheet, Text, View, Pressable, Animated, TouchableOpacity, FlatList } from 'react-native';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import colors from '../../constants/colors';
@@ -6,32 +6,58 @@ import {TextInput, Appbar, Button, Menu } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import dimensions from '../../constants/dimensions';
 import { VectorIcon } from '../../constants/vectoricons';
-
 const { width: screenWidth } = dimensions;
 
-const frequencyOptions = ["Monthly", "Weekly", "Twice a Month", "Every 2 Weeks"];
+import { db, addAmount, fetchTotalIncome, fetchAllIncomes, deleteIncome } from '../../database/database';
 
-const IncomeInput = ({ index, onRemove, selectedIndex, setSelectedIndex }) => {
-    const [selectedFrequency, setSelectedFrequency] = useState(frequencyOptions[0]);
-    const [income, setIncome] = useState('');
+const IncomeInput = ({ item, index, onAmountChange, onDelete, onRemove, selectedIndex, setSelectedIndex, onChange }) => {
+    // const [amount, setAmount] = useState('');
+    // const [amount, setAmount] = useState(item.amount.toString());
+    // const [budgetPeriod, setBudgetPeriod] = useState('Monthly');
+
+    const [amount, setAmount] = useState(item.amount ? item.amount.toString() : '');
+    const [budgetPeriod, setBudgetPeriod] = useState(item.budgetPeriod || 'monthly');
     const [menuVisible, setMenuVisible] = useState(false);
 
-    const handleFrequencySelect = (frequency) => {
-        setSelectedFrequency(frequency);
-        setMenuVisible(false);
+    useEffect(() => {
+        setAmount(item.amount ? item.amount.toString() : '');
+        setBudgetPeriod(item.budgetPeriod || 'monthly');
+    }, [item]);
+
+    const handleAmountChange = (text) => {
+        setAmount(text);
+        onAmountChange(index, text, budgetPeriod);
     };
+
+    const handleBudgetPeriodChange = (text) => {
+        setBudgetPeriod(text);
+        onAmountChange(index, amount, text);
+    };
+
+    // const handleAmountChange = (amount) => {
+    //     setAmount(amount);
+    //     onChange(amount, budgetPeriod); // Call onChange to update parent state
+    // };
+
+    // const handleBudgetPeriodChange = (budgetPeriod) => {
+    //     setBudgetPeriod(budgetPeriod);
+    //     onChange(amount, budgetPeriod); // Call onChange to update parent state
+    // };
 
     return (
         <View style={styles.incomeInputContainer}>
             <Text style={styles.indexText}>{index + 1}.</Text>
+            {/* <Text style={styles.indexText}>{item.id ? item.id : index + 1}</Text> */}
+            
             <TextInput
-                value={income}
-                onChangeText={setIncome}
+                value={amount}
+                onChangeText={handleAmountChange}
                 mode="flat"
                 style={styles.textInput}
                 theme={{ colors: { primary: selectedIndex === index ? colors.brightgreen : 'lightgray', underlineColor: 'transparent' } }}
-                onFocus={() => setSelectedIndex(index)}
+                // onFocus={() => setSelectedIndex(index)}
                 keyboardType='numeric'
+                textColor={colors.black}
             />
 
             <Menu
@@ -39,18 +65,22 @@ const IncomeInput = ({ index, onRemove, selectedIndex, setSelectedIndex }) => {
                 onDismiss={() => setMenuVisible(false)}
                 anchor={
                     <TouchableOpacity style={styles.frequencySelector} onPress={() => setMenuVisible(true)}>
-                        <Text style={styles.frequencyText}>{selectedFrequency}</Text>
+                        <Text style={styles.frequencyText}>{budgetPeriod}</Text>
                         <VectorIcon name="arrow-drop-down" size={24} color={colors.gray} type="mi" />
                     </TouchableOpacity>
                 }
                 contentStyle={styles.menuContentStyle}
             >
-                {frequencyOptions.map((option, idx) => (
-                    <Menu.Item key={idx} onPress={() => handleFrequencySelect(option)} title={option} titleStyle={{ color: colors.black }} />
-                ))}
+                {/* <Menu.Item onPress={() => { handleBudgetPeriodChange('Monthly'); setMenuVisible(false); }} title="Monthly" titleStyle={{ color: colors.black }} /> */}
+                <Menu.Item onPress={() => { setBudgetPeriod('Monthly'); setMenuVisible(false); }} title="Monthly" titleStyle={{ color: colors.black }} />
+                {/* <Menu.Item onPress={() => { setBudgetPeriod('Twice a Month'); setMenuVisible(false); }} title="Twice a Month" titleStyle={{ color: colors.black }} /> */}
+                {/* <Menu.Item onPress={() => { setBudgetPeriod('Every 2 weeks'); setMenuVisible(false); }} title="Every 2 weeks" titleStyle={{ color: colors.black }} /> */}
             </Menu>
 
-            <TouchableOpacity onPress={onRemove}>
+            <TouchableOpacity 
+            onPress={() => onDelete(index)}
+            // onPress={onRemove}
+            >
                 <VectorIcon name="close" size={20} color={colors.gray} type="mi" />
             </TouchableOpacity>
         </View>
@@ -61,18 +91,6 @@ const IncomeInput = ({ index, onRemove, selectedIndex, setSelectedIndex }) => {
 
 
 const SetIncomeAmount = () => {
-    const [incomeInputs, setIncomeInputs] = useState([{ key: Math.random().toString() }]);
-    const [selectedIndex, setSelectedIndex] = useState(null);
-    const handleAddIncomeInput = () => {
-        setIncomeInputs([...incomeInputs, { key: Math.random().toString() }]);
-    };
-    const handleRemoveIncomeInput = (index) => {
-        const updatedInputs = incomeInputs.filter((_, i) => i !== index);
-        setIncomeInputs(updatedInputs);
-    };
-
-
-
     const navigation = useNavigation();
     const [isTooltipVisible, setIsTooltipVisible] = useState(false);
     const slideAnim = useRef(new Animated.Value(screenWidth)).current;
@@ -87,7 +105,6 @@ const SetIncomeAmount = () => {
 
     const toggleTooltip = () => {
         if (isTooltipVisible) {
-            // Slide out
             Animated.timing(slideAnim, {
                 toValue: screenWidth,
                 duration: 200,
@@ -95,7 +112,6 @@ const SetIncomeAmount = () => {
             }).start(() => setIsTooltipVisible(false));
         } else {
             setIsTooltipVisible(true);
-            // Slide in
             Animated.timing(slideAnim, {
                 toValue: screenWidth * 0.5,
                 duration: 200,
@@ -114,6 +130,244 @@ const SetIncomeAmount = () => {
         toggleTooltip();
         navigation.navigate('About');
     };
+
+    // const [selectedIndex, setSelectedIndex] = useState(null);
+
+
+    // //sqlite
+    // const [amountInputs, setAmountInputs] = useState([]);
+    // const [totalAmount, setTotalAmount] = useState(0);
+
+    // // Initialize an array to hold amount and budgetPeriod values
+    // const [amountData, setAmountData] = useState([]);
+    // const handleAddIncomeInput = () => {
+    //     setAmountInputs([...amountInputs, { key: Math.random().toString() }]);
+    //     setAmountData([...amountData, { amount: '', budgetPeriod: 'Monthly' }]); // Initialize new input data
+    // };
+
+    // useEffect(() => {
+    //     fetchAllIncomes(setAmountInputs);
+    //     console.log('all incomes in income table: ', fetchAllIncomes);
+    //     fetchTotalIncome(setTotalAmount);
+    //     console.log('total income in set income amount screen ', totalAmount);
+    // }, []);
+
+    // // const handleAddIncomeInput = () => {
+    // //     setIncomeInputs([...incomeInputs, { key: Math.random().toString() }]);
+    // // };
+
+    // const handleRemoveIncomeInput = (index) => {
+    //     deleteIncome(amountInputs[index].id);
+    //     const updatedInputs = amountInputs.filter((_, i) => i !== index);
+    //     setAmountInputs(updatedInputs);
+    //     setAmountData(updatedData); // Update incomeData as well
+    // };
+
+    // // Update amountData on change
+    // const handleInputChange = (amount, budgetPeriod, index) => {
+    //     const updatedData = [...amountData];
+    //     updatedData[index] = { amount: amount, budgetPeriod }; // Update specific index
+    //     setAmountData(updatedData);
+    // };
+
+    // // const handleSave = (income, budgetPeriod) => {
+    // //     console.log('inside handleSave', income, budgetPeriod);
+    // //     // Save to SQLite and update total income
+    // //     addAmount(income, budgetPeriod); // Assuming this function saves income to your database
+    // //     fetchAllIncome(setIncomeInputs); // Refresh income inputs
+    // //     fetchTotalIncomes(setTotalIncome); // Refresh total income
+    // // };
+
+
+    // const handleSave = () => {
+    //     console.log("Saving incomes:", amountData); // Add this line to log current income data
+    //     console.log('amount in amountData', amountData.amount);
+    //     console.log('budgetPeriod in amountData', amountData.budgetPeriod);
+
+    //     amountData.forEach(({ amount, budgetPeriod }) => {
+    //         if (amount) {
+    //             console.log(`Adding income with: ${JSON.stringify({ amount, budgetPeriod })}`); // Log values before saving
+    //             addAmount(amount, budgetPeriod); // Save income to SQLite
+    //         } else {
+    //             console.error('Income value is undefined or null'); // This log is for debugging
+    //         }
+    //     });
+    //     fetchAllIncome(setAmountInputs); // Refresh income inputs
+    //     fetchTotalIncomes(setTotalAmount); // Refresh total income
+    // };
+
+
+    const [incomes, setIncomes] = useState([]);
+
+    useEffect(() => {
+        fetchAllIncome();
+    }, []);
+
+    // const fetchAllIncome = () => {
+    //     db.transaction((tx) => {
+    //         tx.executeSql('SELECT * FROM Income', [], (tx, results) => {
+    //             let data = [];
+    //             for (let i = 0; i < results.rows.length; i++) {
+    //                 data.push(results.rows.item(i));
+    //             }
+    //             setIncomes(data);
+    //             console.log('data in fetchallincome: ', data);
+    //         });
+    //     });
+    // };
+    const fetchAllIncome = () => {
+        db.transaction((tx) => {
+            tx.executeSql('CREATE TABLE IF NOT EXISTS Income (id INTEGER PRIMARY KEY AUTOINCREMENT, amount TEXT, budgetPeriod TEXT)', []);
+            tx.executeSql('SELECT * FROM Income', [], (tx, results) => {
+                let data = [];
+                for (let i = 0; i < results.rows.length; i++) {
+                    data.push(results.rows.item(i));
+                }
+                setIncomes([...data, { id: null, amount: '', budgetPeriod: 'monthly' }]);
+            });
+        });
+    };
+
+    const addIncome = () => {
+        setIncomes([...incomes, { amount: '', budgetPeriod: 'monthly' }]);
+    };
+
+    // const saveIncome = () => {
+    //     db.transaction((tx) => {
+    //         incomes.forEach((income) => {
+    //             if (income.id) {
+    //                 tx.executeSql(
+    //                     'UPDATE income SET amount = ?, budgetPeriod = ? WHERE id = ?',
+    //                     [income.amount, income.budgetPeriod, income.id]
+    //                 );
+    //             } else {
+    //                 tx.executeSql(
+    //                     'INSERT INTO income (amount, budgetPeriod) VALUES (?,?)',
+    //                     [income.amount, income.budgetPeriod]
+    //                 );
+    //             }
+    //         });
+    //     });
+    //     fetchAllIncome();
+    // };
+
+    // working
+    // const saveIncome = () => {
+    //     db.transaction((tx) => {
+    //         incomes.forEach((income) => {
+    //             if (income.amount && income.budgetPeriod) {
+    //                 if (income.id) {
+    //                     tx.executeSql(
+    //                         'UPDATE Income SET amount = ?, budgetPeriod = ? WHERE id = ?',
+    //                         [income.amount, income.budgetPeriod, income.id],
+    //                         (tx, results) => {
+    //                             console.log('Updated: ', { id: income.id, amount: income.amount, budgetPeriod: income.budgetPeriod });
+    //                         },
+    //                     );
+    //                 } else {
+    //                     tx.executeSql(
+    //                         'INSERT INTO Income (amount, budgetPeriod) VALUES (?, ?)',
+    //                         [income.amount, income.budgetPeriod],
+    //                         (tx, results) => {
+    //                             if (results.insertId) {
+    //                                 income.id = results.insertId;
+    //                                 console.log('Inserted: ', { id: results.insertId, amount: income.amount, budgetPeriod: income.budgetPeriod });
+    //                                 fetchAllIncome(); 
+    //                             }
+    //                         }
+    //                     );
+    //                 }
+    //             }
+    //         });
+    //     }, null, fetchAllIncome);
+    // };
+
+    const saveIncome = () => {
+        db.transaction((tx) => {
+            incomes.forEach((income) => {
+                if (income.amount && income.budgetPeriod) {
+                    if (income.id) {
+                        tx.executeSql(
+                            'UPDATE Income SET amount = ?, budgetPeriod = ? WHERE id = ?',
+                            [income.amount, income.budgetPeriod, income.id],
+                            (tx, results) => {
+                                console.log('Updated: ', { id: income.id, amount: income.amount, budgetPeriod: income.budgetPeriod });
+                            },
+                            error => console.error('Error updating income:', error)
+                        );
+                    } else {
+                        tx.executeSql(
+                            'INSERT INTO Income (amount, budgetPeriod) VALUES (?, ?)',
+                            [income.amount, income.budgetPeriod],
+                            (tx, results) => {
+                                if (results.insertId) {
+                                    income.id = results.insertId;
+                                    console.log('Inserted: ', { id: results.insertId, amount: income.amount, budgetPeriod: income.budgetPeriod });
+                                }
+                            },
+                            error => console.error('Error inserting income:', error)
+                        );
+                    }
+                }
+            });
+        },
+            error => console.error('Transaction error:', error),
+            () => {
+                fetchAllIncome();
+                navigation.navigate('SetupBudget');
+            });
+    };
+
+    const logAllIncome = () => {
+        db.transaction((tx) => {
+            tx.executeSql('SELECT * FROM Income', [], (tx, results) => {
+                console.log('Current Income Table: ', results.rows.raw());
+            });
+        });
+    };
+
+    // const handleAmountChange = (index, amount, budgetPeriod) => {
+    //     const newIncomes = [...incomes];
+    //     newIncomes[index] = { ...newIncomes[index], amount, budgetPeriod };
+    //     setIncomes(newIncomes);
+    // };
+
+    // const handleDelete = (index) => {
+    //     const itemToDelete = incomes[index];
+    //     if (itemToDelete.id) {
+    //         db.transaction((tx) => {
+    //             tx.executeSql('DELETE FROM income WHERE id = ?', [itemToDelete.id], () => {
+    //                 fetchAllIncome();
+    //             });
+    //         });
+    //     } else {
+    //         const newIncomes = incomes.filter((_, i) => i !== index);
+    //         setIncomes(newIncomes);
+    //     }
+    // };
+
+    const handleAmountChange = (index, amount, budgetPeriod) => {
+        const newIncomes = [...incomes];
+        newIncomes[index] = { ...newIncomes[index], amount, budgetPeriod };
+        setIncomes(newIncomes);
+    };
+
+    const handleDelete = (index) => {
+        const itemToDelete = incomes[index];
+        if (itemToDelete.id) {
+            db.transaction((tx) => {
+                tx.executeSql('DELETE FROM Income WHERE id = ?', [itemToDelete.id], () => {
+                    fetchAllIncome();
+                    console.log('item deleted with id: ', itemToDelete.id )
+                });
+            });
+        } else {
+            const newIncomes = incomes.filter((_, i) => i !== index);
+            setIncomes(newIncomes);
+        }
+    };
+
+
 
     return (
         <Pressable style={styles.container} onPress={handleOutsidePress}>
@@ -135,21 +389,29 @@ const SetIncomeAmount = () => {
             </View>
 
             <FlatList
-                data={incomeInputs}
+                data={incomes}
                 renderItem={({ item, index }) => (
                     <IncomeInput
+                        // key={item.key} // Ensure each item has a unique key
+                        item={item}
                         index={index}
-                        onRemove={() => handleRemoveIncomeInput(index)}
-                        selectedIndex={selectedIndex}
-                        setSelectedIndex={setSelectedIndex}
+                        // onRemove={() => handleRemoveIncomeInput(index)}
+                        // selectedIndex={selectedIndex}
+                        // setSelectedIndex={setSelectedIndex}
+                        // onChange={(amount, budgetPeriod) => handleInputChange(amount, budgetPeriod, index)} // Update input values
+                        onAmountChange={handleAmountChange}
+                        onDelete={handleDelete}
                     />
                 )}
-                keyExtractor={(item) => item.key}
+                // keyExtractor={(item) => item.key}
+                keyExtractor={(item, index) => index.toString()}
                 style={styles.incomeList}
                 ListFooterComponent={
                     <Button
                         mode="contained"
-                        onPress={handleAddIncomeInput}
+                        // onPress={handleAddIncomeInput}
+                        // onPress={addIncome}
+                        onPress={() => setIncomes([...incomes, { id: null, amount: '', budgetPeriod: 'monthly' }])}
                         icon="plus"
                         style={styles.addIncomeButton}
                         contentStyle={styles.buttonContent}
@@ -162,10 +424,15 @@ const SetIncomeAmount = () => {
             />
 
             <View style={styles.bottomButtonContainer}>
-                <Button mode="text" textColor={colors.gray} onPress={() => { }}>
+                <Button mode="text" textColor={colors.gray} onPress={() => {navigation.navigate('SetupBudget')}}>
                     NOTHANKS
                 </Button>
-                <Button mode="text" textColor={colors.androidbluebtn} onPress={() => { }}>
+                <Button 
+                mode="text" 
+                textColor={colors.androidbluebtn} 
+                onPress={saveIncome}
+                // onPress={() => {handleSave();}}
+                >
                     SAVE
                 </Button>
             </View>

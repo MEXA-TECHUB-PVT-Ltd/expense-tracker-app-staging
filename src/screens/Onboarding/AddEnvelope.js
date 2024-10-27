@@ -1,14 +1,16 @@
-import { StyleSheet, Text, View, Animated, Pressable, TouchableOpacity } from 'react-native'
+import { StyleSheet, Text, View, Animated, Pressable, Image, TouchableOpacity } from 'react-native'
 import React, { useState, useRef, useMemo, useEffect } from 'react'
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
-import { Appbar, TextInput, Menu, Button } from 'react-native-paper';
+import { Appbar, TextInput, Menu, Button, Snackbar } from 'react-native-paper';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import colors from '../../constants/colors';
+import Images from '../../constants/images';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import dimensions from '../../constants/dimensions';
 import { VectorIcon } from '../../constants/vectoricons';
 import { debounce } from 'lodash';
 import Calculator from './Calculator';
+import { db, addEnvelope, editEnvelope, deleteEnvelope } from '../../database/database';
 
 const { width: screenWidth } = dimensions;
 
@@ -26,63 +28,37 @@ const AddEnvelope = () => {
     const [dueDate, setDueDate] = useState(new Date());
     const [showDatePicker, setShowDatePicker] = useState(false);
 
-    const { addEnvelope, editEnvelope, categories, setCategories,  } = route.params;
+    const [snackbarVisible, setSnackbarVisible] = useState(false);
+
+    const envelopeId = route.params?.envelopeId;
     useEffect(() => {
         // If editing, set the initial values
-        if (editEnvelope) {
+        if (envelopeId) {
             setEnvelopeName(route.params.envelopeName);
-            setAmount(route.params.amount);
+            setAmount(route.params.amount.toString());
             setBudgetPeriod(route.params.budgetPeriod);
         }
-    }, [editEnvelope, route.params.envelopeName, route.params.amount, route.params.budgetPeriod]);
+    }, [envelopeId, route.params]);
+
+    const edit_Envelope = route.params;
 
     const handleDelete = () => {
-        navigation.navigate('SetupBudget', {
-            deleteEnvelope: true,
-            envelopeName: envelopeName,
-            budgetPeriod: budgetPeriod,
-        });
+        deleteEnvelope(envelopeId);
+        navigation.navigate('SetupBudget');
     };
 
     const handleSave = () => {
-        const newEnvelope = { envelopeName, amount };
-        if (editEnvelope) {
-            handleEdit(newEnvelope);
+        if (envelopeId) {
+            editEnvelope(envelopeId, envelopeName, parseFloat(amount), budgetPeriod);
         } else {
-            addEnvelope(newEnvelope, budgetPeriod);
-        }
-        navigation.goBack();
-    };
-
-    const handleEdit = (updatedEnvelope) => {
-        //move envelope to relevent selected category
-        const currentCategory = budgetPeriod; // Current category
-        const previousCategory = route.params.budgetPeriod; // Category before editing
-
-        // Remove from the previous category if it's different
-        if (previousCategory !== currentCategory) {
-            const updatedCategories = {
-                ...categories,
-                [previousCategory]: categories[previousCategory].filter(item => item.envelopeName !== route.params.envelopeName),
-            };
-            // Add to the new category
-            updatedCategories[currentCategory].push(updatedEnvelope);
-            setCategories(updatedCategories);
-        } else {
-            // If the category hasn't changed, just update the existing envelope
-            const updatedCategories = {
-                ...categories,
-            };
-            // Find the index of the envelope being edited
-            const envelopeIndex = updatedCategories[previousCategory].findIndex(item => item.envelopeName === route.params.envelopeName);
-
-            if (envelopeIndex !== -1) {
-                // Update the existing envelope
-                updatedCategories[previousCategory][envelopeIndex] = updatedEnvelope;
+            if (!envelopeName || !amount || !budgetPeriod) {
+                setSnackbarVisible(true);
+                return; // Exit the function if validation fails
+            } else {
+                addEnvelope(envelopeName, parseFloat(amount), budgetPeriod);
             }
-            // Update the categories state in SetupBudget
-            setCategories(updatedCategories);
         }
+        navigation.navigate('SetupBudget');
     };
 
     const handleLeftIconPress = () => {
@@ -143,7 +119,7 @@ const AddEnvelope = () => {
             <Appbar.Header style={styles.appBar}>
                 <Appbar.BackAction onPress={handleLeftIconPress} size={24} color={colors.white} />
                 <Appbar.Content 
-                title={editEnvelope ? "Edit Envelope" : "Add Envelope"} 
+                title={edit_Envelope ? "Edit Envelope" : "Add Envelope"} 
                 titleStyle={styles.appbar_title} />
                 <Appbar.Action onPress={handleRightIconPress} icon="dots-vertical" color={colors.white} />
             </Appbar.Header>
@@ -214,8 +190,8 @@ const AddEnvelope = () => {
                         contentStyle={styles.menuContentStyle}
                     >
                         <Menu.Item onPress={() => { setBudgetPeriod('Monthly'); setMenuVisible(false); }} title="Monthly" titleStyle={{ color: colors.black }} />
-                        <Menu.Item onPress={() => { setBudgetPeriod('Every Year'); setMenuVisible(false); }} title="Every Year" titleStyle={{ color: colors.black }} />
-                        <Menu.Item onPress={() => { setBudgetPeriod('Goal'); setMenuVisible(false); }} title="Goal" titleStyle={{ color: colors.black }} />
+                        {/* <Menu.Item onPress={() => { setBudgetPeriod('Every Year'); setMenuVisible(false); }} title="Every Year" titleStyle={{ color: colors.black }} /> */}
+                        {/* <Menu.Item onPress={() => { setBudgetPeriod('Goal'); setMenuVisible(false); }} title="Goal" titleStyle={{ color: colors.black }} /> */}
                     </Menu>
                 </View>
                 <View style={styles.amt_view}>
@@ -248,7 +224,7 @@ const AddEnvelope = () => {
             )}
 
             <View style={styles.secondView}>
-                {editEnvelope ? (
+                {edit_Envelope ? (
                     <>
                         <Button
                             mode="text"
@@ -286,6 +262,31 @@ const AddEnvelope = () => {
                     </View>
                 )}
             </View>
+
+            <Snackbar
+                visible={snackbarVisible}
+                onDismiss={() => setSnackbarVisible(false)}
+                duration={1000}
+                style={[
+                    styles.snack_bar,
+                    {
+                        position: 'absolute',
+                        bottom: 20,
+                        left: 20,
+                        right: 20,
+                        zIndex: 1000,
+                    }
+                ]}
+            >
+                <View style={styles.img_txt_view}>
+                    <Image
+                        source={Images.expenseplannerimage}
+                        style={styles.snack_bar_img}
+                    />
+                    <Text style={styles.snack_bar_text}>All fields required!</Text>
+                </View>
+            </Snackbar>
+
         </Pressable>
     )
 }
@@ -385,7 +386,8 @@ const styles = StyleSheet.create({
     },
     menuContentStyle: {
         width: hp('22.5%'),
-        height: hp('21%'),
+        // height: hp('21%'),
+        height: 'auto',
         backgroundColor: colors.white,
         borderRadius: 1,
         paddingVertical: 0,
@@ -447,5 +449,26 @@ const styles = StyleSheet.create({
     },
     centerbtn: {
         borderRadius: 50,
+    },
+
+    // snackbar styles
+    snack_bar: {
+        backgroundColor: colors.gray,
+        borderRadius: 50,
+        zIndex: 1000,
+    },
+    img_txt_view: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    snack_bar_img: {
+        width: wp('10%'),
+        height: hp('3%'),
+        marginRight: 10,
+        resizeMode: 'contain',
+    },
+    snack_bar_text: {
+        color: colors.white,
+        fontSize: hp('2%'),
     },
 })

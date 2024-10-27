@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { StyleSheet, Text, View, Pressable, ScrollView, FlatList, Animated, Image, TouchableOpacity } from 'react-native';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import { Appbar, Button } from 'react-native-paper';
@@ -8,6 +8,9 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { TouchableWithoutFeedback } from 'react-native-gesture-handler';
 import Images from '../../constants/images';
 import dimensions from '../../constants/dimensions';
+import { useFocusEffect } from '@react-navigation/native';
+
+import { db, fetchTotalIncome,  } from '../../database/database';
 
 const { width: screenWidth } = dimensions;
 
@@ -17,46 +20,74 @@ const SetupBudget = () => {
     const [isTooltipVisible, setIsTooltipVisible] = useState(false);
     const slideAnim = useRef(new Animated.Value(screenWidth)).current;
 
-    const [categories, setCategories] = useState({
-        'Monthly': [],
-        'Every Year': [],
-        'Goal': [],
-    });
-    const addEnvelope = (newEnvelope, category) => {
-        setCategories(prevState => ({
-            ...prevState,
-            [category]: [...prevState[category], newEnvelope],
-        }));
-    };
-    //function to edit envelop
-    const handleEditEnvelope = (envelope, category) => {
-        navigation.navigate('AddEnvelope', {
-            envelopeName: envelope.envelopeName,
-            amount: envelope.amount,
-            budgetPeriod: category,
-            editEnvelope: true,
-            categories, // Pass current categories to update
-            setCategories, // Pass setCategories function
+    //sqlite
+    const [envelopes, setEnvelopes] = useState([]);
+    useFocusEffect(
+        useCallback(() => {
+            getAllEnvelopes(setEnvelopes);
+        }, [])
+    );
+   
+    const getAllEnvelopes = (callback) => {
+        db.transaction(tx => {
+            const sqlQuery = 'SELECT * FROM envelopes';
+            tx.executeSql(
+                sqlQuery,
+                [],
+                (_, results) => {
+                    if (results.rows && results.rows.length > 0) {
+                        let envelopesArray = [];
+                        for (let i = 0; i < results.rows.length; i++) {
+                            envelopesArray.push(results.rows.item(i));
+                        }
+                        callback(envelopesArray);
+                    } else {
+                        callback([]);
+                    }
+                },
+                (_, error) => {
+                    console.log('Error getting envelopes:', error);
+                    return true;
+                }
+            );
+        }, (error) => {
+            console.log('Transaction Error:', error);
+        }, () => {
+            // console.log('Transaction Success');
         });
     };
 
-    //delete and update list
+    const handleEditEnvelope = (envelope) => {
+        navigation.navigate('AddEnvelope', {
+            envelopeId: envelope.id,
+            envelopeName: envelope.envelopeName,
+            amount: envelope.amount,
+            budgetPeriod: envelope.budgetPeriod,
+            dueDate: envelope.dueDate,
+            edit_Envelope: true,
+        });
+    };
+
+    // for income total and remainin
+    const calculateRemainingAmount = (totalIncome, envelopes) => {
+        const totalExpenses = envelopes.reduce((sum, envelope) => sum + envelope.amount, 0);
+        return totalIncome - totalExpenses;
+    };
+    const [totalIncome, setTotalIncome] = useState(0);
+    const [remainingAmount, setRemainingAmount] = useState(0);
+    // useEffect(() => {
+    //     fetchTotalIncome(setTotalIncome); // Fetch total income
+    // }, []);
+
+    useFocusEffect(() => {
+        fetchTotalIncome(setTotalIncome); // Fetch total income
+    });
+
     useEffect(() => {
-        const { deleteEnvelope, envelopeName, budgetPeriod } = route.params || {};
-        if (deleteEnvelope && envelopeName && budgetPeriod) {
-            // console.log('Deleting envelope:', envelopeName, 'from', budgetPeriod);
-            setCategories(prevState => ({
-                ...prevState,
-                [budgetPeriod]: prevState[budgetPeriod].filter(item => item.envelopeName !== envelopeName),
-            }));
-            // Clear deleteEnvelope flag to avoid infinite loop
-            navigation.setParams({
-                deleteEnvelope: null, 
-                envelopeName: null,
-                budgetPeriod: null,
-            });
-        }
-    }, [route.params]);
+        const remaining = calculateRemainingAmount(totalIncome, envelopes);
+        setRemainingAmount(remaining);
+    }, [totalIncome, envelopes]);
+
 
 
     const handleLeftIconPress = () => {
@@ -96,7 +127,7 @@ const SetupBudget = () => {
     };
 
     const handleAddEnvelope = () => {
-        navigation.navigate('AddEnvelope', { addEnvelope });
+        navigation.navigate('AddEnvelope');
     };
 
     return (
@@ -130,13 +161,38 @@ const SetupBudget = () => {
                 style={styles.scroll_view}
             >
                 <TouchableWithoutFeedback onPress={() => navigation.navigate('ChangeBudgetPeriod')} style={styles.budget_period_view}>
-                    <Text style={styles.monthly_txt}>Monthly (2) </Text>
-                    <VectorIcon name="menu-down" size={24} color={colors.black} type="mci" />
-                    <Text style={styles.envelope_left_txt}>8 of 10 free Envelopes left</Text>
+                    <Text style={styles.monthly_txt}>Monthly</Text>
+                    {/* <VectorIcon name="menu-down" size={24} color={colors.black} type="mci" />
+                    <Text style={styles.envelope_left_txt}>8 of 10 free Envelopes left</Text> */}
                 </TouchableWithoutFeedback>
 
+                {/* Monthly Envelopes Flatlist sqlite */}
+                <FlatList
+                    data={envelopes}
+                    keyExtractor={(item) => item.id.toString()}
+                    renderItem={({ item }) => (
+                        <View style={styles.item_view}>
+                            <TouchableOpacity
+                                style={styles.item}
+                                onPress={() => handleEditEnvelope(item)}
+                            >
+                                <View style={styles.left_view}>
+                                    <VectorIcon name="envelope" size={18} color={colors.gray} type="fa" />
+                                    <Text style={styles.item_text_name}>{item.envelopeName}</Text>
+                                </View>
+                                <View style={styles.right_view}>
+                                    <Text style={styles.item_text_amount}>{item.amount}</Text>
+                                    <VectorIcon name="bars" size={18} color={colors.gray} type="fa6" />
+                                </View>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+                    scrollEnabled={false}
+                    contentContainerStyle={styles.flatListContainer}
+                />
+
                 {/* Monthly Envelopes Flatlist */}
-                {categories['Monthly'].length > 0 && (
+                {/* {categories['Monthly'].length > 0 && (
                     <>
                         <FlatList
                             data={categories['Monthly']}
@@ -162,15 +218,15 @@ const SetupBudget = () => {
                             contentContainerStyle={styles.flatListContainer}
                         />
                     </>
-                )}
+                )} */}
 
-                <TouchableWithoutFeedback style={styles.budget_period_view}>
+                {/* <TouchableWithoutFeedback style={styles.budget_period_view}>
                     <Text style={styles.monthly_txt}>More Envelopes (1) </Text>
                     <Text style={styles.envelope_left_txt}>9 of 10 free Envelopes left</Text>
-                </TouchableWithoutFeedback>
+                </TouchableWithoutFeedback> */}
 
                 {/* Annual Envelopes Flatlist */}
-                {categories['Every Year'].length > 0 && (
+                {/* {categories['Every Year'].length > 0 && (
                     <>
                         <View style={styles.annual_txt_view}>
                             <Text style={styles.annual_txt}>Annual</Text>
@@ -199,10 +255,10 @@ const SetupBudget = () => {
                             contentContainerStyle={styles.flatListContainer}
                         />
                     </>
-                )}
+                )} */}
 
                 {/* Goal Envelopes Flatlist */}
-                {categories['Goal'].length > 0 && (
+                {/* {categories['Goal'].length > 0 && (
                     <>
                         <View style={styles.annual_txt_view}>
                             <Text style={styles.annual_txt}>Goal</Text>
@@ -231,7 +287,8 @@ const SetupBudget = () => {
                             contentContainerStyle={styles.flatListContainer}
                         />
                     </>
-                )}
+                )} */}
+                
             </ScrollView>
 
             <View style={styles.firstView}>
@@ -241,18 +298,21 @@ const SetupBudget = () => {
                 <Pressable onPress={() => navigation.navigate('SetIncomeAmount')} style={styles.incomeTextContainer}>
                     <View style={styles.texts_view}>
                         <Text style={styles.estimatedIncomeText}>Estimated{"\n"}Income</Text>
-                        <Text style={styles.monthlyIncomeText}>Monthly{"\n"}30,000</Text>
+                        <Text style={styles.monthlyIncomeText}>Monthly{"\n"}{totalIncome}</Text>
                     </View>
                     <View style={styles.icon_view}>
                         <VectorIcon name="menu-down" size={24} color={colors.gray} type="mci" />
                     </View>
                 </Pressable>
-                <View style={styles.remainingContainer}>
+                <View 
+                    style={[styles.remainingContainer, { backgroundColor: remainingAmount > totalIncome ? colors.danger : colors.brightgreen }]}
+                // style={styles.remainingContainer}
+                >
                     <View>
                         <Text style={styles.remainingText}>Remaining</Text>
                     </View>
                     <View style={styles.total_txt_icon_view}>
-                        <Text style={styles.remainingText}>55,000</Text>
+                        <Text style={styles.remainingText}>{remainingAmount}</Text>
                         <View style={styles.icon_remaining_view}>
                             <VectorIcon name="exclamationcircle" size={16} color={colors.lightGray} type="ad" />
                         </View>
@@ -276,7 +336,7 @@ const SetupBudget = () => {
                 </View>
                 <View style={styles.right_icon_btn_view}>
                     <Button
-                        mode="text" // Use 'contained' for a filled button
+                        mode="text"
                         onPress={() => navigation.navigate('FillEnvelopes')}
                         // onPress={() => console.log('later press')}
                         style={styles.nextButton}
@@ -426,7 +486,7 @@ const styles = StyleSheet.create({
     },
     remainingContainer: {
         justifyContent: 'center',
-        backgroundColor: colors.brightgreen,
+        // backgroundColor: colors.brightgreen,
         paddingHorizontal: hp('1%'),
         paddingVertical: hp('1%'),
     },

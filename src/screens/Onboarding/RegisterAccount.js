@@ -8,12 +8,16 @@ import Images from '../../constants/images';
 import dimensions from '../../constants/dimensions';
 import { VectorIcon } from '../../constants/vectoricons';
 import { TouchableWithoutFeedback } from 'react-native-gesture-handler';
-import { db, fetchUsers } from '../../database/database';
 import bcrypt from 'react-native-bcrypt';
+import { db, fetchUsers } from '../../database/database';
+import { useDispatch } from 'react-redux';
+import { setUser } from '../../redux/slices/userSlice';
 
 const { width: screenWidth } = dimensions;
 
 const RegisterAccount = () => {
+    const dispatch = useDispatch();
+
     const navigation = useNavigation();
     const [isTooltipVisible, setIsTooltipVisible] = useState(false);
     const slideAnim = useRef(new Animated.Value(screenWidth)).current;
@@ -84,6 +88,10 @@ const RegisterAccount = () => {
                 () => {
                     console.log('User registered successfully');
                     setSnackbarVisible(true);
+
+                    // Dispatch the user details to Redux
+                    dispatch(setUser({ email }));
+                    // navigation.navigate('TopTab');
                 },
                 error => console.error('Error registering user:', error)
             );
@@ -177,10 +185,11 @@ const RegisterAccount = () => {
         setLaterModel(false);
     };
     const handleLaterAgree = () => {
-        setAgree(true);
-        setLaterModel(false);
+        console.log('agree pressed');
+        // setAgree(true);
+        // setLaterModel(false);
         // navigation.navigate('TopTab');
-        navigation.navigate('FillEnvelopes');
+        // navigation.navigate('FillEnvelopes');
     };
 
     return (
