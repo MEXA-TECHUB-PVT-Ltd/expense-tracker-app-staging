@@ -5,8 +5,10 @@ import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-nat
 import { useNavigation } from '@react-navigation/native';
 import Images from '../../constants/images';
 import { VectorIcon } from '../../constants/vectoricons';
-import { Appbar, Button, Portal, Modal, TextInput } from 'react-native-paper';
+import { Appbar, Button, Portal, Modal, TextInput, Snackbar } from 'react-native-paper';
 import dimensions from '../../constants/dimensions';
+import { db, fetchUsers } from '../../database/database';
+import bcrypt from 'react-native-bcrypt';
 
 const { width: screenWidth } = dimensions;
 
@@ -19,6 +21,8 @@ const Onboarding = () => {
   const [focusedInput, setFocusedInput] = useState(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
+  const [snackbarVisible, setSnackbarVisible] = useState(false);
 
   const handleLeftIconPress = () => {
     BackHandler.exitApp();
@@ -60,14 +64,46 @@ const Onboarding = () => {
     setEmail('');
     setPassword('');
   };
-  const handleLoginPress = () => {
-    setCenterModalVisible(false);
-    setEmail('');
-    setPassword('');
-  };
 
   const handleCreateNewHousehold = () => {
     navigation.navigate('SetupBudget');
+  };
+
+  // transaction to login user
+  const loginUser = (email, password) => {
+    db.transaction(tx => {
+      tx.executeSql(
+        'SELECT password FROM Users WHERE email = ?',
+        [email],
+        (tx, results) => {
+          if (results.rows.length > 0) {
+            const { password: hashedPassword } = results.rows.item(0);
+
+            // Compare the hashed password with the entered password
+            const isPasswordValid = bcrypt.compareSync(password, hashedPassword);
+
+            if (isPasswordValid) {
+              console.log('Login successful');
+              setCenterModalVisible(false);
+              navigation.navigate('SetupBudget');
+            } else {
+              console.log('Invalid password');
+              setSnackbarVisible(true);
+            }
+          } else {
+            console.log('Login failed. Please try again.');
+            setSnackbarVisible(true);
+          }
+        },
+        error => console.error('Error fetching user for login:', error)
+      );
+    });
+  };
+
+  const handleLogin = () => {
+    loginUser(email, password);
+    setEmail('');
+    setPassword('');
   };
 
   return (
@@ -137,9 +173,7 @@ const Onboarding = () => {
           >
             <View style={styles.login_container}>
               <Text style={styles.title}>Log In to ExpensePlanner</Text>
-
               <Text style={styles.label}>Household Name or Email</Text>
-
               <TextInput
                 value={email}
                 onChangeText={setEmail}
@@ -154,14 +188,12 @@ const Onboarding = () => {
                 onFocus={() => setFocusedInput('email')}
                 onBlur={() => setFocusedInput(null)}
               />
-
               <View style={styles.passwordContainer}>
                 <Text style={styles.passwordLabel}>Password</Text>
                 <Pressable>
                   <Text style={styles.forgotText}>FORGOT?</Text>
                 </Pressable>
               </View>
-
               <TextInput
                 value={password}
                 onChangeText={setPassword}
@@ -174,18 +206,44 @@ const Onboarding = () => {
                 onFocus={() => setFocusedInput('password')}
                 onBlur={() => setFocusedInput(null)}
               />
-
               <View style={styles.buttonContainer}>
                 <Pressable onPress={handleCancelPress}>
                   <Text style={styles.cancelText}>CANCEL</Text>
                 </Pressable>
-                <Pressable onPress={handleLoginPress}>
+                <Pressable onPress={handleLogin}>
                   <Text style={styles.loginText}>LOG IN</Text>
                 </Pressable>
               </View>
             </View>
           </Modal>
         </Portal>
+
+        <Portal>
+          <Snackbar
+            visible={snackbarVisible}
+            onDismiss={() => setSnackbarVisible(false)}
+            duration={3000}
+            style={[
+              styles.snack_bar,
+              {
+                position: 'absolute',
+                bottom: 0,  // Adjust as needed
+                left: 0,
+                right: 0,
+                zIndex: 1000, // Ensure it's above everything else
+              }
+            ]}
+          >
+            <View style={styles.img_txt_view}>
+              <Image
+                source={Images.expenseplannerimage}
+                style={styles.snack_bar_img}
+              />
+              <Text style={styles.snack_bar_text}>Login failed. Please try again.</Text>
+            </View>
+          </Snackbar>
+        </Portal>
+
       </View>
     </Pressable >
   )
@@ -311,7 +369,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     alignSelf: 'center',
     paddingTop: hp('2.5%'),
-    paddingBottom: hp('5%'),
+    paddingBottom: hp('3%'),
     paddingHorizontal: hp('3%'),
   },
   title: {
@@ -369,4 +427,25 @@ const styles = StyleSheet.create({
     marginRight: wp('5%'),
     marginLeft: wp('10%'),
   },
+
+  // snackbar styles
+  snack_bar: {
+    backgroundColor: colors.gray,
+    borderRadius: 50,
+  },
+  img_txt_view: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  snack_bar_img: {
+    width: wp('10%'),
+    height: hp('3%'),
+    marginRight: 10,
+    resizeMode: 'contain',
+  },
+  snack_bar_text: {
+    color: colors.white,
+    fontSize: hp('2%'),
+  },
+
 })

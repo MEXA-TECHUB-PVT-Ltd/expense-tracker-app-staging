@@ -1,7 +1,6 @@
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 
-import TopTab from '../topTab/TopTab';
 
 import Onboarding from '../../screens/Onboarding/Onboarding';
 import About from '../../screens/Onboarding/About';
@@ -15,6 +14,8 @@ import Calculator from '../../screens/Onboarding/Calculator';
 import FillEnvelopes from '../../screens/Onboarding/FillEnvelopes';
 import RegisterAccount from '../../screens/Onboarding/RegisterAccount';
 import TermsOfUse from '../../screens/Onboarding/TermsOfUse';
+import TopTab from '../topTab/TopTab';
+
 import CrudOperations from '../../screens/Dashboard/CrudOperations';
 
 const Stack = createStackNavigator();
@@ -22,7 +23,6 @@ const Stack = createStackNavigator();
 const MainStack = () => (
     <Stack.Navigator>
         {/* <Stack.Screen name="CrudOperations" component={CrudOperations} options={{ headerShown: false }} /> */}
-        {/* <Stack.Screen name="TopTab" component={TopTab} options={{ headerShown: false }} /> */}
         <Stack.Screen name="Onboarding" component={Onboarding} options={{ headerShown: false }} />
         <Stack.Screen name="About" component={About} options={{ headerShown: false }} />
         <Stack.Screen name="Help" component={Help} options={{ headerShown: false }} />
@@ -35,6 +35,7 @@ const MainStack = () => (
         <Stack.Screen name="FillEnvelopes" component={FillEnvelopes} options={{ headerShown: false }} />
         <Stack.Screen name="RegisterAccount" component={RegisterAccount} options={{ headerShown: false }} />
         <Stack.Screen name="TermsOfUse" component={TermsOfUse} options={{ headerShown: false }} />
+        <Stack.Screen name="TopTab" component={TopTab} options={{ headerShown: false }} />
 
     </Stack.Navigator>
 );

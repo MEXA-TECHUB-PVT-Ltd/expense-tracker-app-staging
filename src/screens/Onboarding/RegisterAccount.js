@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, Image, StyleSheet, Animated, Pressable, TouchableOpacity } from 'react-native';
-import { Appbar, TextInput, Checkbox, Button } from 'react-native-paper';
+import { Appbar, TextInput, Checkbox, Button, Modal, Snackbar } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import colors from '../../constants/colors';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
@@ -8,6 +8,8 @@ import Images from '../../constants/images';
 import dimensions from '../../constants/dimensions';
 import { VectorIcon } from '../../constants/vectoricons';
 import { TouchableWithoutFeedback } from 'react-native-gesture-handler';
+import { db, fetchUsers } from '../../database/database';
+import bcrypt from 'react-native-bcrypt';
 
 const { width: screenWidth } = dimensions;
 
@@ -22,6 +24,16 @@ const RegisterAccount = () => {
     const [repeatPassword, setRepeatPassword] = useState('');
     const [featureUpdates, setFeatureUpdates] = useState(false);
     const [agree, setAgree] = useState(false);
+
+    const [snackbarVisible, setSnackbarVisible] = useState(false);
+    const [laterModel, setLaterModel] = useState(false);
+
+    const [showModal, setShowModal] = useState(false);
+    const [modalContent, setModalContent] = useState({});
+    const showErrorModal = (title, message, image) => {
+        setModalContent({ title, message, image });
+        setShowModal(true);
+    };
 
     const handleLeftIconPress = () => {
         navigation.goBack();
@@ -59,9 +71,120 @@ const RegisterAccount = () => {
         navigation.navigate('About');
     };
 
-    return (
-        <Pressable style={{ flex: 1 }} onPress={handleOutsidePress}>
+    // transaction for register user
+    const registerUser = (email, password, featureUpdates) => {
+        // Generate a salt and hash the password
+        const salt = bcrypt.genSaltSync(3); // Generate salt with 3 rounds strengthening it
+        const hashedPassword = bcrypt.hashSync(password, salt); // convert plain text password to hashed
 
+        db.transaction(tx => {
+            tx.executeSql(
+                'INSERT INTO Users (email, password, featureUpdates) VALUES (?, ?, ?)',
+                [email, hashedPassword, featureUpdates ? 1 : 0],
+                () => {
+                    console.log('User registered successfully');
+                    setSnackbarVisible(true);
+                },
+                error => console.error('Error registering user:', error)
+            );
+        });
+    };
+
+    const handleFinishPress = () => {
+        // to log all registered users 
+        // fetchUsers();
+        // Check if all fields are filled
+        if (!email || !password || !repeatPassword) {
+            showErrorModal(
+                'Oops!',
+                'Please make sure all fields are filled in and your passwords match.',
+                Images.expenseplannerimagegray
+            );
+            return;
+        }
+        // Check if passwords match
+        if (password !== repeatPassword) {
+            showErrorModal(
+                'Oops!',
+                'Please make sure all fields are filled in and your passwords match.',
+                Images.expenseplannerimagegray
+            );
+            return;
+        }
+        // Check if agreement is accepted or not
+        if (!agree) {
+            setModalContent({
+                title: 'Terms of Use',
+                message: (
+                    <>
+                        To use this app you must agree to the ExpenseTracker{' '}
+                        <Text style={styles.termsText} onPress={navigateToTermsOfUse}>
+                            Terms of Use
+                        </Text>.
+                    </>
+                ),
+                image: Images.expenseplannerimage,
+                isTerms: true,
+            });
+            setShowModal(true);
+            return;
+        }
+        // Check if email already exists
+        checkEmailExists(email);
+    };
+
+    // transaction to check if email already exists to avoid same user registration
+    const checkEmailExists = (email) => {
+        db.transaction(tx => {
+            tx.executeSql(
+                'SELECT * FROM Users WHERE email = ?',
+                [email],
+                (tx, results) => {
+                    if (results.rows.length > 0) {
+                        showErrorModal(
+                            'Sorry!',
+                            'I already have an account with that email. Can I interest you in another?',
+                            Images.sorryet,
+                        );
+                    } else {
+                        // Proceed with registration
+                        registerUser(email, password, featureUpdates);
+                    }
+                },
+                error => console.error('Error checking email:', error)
+            );
+        });
+    };
+
+    const handleAgreePress = () => {
+        setAgree(true);
+        setShowModal(false);
+    };
+
+    const handleCancelPress = () => {
+        setShowModal(false);
+    };
+
+    const navigateToTermsOfUse = () => {
+        navigation.navigate('TermsOfUse');
+        setShowModal(false);
+    };
+
+    const handleLaterPress = () => {
+        setLaterModel(true);
+    };
+    const handleLaterCancel = () => {
+        setLaterModel(false);
+    };
+    const handleLaterAgree = () => {
+        setAgree(true);
+        setLaterModel(false);
+        // navigation.navigate('TopTab');
+        navigation.navigate('FillEnvelopes');
+    };
+
+    return (
+        <Pressable style={{ flex: 1, backgroundColor: colors.white }} onPress={handleOutsidePress}>
             <Appbar.Header style={styles.appBar}>
                 <Appbar.BackAction onPress={handleLeftIconPress} size={24} color={colors.white} />
                 <Appbar.Content
@@ -164,11 +287,10 @@ const RegisterAccount = () => {
                 </View>
             </View>
 
-
             <View style={styles.name_input_view}>
                 <View style={styles.name_view}>
                     <TouchableWithoutFeedback
-                    onPress={()=> navigation.navigate('TermsOfUse')}
+                        onPress={() => navigation.navigate('TermsOfUse')}
                     >
                         <Text style={styles.link}>Terms of Use</Text>
                     </TouchableWithoutFeedback>
@@ -186,16 +308,103 @@ const RegisterAccount = () => {
             </View>
 
             <View style={styles.secondView}>
-                <Pressable onPress={()=> console.log('later press')} style={styles.backButton}>
+                <View style={styles.left_icon_btn_view}>
                     {/* <VectorIcon name="chevron-back" size={20} color={colors.androidbluebtn} type="ii" /> */}
-                    <Text style={styles.backText}>LATER</Text>
-                </Pressable>
-
-                <Pressable onPress={() => console.log('finish press')} style={styles.nextButton}>
-                    <Text style={styles.nextText}>FINISH</Text>
+                    <Button
+                        mode="text"
+                        onPress={handleLaterPress}
+                        // onPress={() => console.log('later press')}
+                        style={styles.backButton}
+                        labelStyle={styles.backText}
+                        rippleColor={colors.gray}
+                    >
+                        LATER
+                    </Button>
+                </View>
+                <View style={styles.right_icon_btn_view}>
+                    <Button
+                        mode="text"
+                        onPress={handleFinishPress}
+                        // onPress={() => console.log('later press')}
+                        style={styles.nextButton}
+                        labelStyle={styles.nextText}
+                        rippleColor={colors.gray}
+                    >
+                        FINISH
+                    </Button>
                     <VectorIcon name="chevron-forward" size={20} color={colors.androidbluebtn} type="ii" />
-                </Pressable>
+                </View>
             </View>
+
+            <Modal visible={showModal} onDismiss={handleCancelPress} contentContainerStyle={styles.modalContainer}>
+                <View style={styles.modalContent}>
+                    <View style={styles.img_title_view}>
+                        <Image source={modalContent.image} style={styles.image} />
+                        <Text style={styles.modalTitle}>{modalContent.title}</Text>
+                    </View>
+
+                    <Text style={styles.modalMessage}>{modalContent.message}</Text>
+                    <View style={styles.modalButtons}>
+                        {modalContent.isTerms ? (
+                            <>
+                                <TouchableOpacity onPress={handleCancelPress}>
+                                    <Text style={styles.cancelButton}>Cancel</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity onPress={handleAgreePress}>
+                                    <Text style={styles.agreeButton}>I Agree</Text>
+                                </TouchableOpacity>
+                            </>
+                        ) : (
+                            <Button
+                                mode="text"
+                                onPress={handleCancelPress}
+                                labelStyle={styles.ok_btn}
+                            >
+                                OK
+                            </Button>
+                        )}
+                    </View>
+                </View>
+            </Modal>
+
+            <Snackbar
+                visible={snackbarVisible}
+                onDismiss={() => setSnackbarVisible(false)}
+                duration={3000}
+                style={styles.snack_bar}
+            >
+                <View style={styles.img_txt_view}>
+                    <Image
+                        source={Images.expenseplannerimage}
+                        style={styles.snack_bar_img}
+                    />
+                    <Text style={styles.snack_bar_text}>User registered successfully!</Text>
+                </View>
+            </Snackbar>
+
+            <Modal visible={laterModel} onDismiss={handleLaterCancel} contentContainerStyle={styles.modalContainer}>
+                <View style={styles.modalContent}>
+                    <View style={styles.img_title_view}>
+                        <Image source={Images.expenseplannerimage} style={styles.image} />
+                        <Text style={styles.modalTitle}>Terms of Use</Text>
+                    </View>
+
+                    <Text style={styles.modalMessage}>
+                        To use this app you must agree to the ExpenseTracker { }
+                        <Text style={styles.termsText} onPress={navigateToTermsOfUse}>
+                        Terms of Use
+                    </Text>.</Text>
+                    <View style={styles.modalButtons}>
+                        <TouchableOpacity onPress={handleLaterCancel}>
+                            <Text style={styles.cancelButton}>Cancel</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={handleLaterAgree}>
+                            <Text style={styles.agreeButton}>I Agree</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
         </Pressable>
     );
 };
@@ -295,43 +504,119 @@ const styles = StyleSheet.create({
         fontSize: 14,
         marginBottom: 15,
     },
+
     secondView: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         height: hp('7%'),
-        paddingHorizontal: 20,
+        paddingHorizontal: hp('3%'),
+        marginHorizontal: hp('3%'),
         position: 'absolute',
         bottom: 0,
         left: 0,
         right: 0,
     },
-    backButton: {
+    left_icon_btn_view: {
+        alignItems: 'center',
+        flexDirection: 'row',
+    },
+    right_icon_btn_view: {
         flexDirection: 'row',
         alignItems: 'center',
     },
-    backText: {
-        fontSize: hp('2%'),
-        color: colors.androidbluebtn,
-        marginLeft: wp('11%')
+    backButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 0,
     },
     nextButton: {
         flexDirection: 'row',
         alignItems: 'center',
+        padding: 0,
+    },
+    backText: {
+        fontSize: hp('2%'),
+        color: colors.androidbluebtn,
     },
     nextText: {
         fontSize: hp('2%'),
         color: colors.androidbluebtn,
-        marginRight: wp('5%')
     },
 
-    footer: {
+    //modal styles
+    modalContainer: {
+        backgroundColor: colors.white,
+        padding: hp('2%'),
+        margin: hp('3.5%'),
+    },
+    modalContent: {
+        alignItems: 'flex-start',
+        paddingHorizontal: hp('1.5%'),
+    },
+    img_title_view: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 5,
     },
-    finishButton: {
-        marginLeft: 10,
+    image: {
+        width: hp('4%'),
+        height: hp('4%'),
+        resizeMode: 'contain',
     },
+    modalTitle: {
+        color: colors.black,
+        fontSize: hp('2.5%'),
+        fontWeight: '600',
+        marginLeft: hp('1%'),
+    },
+    modalMessage: {
+        fontSize: hp('2%'),
+        fontWeight: '400',
+        color: colors.black,
+    },
+    modalButtons: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        width: '100%',
+        marginVertical: hp('1.8%'),
+    },
+    ok_btn: {
+        color: colors.androidbluebtn,
+    },
+    cancelButton: {
+        color: colors.androidbluebtn,
+        marginRight: hp('7%'),
+    },
+    agreeButton: {
+        color: colors.androidbluebtn,
+        marginRight: hp('2.5%'),
+    },
+    termsText: {
+        color: colors.androidbluebtn,
+        textDecorationLine: 'underline',
+    },
+
+    snack_bar: {
+        backgroundColor: colors.gray,
+        borderRadius: 50,
+    },
+    img_txt_view: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    snack_bar_img: {
+        width: wp('10%'),
+        height: hp('3%'),
+        marginRight: 10,
+        resizeMode: 'contain',
+    },
+    snack_bar_text: {
+        color: colors.white,
+        fontSize: hp('2%'),
+    },
+
+
 });
 
 export default RegisterAccount;
