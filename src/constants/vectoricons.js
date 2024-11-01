@@ -4,6 +4,8 @@ import fa from 'react-native-vector-icons/FontAwesome';
 import mi from 'react-native-vector-icons/MaterialIcons';
 import ad from 'react-native-vector-icons/AntDesign';
 import mci from 'react-native-vector-icons/MaterialCommunityIcons';
+import fa6 from 'react-native-vector-icons/FontAwesome6';
+
 
 const Icons = {
     ii,
@@ -11,6 +13,7 @@ const Icons = {
     mi,
     ad,
     mci,
+    fa6
 };
 
 const VectorIcon = ({ name, size, color, type }) => {

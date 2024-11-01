@@ -31,6 +31,7 @@ const IncomeInput = ({ index, onRemove, selectedIndex, setSelectedIndex }) => {
                 style={styles.textInput}
                 theme={{ colors: { primary: selectedIndex === index ? colors.brightgreen : 'lightgray', underlineColor: 'transparent' } }}
                 onFocus={() => setSelectedIndex(index)}
+                keyboardType='numeric'
             />
 
             <Menu
@@ -45,7 +46,7 @@ const IncomeInput = ({ index, onRemove, selectedIndex, setSelectedIndex }) => {
                 contentStyle={styles.menuContentStyle}
             >
                 {frequencyOptions.map((option, idx) => (
-                    <Menu.Item key={idx} onPress={() => handleFrequencySelect(option)} title={option} />
+                    <Menu.Item key={idx} onPress={() => handleFrequencySelect(option)} title={option} titleStyle={{ color: colors.black }} />
                 ))}
             </Menu>
 
@@ -237,6 +238,7 @@ const styles = StyleSheet.create({
         borderBottomColor: colors.gray,
         height: hp('2%'),
         backgroundColor: 'transparent',
+        paddingHorizontal: 0,
     },
     //menu selector
     frequencySelector: {
