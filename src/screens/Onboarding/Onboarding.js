@@ -8,11 +8,14 @@ import { VectorIcon } from '../../constants/vectoricons';
 import { Appbar, Button, Portal, Modal, TextInput, Snackbar } from 'react-native-paper';
 import dimensions from '../../constants/dimensions';
 import { db, fetchUsers } from '../../database/database';
+import { useDispatch } from 'react-redux';
+import { setUser } from '../../redux/slices/userSlice';
 import bcrypt from 'react-native-bcrypt';
 
 const { width: screenWidth } = dimensions;
 
 const Onboarding = () => {
+  const dispatch = useDispatch();
   const navigation = useNavigation();
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
   const slideAnim = useRef(new Animated.Value(screenWidth)).current;
@@ -23,6 +26,8 @@ const Onboarding = () => {
   const [password, setPassword] = useState('');
 
   const [snackbarVisible, setSnackbarVisible] = useState(false);
+  const [snackbarLoginVisible, setSnackbarLoginVisible] = useState(false);
+
 
   const handleLeftIconPress = () => {
     BackHandler.exitApp();
@@ -83,9 +88,12 @@ const Onboarding = () => {
             const isPasswordValid = bcrypt.compareSync(password, hashedPassword);
 
             if (isPasswordValid) {
-              console.log('Login successful');
               setCenterModalVisible(false);
-              navigation.navigate('SetupBudget');
+              // Dispatch the user details to Redux
+              dispatch(setUser({ email }));
+              console.log('Login successful');
+              // navigation.navigate('TopTab');
+              setSnackbarLoginVisible(true);
             } else {
               console.log('Invalid password');
               setSnackbarVisible(true);
@@ -216,21 +224,19 @@ const Onboarding = () => {
               </View>
             </View>
           </Modal>
-        </Portal>
 
-        <Portal>
           <Snackbar
             visible={snackbarVisible}
             onDismiss={() => setSnackbarVisible(false)}
-            duration={3000}
+            duration={1000}
             style={[
               styles.snack_bar,
               {
                 position: 'absolute',
-                bottom: 0,  // Adjust as needed
-                left: 0,
-                right: 0,
-                zIndex: 1000, // Ensure it's above everything else
+                bottom: 20,
+                left: 20,
+                right: 20,
+                zIndex: 1000,
               }
             ]}
           >
@@ -242,6 +248,31 @@ const Onboarding = () => {
               <Text style={styles.snack_bar_text}>Login failed. Please try again.</Text>
             </View>
           </Snackbar>
+
+          <Snackbar
+            visible={snackbarLoginVisible}
+            onDismiss={() => setSnackbarLoginVisible(false)}
+            duration={1000}
+            style={[
+              styles.snack_bar,
+              {
+                position: 'absolute',
+                bottom: 20,
+                left: 20,
+                right: 20,
+                zIndex: 1000,
+              }
+            ]}
+          >
+            <View style={styles.img_txt_view}>
+              <Image
+                source={Images.expenseplannerimage}
+                style={styles.snack_bar_img}
+              />
+              <Text style={styles.snack_bar_text}>Login Successful!</Text>
+            </View>
+          </Snackbar>
+
         </Portal>
 
       </View>
@@ -432,6 +463,7 @@ const styles = StyleSheet.create({
   snack_bar: {
     backgroundColor: colors.gray,
     borderRadius: 50,
+    zIndex: 1000,
   },
   img_txt_view: {
     flexDirection: 'row',
