@@ -10,6 +10,7 @@ import AddEnvelope from '../../screens/Onboarding/AddEnvelope';
 import EditEnvelope from '../../screens/Onboarding/EditEnvelope';
 import ChangeBudgetPeriod from '../../screens/Onboarding/ChangeBudgetPeriod';
 import SetIncomeAmount from '../../screens/Onboarding/SetIncomeAmount';
+import Calculator from '../../screens/Onboarding/Calculator';
 import CrudOperations from '../../screens/Dashboard/CrudOperations';
 
 const Stack = createStackNavigator();
@@ -25,7 +26,7 @@ const MainStack = () => (
         <Stack.Screen name="EditEnvelope" component={EditEnvelope} options={{ headerShown: false }} />
         <Stack.Screen name="ChangeBudgetPeriod" component={ChangeBudgetPeriod} options={{ headerShown: false }} />
         <Stack.Screen name="SetIncomeAmount" component={SetIncomeAmount} options={{ headerShown: false }} />
-
+        <Stack.Screen name="Calculator" component={Calculator} options={{ headerShown: false }} />
     </Stack.Navigator>
 );
 

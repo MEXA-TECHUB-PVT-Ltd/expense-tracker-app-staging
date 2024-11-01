@@ -1,19 +1,17 @@
 import React, { useState, useRef } from 'react';
 import { StyleSheet, Text, View, Pressable, Animated, Dimensions, TouchableOpacity } from 'react-native';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
-import CustomHeader from '../../components/CustomHeader';
-import CustomButton from '../../components/CustomButton';
-import MCIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import { Appbar } from 'react-native-paper';
 import colors from '../../constants/colors';
 import { useNavigation } from '@react-navigation/native';
+import dimensions from '../../constants/dimensions';
 
-const { width: screenWidth } = Dimensions.get('window');
+const { width: screenWidth } = dimensions;
 
 const ChangeBudgetPeriod = () => {
     const navigation = useNavigation();
     const [isTooltipVisible, setIsTooltipVisible] = useState(false);
-    const slideAnim = useRef(new Animated.Value(screenWidth)).current; // Start out of the screen (to the right)
+    const slideAnim = useRef(new Animated.Value(screenWidth)).current;
 
     const handleLeftIconPress = () => {
         navigation.goBack();
@@ -27,7 +25,7 @@ const ChangeBudgetPeriod = () => {
         if (isTooltipVisible) {
             // Slide out
             Animated.timing(slideAnim, {
-                toValue: screenWidth, // Hide by moving off-screen
+                toValue: screenWidth,
                 duration: 200,
                 useNativeDriver: true,
             }).start(() => setIsTooltipVisible(false));
@@ -35,7 +33,7 @@ const ChangeBudgetPeriod = () => {
             setIsTooltipVisible(true);
             // Slide in
             Animated.timing(slideAnim, {
-                toValue: screenWidth * 0.5, // Show at 50% width from the right
+                toValue: screenWidth * 0.5,
                 duration: 200,
                 useNativeDriver: true,
             }).start();
@@ -44,30 +42,25 @@ const ChangeBudgetPeriod = () => {
 
     const handleOutsidePress = () => {
         if (isTooltipVisible) {
-            toggleTooltip(); // Hide if open
+            toggleTooltip();
         }
     };
 
     const handleTooltipPress = () => {
         toggleTooltip();
-        navigation.navigate('Help');
+        navigation.navigate('About');
     };
 
     return (
         <Pressable style={{ flex: 1 }} onPress={handleOutsidePress}>
             <View>
-                <CustomHeader
-                    containerStyle={{ backgroundColor: colors.brightgreen }}
-                    leftIcon={<MCIcons name="keyboard-backspace" size={24} color={colors.white} />}
-                    leftIconPress={handleLeftIconPress}
-                    headerText="Change Budget Period"
-                    headerTextStyle={{ color: colors.white }}
-                    secondRightIcon={<MCIcons name="dots-vertical" size={24} color={colors.white} />}
-                    secondRightIconPress={handleRightIconPress}
-                />
+                <Appbar.Header style={styles.appBar}>
+                    <Appbar.BackAction onPress={handleLeftIconPress} size={24} color={colors.white} />
+                    <Appbar.Content title="Change Budget Period" titleStyle={styles.appbar_title} />
+                    <Appbar.Action onPress={handleRightIconPress} icon="dots-vertical" color={colors.white} />
+                </Appbar.Header>
             </View>
 
-            {/* Sliding View / Tooltip */}
             <Animated.View style={[styles.tooltipContainer, { transform: [{ translateX: slideAnim }] }]}>
                 <TouchableOpacity onPress={handleTooltipPress}>
                     <Text style={styles.tooltipText}>Help</Text>
@@ -80,6 +73,15 @@ const ChangeBudgetPeriod = () => {
 export default ChangeBudgetPeriod;
 
 const styles = StyleSheet.create({
+    appBar: {
+        backgroundColor: colors.brightgreen,
+        height: 55,
+    },
+    appbar_title: {
+        color: colors.white,
+        fontSize: hp('2.5%'),
+        fontWeight: 'bold',
+    },
     tooltipContainer: {
         position: 'absolute',
         top: 4,

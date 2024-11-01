@@ -1,14 +1,12 @@
-import { StyleSheet, Text, View, Animated, Dimensions, Pressable, TouchableOpacity } from 'react-native'
+import { StyleSheet, Text, View, Animated, Pressable, TouchableOpacity } from 'react-native'
 import React, {useState, useRef} from 'react'
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
-
-import CustomHeader from '../../components/CustomHeader'
-import MCIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import MIcons from 'react-native-vector-icons/MaterialIcons';
+import { Appbar } from 'react-native-paper';
 import colors from '../../constants/colors';
 import { useNavigation } from '@react-navigation/native';
+import dimensions from '../../constants/dimensions';
 
-const { width: screenWidth } = Dimensions.get('window');
+const { width: screenWidth } = dimensions;
 
 const AddEnvelope = () => {
     const navigation = useNavigation();
@@ -54,16 +52,11 @@ const AddEnvelope = () => {
 
     return (
         <Pressable style={{ flex: 1 }} onPress={handleOutsidePress}>
-            <CustomHeader
-                containerStyle={{ backgroundColor: colors.brightgreen, }}
-                leftIcon={<MCIcons name="keyboard-backspace" size={24} color={colors.white} />}
-                leftIconPress={handleLeftIconPress}
-                headerText="Add Envelope"
-                headerTextStyle={{ color: colors.white }}
-                secondRightIcon={<MCIcons name="dots-vertical" size={24} color={colors.white} />}
-                secondRightIconPress={handleRightIconPress}
-            />
-
+            <Appbar.Header style={styles.appBar}>
+                <Appbar.BackAction onPress={handleLeftIconPress} size={24} color={colors.white} />
+                <Appbar.Content title="Add Envelope" titleStyle={styles.appbar_title} />
+                <Appbar.Action onPress={handleRightIconPress} icon="dots-vertical" color={colors.white} />
+            </Appbar.Header>
             <Animated.View style={[styles.tooltipContainer, { transform: [{ translateX: slideAnim }] }]}>
                 <TouchableOpacity onPress={handleTooltipPress}>
                     <Text style={styles.tooltipText}>Help</Text>
@@ -76,6 +69,15 @@ const AddEnvelope = () => {
 export default AddEnvelope
 
 const styles = StyleSheet.create({
+    appBar: {
+        backgroundColor: colors.brightgreen,
+        height: 55,
+    },
+    appbar_title: {
+        color: colors.white,
+        fontSize: hp('2.5%'),
+        fontWeight: 'bold',
+    },
     tooltipContainer: {
         position: 'absolute',
         top: 4,

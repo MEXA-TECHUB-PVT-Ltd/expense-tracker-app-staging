@@ -1,17 +1,21 @@
 import 'react-native-gesture-handler';
 import { StyleSheet, Text, View } from 'react-native'
 import React from 'react'
+import { Provider as ReduxProvider } from 'react-redux';
+import { Provider as PaperProvider } from 'react-native-paper';
+import store from './src/redux/store';
 import { NavigationContainer } from '@react-navigation/native';
 import MainStack from './src/navigation/mainstack/MainStack';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 const App = () => {
   return (
-    // <GestureHandlerRootView style={{ flex: 1 }}>
+    <ReduxProvider store={store}>
+      <PaperProvider>
       <NavigationContainer>
         <MainStack />
       </NavigationContainer>
-    // </GestureHandlerRootView>
+      </PaperProvider>
+    </ReduxProvider>
   );
 };
 

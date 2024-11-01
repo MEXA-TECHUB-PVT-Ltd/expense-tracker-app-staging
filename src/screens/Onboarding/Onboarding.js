@@ -1,23 +1,21 @@
-import { StyleSheet, Text, View, StatusBar, Animated, Dimensions, BackHandler, TouchableOpacity, Image, TextInput, Pressable, TouchableWithoutFeedback } from 'react-native'
+import { StyleSheet, Text, View, StatusBar, Animated, BackHandler, TouchableOpacity, Image, TextInput, Pressable, TouchableWithoutFeedback } from 'react-native'
 import React, { useState, useRef } from 'react'
-import CustomHeader from '../../components/CustomHeader';
-import MCIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import MIcons from 'react-native-vector-icons/MaterialIcons';
 import colors from '../../constants/colors';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
-import CustomButton from '../../components/CustomButton';
-import CustomCenterModal from '../../components/CustomCenterModal';
 import { useNavigation } from '@react-navigation/native';
 import Images from '../../constants/images';
+import { VectorIcon } from '../../constants/vectoricons';
+import { Appbar, Button, Portal, Modal } from 'react-native-paper';
+import dimensions from '../../constants/dimensions';
 
-const { width: screenWidth } = Dimensions.get('window');
+const { width: screenWidth } = dimensions;
 
 const Onboarding = () => {
+  const navigation = useNavigation();
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
   const slideAnim = useRef(new Animated.Value(screenWidth)).current;
 
   const [centerModalVisible, setCenterModalVisible] = useState(false);
-  const navigation = useNavigation();
 
   const [focusedInput, setFocusedInput] = useState(null);
   const [email, setEmail] = useState('');
@@ -32,17 +30,15 @@ const Onboarding = () => {
 
   const toggleTooltip = () => {
     if (isTooltipVisible) {
-      // Slide out
       Animated.timing(slideAnim, {
-        toValue: screenWidth, // Hide by moving off-screen
+        toValue: screenWidth,
         duration: 200,
         useNativeDriver: true,
       }).start(() => setIsTooltipVisible(false));
     } else {
       setIsTooltipVisible(true);
-      // Slide in
       Animated.timing(slideAnim, {
-        toValue: screenWidth * 0.5, // Show at 50% width from the right
+        toValue: screenWidth * 0.5,
         duration: 200,
         useNativeDriver: true,
       }).start();
@@ -79,15 +75,11 @@ const Onboarding = () => {
     <Pressable style={{ flex: 1 }} onPress={handleOutsidePress}>
       <View style={styles.container}>
         <StatusBar backgroundColor={colors.munsellgreen} />
-        <CustomHeader
-          containerStyle={{ backgroundColor: colors.brightgreen, }}
-          leftIcon={<MCIcons name="keyboard-backspace" size={24} color={colors.black} />}
-          leftIconPress={handleLeftIconPress}
-          headerText="ExpensePlanner"
-          headerTextStyle={{ color: colors.black }}
-          secondRightIcon={<MCIcons name="dots-vertical" size={24} color={colors.white} />}
-          secondRightIconPress={handleRightIconPress}
-        />
+        <Appbar.Header style={styles.appBar}>
+          <Appbar.BackAction onPress={handleLeftIconPress} color={colors.black} />
+          <Appbar.Content title="ExpensePlanner" titleStyle={styles.appbar_title} />
+          <Appbar.Action icon="dots-vertical" onPress={handleRightIconPress} color={colors.white} />
+        </Appbar.Header>
         <View style={styles.image_name_container}>
           <Image
             source={Images.expenseplannerimage}
@@ -101,85 +93,95 @@ const Onboarding = () => {
             <Text style={styles.slogen_text}>Budget well. Live life. Do good.</Text>
           </View>
         </View>
-        <Text style={styles.haveExpenseApp_text}>Have ExpensePlanner Household?</Text>
+        <Text style={styles.haveExpenseApp_text}>Have ExpensePlanner Account?</Text>
         <View style={styles.btn_view}>
-          <CustomButton
-            title="LOG IN"
-            titleStyle={styles.buttontitle}
-            buttonStyle={styles.buttonbody}
+          <Button
+            mode="contained"
             onPress={setCenterModalVisible}
-          />
+            style={styles.buttonbody}
+            textColor={colors.white}
+            labelStyle={styles.addIncome_label}
+          >
+            LOG IN
+          </Button>
         </View>
         <Text style={styles.haveExpenseApp_text}>New to ExpensePlanner?</Text>
         <View style={styles.btn_view}>
-          <CustomButton
-            title="CREATE NEW HOUSEHOLD"
-            titleStyle={styles.buttontitle}
-            buttonStyle={styles.buttonbody}
+          <Button
+            mode="contained"
             onPress={handleCreateNewHousehold}
-          />
+            style={styles.buttonbody}
+            textColor={colors.white}
+            labelStyle={styles.addIncome_label}
+          >
+            CREATE NEW ACCOUNT
+          </Button>
         </View>
-        <View style={styles.icon_text}>
-          <MIcons name="lock" size={24} color={colors.gray} />
+        {/* <View style={styles.icon_text}>
+          <VectorIcon name="lock" size={24} color={colors.gray} type="mi" />
           <Text style={styles.secured_text}>Secured using bank-grade 256-bit SSL</Text>
-        </View>
-        <View style={styles.icon_text}>
+        </View> */}
+        {/* <View style={styles.icon_text}>
           <Text style={styles.secured_text}>Version 2.16 (180)</Text>
-        </View>
+        </View> */}
         <Animated.View style={[styles.tooltipContainer, { transform: [{ translateX: slideAnim }] }]}>
           <TouchableOpacity onPress={handleTooltipPress}>
             <Text style={styles.tooltipText}>About</Text>
           </TouchableOpacity>
         </Animated.View>
-        <CustomCenterModal
-          visible={centerModalVisible}
-          onClose={() => setCenterModalVisible(false)}
-        >
-          <View style={styles.login_container}>
-            <Text style={styles.title}>Log In to ExpensePlanner</Text>
 
-            <Text style={styles.label}>Household Name or Email</Text>
-            <TextInput
-              value={email}
-              onChangeText={setEmail}
-              style={[
-                styles.input,
-                focusedInput === 'email' && styles.focusedInput,
-              ]}
-              onFocus={() => setFocusedInput('email')}
-              onBlur={() => setFocusedInput(null)}
-              placeholder="Enter email"
-            />
+        <Portal>
+          <Modal
+            visible={centerModalVisible}
+            dismissable={true}
+            onDismiss={() => setCenterModalVisible(false)}
+          >
+            <View style={styles.login_container}>
+              <Text style={styles.title}>Log In to ExpensePlanner</Text>
 
-            <View style={styles.passwordContainer}>
-              <Text style={styles.passwordLabel}>Password</Text>
-              <Pressable>
-                <Text style={styles.forgotText}>FORGOT?</Text>
-              </Pressable>
+              <Text style={styles.label}>Household Name or Email</Text>
+              <TextInput
+                value={email}
+                onChangeText={setEmail}
+                style={[
+                  styles.input,
+                  focusedInput === 'email' && styles.focusedInput,
+                ]}
+                onFocus={() => setFocusedInput('email')}
+                onBlur={() => setFocusedInput(null)}
+                placeholder="Enter email"
+              />
+
+              <View style={styles.passwordContainer}>
+                <Text style={styles.passwordLabel}>Password</Text>
+                <Pressable>
+                  <Text style={styles.forgotText}>FORGOT?</Text>
+                </Pressable>
+              </View>
+              <TextInput
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                style={[
+                  styles.input,
+                  focusedInput === 'password' && styles.focusedInput,
+                ]}
+                onFocus={() => setFocusedInput('password')}
+                onBlur={() => setFocusedInput(null)}
+                placeholder="Enter password"
+              />
+
+              <View style={styles.buttonContainer}>
+                <Pressable onPress={handleCancelPress}>
+                  <Text style={styles.cancelText}>CANCEL</Text>
+                </Pressable>
+                <Pressable onPress={handleLoginPress}>
+                  <Text style={styles.loginText}>LOG IN</Text>
+                </Pressable>
+              </View>
             </View>
-            <TextInput
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              style={[
-                styles.input,
-                focusedInput === 'password' && styles.focusedInput,
-              ]}
-              onFocus={() => setFocusedInput('password')}
-              onBlur={() => setFocusedInput(null)}
-              placeholder="Enter password"
-            />
-
-            <View style={styles.buttonContainer}>
-              <Pressable onPress={handleCancelPress}>
-                <Text style={styles.cancelText}>CANCEL</Text>
-              </Pressable>
-              <Pressable onPress={handleLoginPress}>
-                <Text style={styles.loginText}>LOG IN</Text>
-              </Pressable>
-            </View>
-          </View>
-        </CustomCenterModal>
+          </Modal>
+        </Portal>
       </View>
     </Pressable >
   )
@@ -191,6 +193,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.white,
+  },
+  appBar: {
+    backgroundColor: colors.brightgreen,
+    height: 55,
+  },
+  appbar_title: {
+    color: colors.black,
+    fontSize: hp('2.8%'),
+    fontWeight: '600',
   },
   image_name_container: {
     height: hp('20%'),
@@ -241,15 +252,8 @@ const styles = StyleSheet.create({
     marginTop: hp('5%'),
   },
   btn_view: {
-    justifyContent: "center",
     alignItems: "center",
     marginTop: hp('2%'),
-  },
-  buttontitle: {
-    fontSize: hp('1.8%'),
-    fontWeight: '400',
-    color: colors.white,
-    textAlign: 'center'
   },
   buttonbody: {
     width: wp('70%'),
@@ -257,8 +261,13 @@ const styles = StyleSheet.create({
     borderRadius: hp('0.1%'),
     backgroundColor: colors.androidbluebtn,
     justifyContent: 'center',
-    alignItems: 'center',
   },
+  addIncome_label: {
+    fontSize: hp('1.8%'),
+    fontWeight: '400',
+    lineHeight: hp('1.8%'),
+  },
+
   icon_text: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -293,13 +302,19 @@ const styles = StyleSheet.create({
 
   //login modal css
   login_container: {
+    width: wp('85%'),
     padding: 10,
+    backgroundColor: colors.white,
+    alignSelf: 'center',
+    paddingTop: hp('2.5%'),
+    paddingBottom: hp('5%'),
+    paddingHorizontal: hp('3%'),
   },
   title: {
     fontSize: hp('2.5%'),
     color: colors.black,
     fontWeight: '500',
-    marginBottom: 5,
+    marginBottom: 7,
   },
   label: {
     fontSize: hp('2%'),
@@ -309,7 +324,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.androidbluebtn,
     paddingVertical: 0,
-    marginVertical: 5,
+    marginVertical: 7,
     paddingHorizontal: 0,
     fontSize: hp('2.5%'),
     color: colors.black,

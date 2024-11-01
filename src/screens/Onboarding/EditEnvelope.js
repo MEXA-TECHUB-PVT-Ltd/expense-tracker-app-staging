@@ -1,14 +1,12 @@
 import React, { useState, useRef } from 'react';
 import { StyleSheet, Text, View, Pressable, Animated, Dimensions, TouchableOpacity } from 'react-native';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
-import CustomHeader from '../../components/CustomHeader';
-import CustomButton from '../../components/CustomButton';
-import MCIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import { Appbar } from 'react-native-paper';
 import colors from '../../constants/colors';
 import { useNavigation } from '@react-navigation/native';
+import dimensions from '../../constants/dimensions';
 
-const { width: screenWidth } = Dimensions.get('window');
+const { width: screenWidth } = dimensions;
 
 const EditEnvelope = () => {
     const navigation = useNavigation();
@@ -56,18 +54,13 @@ const EditEnvelope = () => {
     return (
         <Pressable style={{ flex: 1 }} onPress={handleOutsidePress}>
             <View>
-                <CustomHeader
-                    containerStyle={{ backgroundColor: colors.brightgreen }}
-                    leftIcon={<MCIcons name="keyboard-backspace" size={24} color={colors.white} />}
-                    leftIconPress={handleLeftIconPress}
-                    headerText="Edit Envelope"
-                    headerTextStyle={{ color: colors.white }}
-                    secondRightIcon={<MCIcons name="dots-vertical" size={24} color={colors.white} />}
-                    secondRightIconPress={handleRightIconPress}
-                />
+                <Appbar.Header style={styles.appBar}>
+                    <Appbar.BackAction onPress={handleLeftIconPress} size={24} color={colors.white} />
+                    <Appbar.Content title="Edit Envelope" titleStyle={styles.appbar_title} />
+                    <Appbar.Action onPress={handleRightIconPress}icon="dots-vertical" color={colors.white} />
+                </Appbar.Header>
             </View>
 
-            {/* Sliding View / Tooltip */}
             <Animated.View style={[styles.tooltipContainer, { transform: [{ translateX: slideAnim }] }]}>
                 <TouchableOpacity onPress={handleTooltipPress}>
                     <Text style={styles.tooltipText}>Help</Text>
@@ -80,6 +73,15 @@ const EditEnvelope = () => {
 export default EditEnvelope;
 
 const styles = StyleSheet.create({
+    appBar: {
+        backgroundColor: colors.brightgreen,
+        height: 55,
+    },
+    appbar_title: {
+        color: colors.white,
+        fontSize: hp('2.5%'),
+        fontWeight: 'bold',
+    },
     tooltipContainer: {
         position: 'absolute',
         top: 4,
