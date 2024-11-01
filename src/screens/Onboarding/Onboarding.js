@@ -1,11 +1,11 @@
-import { StyleSheet, Text, View, StatusBar, Animated, BackHandler, TouchableOpacity, Image, TextInput, Pressable, TouchableWithoutFeedback } from 'react-native'
+import { StyleSheet, Text, View, StatusBar, Animated, BackHandler, TouchableOpacity, Image, Pressable, TouchableWithoutFeedback } from 'react-native'
 import React, { useState, useRef } from 'react'
 import colors from '../../constants/colors';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import { useNavigation } from '@react-navigation/native';
 import Images from '../../constants/images';
 import { VectorIcon } from '../../constants/vectoricons';
-import { Appbar, Button, Portal, Modal } from 'react-native-paper';
+import { Appbar, Button, Portal, Modal, TextInput } from 'react-native-paper';
 import dimensions from '../../constants/dimensions';
 
 const { width: screenWidth } = dimensions;
@@ -14,7 +14,6 @@ const Onboarding = () => {
   const navigation = useNavigation();
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
   const slideAnim = useRef(new Animated.Value(screenWidth)).current;
-
   const [centerModalVisible, setCenterModalVisible] = useState(false);
 
   const [focusedInput, setFocusedInput] = useState(null);
@@ -140,16 +139,20 @@ const Onboarding = () => {
               <Text style={styles.title}>Log In to ExpensePlanner</Text>
 
               <Text style={styles.label}>Household Name or Email</Text>
+
               <TextInput
                 value={email}
                 onChangeText={setEmail}
+                mode="flat"
                 style={[
                   styles.input,
-                  focusedInput === 'email' && styles.focusedInput,
+                  focusedInput === 'email' ? styles.focusedInput : {}
                 ]}
+                theme={{ colors: { primary: focusedInput ? colors.androidbluebtn : colors.androidbluebtn } }}
+                textColor={colors.black}
+                dense={true}
                 onFocus={() => setFocusedInput('email')}
                 onBlur={() => setFocusedInput(null)}
-                placeholder="Enter email"
               />
 
               <View style={styles.passwordContainer}>
@@ -158,17 +161,18 @@ const Onboarding = () => {
                   <Text style={styles.forgotText}>FORGOT?</Text>
                 </Pressable>
               </View>
+
               <TextInput
                 value={password}
                 onChangeText={setPassword}
-                secureTextEntry
-                style={[
-                  styles.input,
-                  focusedInput === 'password' && styles.focusedInput,
-                ]}
+                mode="flat"
+                style={styles.input}
+                theme={{ colors: { primary: focusedInput ? colors.androidbluebtn : colors.androidbluebtn } }}
+                textColor={colors.black}
+                secureTextEntry={true}
+                dense={true}
                 onFocus={() => setFocusedInput('password')}
                 onBlur={() => setFocusedInput(null)}
-                placeholder="Enter password"
               />
 
               <View style={styles.buttonContainer}>
@@ -322,18 +326,20 @@ const styles = StyleSheet.create({
   },
   input: {
     borderBottomWidth: 1,
+    backgroundColor: 'transparent',
     borderBottomColor: colors.androidbluebtn,
-    paddingVertical: 0,
     marginVertical: 7,
     paddingHorizontal: 0,
+    paddingVertical: 0,
     fontSize: hp('2.5%'),
     color: colors.black,
     marginBottom: 5,
   },
   focusedInput: {
-    borderBottomWidth: 2,
+    borderBottomWidth: 1,
     borderBottomColor: colors.androidbluebtn,
   },
+
   passwordContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
