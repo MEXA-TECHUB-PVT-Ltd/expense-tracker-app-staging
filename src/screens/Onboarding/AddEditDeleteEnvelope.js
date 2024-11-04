@@ -14,7 +14,7 @@ import { db, addEnvelope, editEnvelope, deleteEnvelope } from '../../database/da
 
 const { width: screenWidth } = dimensions;
 
-const AddEnvelope = () => {
+const AddEditDeleteEnvelope = () => {
     const navigation = useNavigation();
     const route = useRoute();
     const [isTooltipVisible, setIsTooltipVisible] = useState(false);
@@ -32,7 +32,6 @@ const AddEnvelope = () => {
 
     const envelopeId = route.params?.envelopeId;
     useEffect(() => {
-        // If editing, set the initial values
         if (envelopeId) {
             setEnvelopeName(route.params.envelopeName);
             setAmount(route.params.amount.toString());
@@ -53,7 +52,7 @@ const AddEnvelope = () => {
         } else {
             if (!envelopeName || !amount || !budgetPeriod) {
                 setSnackbarVisible(true);
-                return; // Exit the function if validation fails
+                return;
             } else {
                 addEnvelope(envelopeName, parseFloat(amount), budgetPeriod);
             }
@@ -291,7 +290,7 @@ const AddEnvelope = () => {
     )
 }
 
-export default AddEnvelope
+export default AddEditDeleteEnvelope
 
 const styles = StyleSheet.create({
     appBar: {
