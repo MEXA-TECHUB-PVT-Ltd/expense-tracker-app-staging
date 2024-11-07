@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { StyleSheet, Text, View, Pressable, Animated, TouchableOpacity, StatusBar, FlatList, ScrollView } from 'react-native';
+import { StyleSheet, Text, View, Pressable, Animated, TouchableOpacity, StatusBar, FlatList, ScrollView, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import { Appbar, Button, Checkbox, TextInput, RadioButton, Modal, Portal, Provider, Menu, Divider, Card, ProgressBar } from 'react-native-paper';
 import { debounce } from 'lodash';
@@ -10,6 +10,7 @@ import { VectorIcon } from '../../constants/vectoricons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import dimensions from '../../constants/dimensions';
 import { db, fetchTotalIncome } from '../../database/database';
+import Calculator from '../Onboarding/Calculator';
 
 const { width: screenWidth } = dimensions;
 
@@ -17,7 +18,15 @@ const AddEditDeleteTransaction = () => {
   const navigation = useNavigation();
   const route = useRoute();
 
+  const [calculatorVisible, setCalculatorVisible] = useState(false);
+  const handleValueChange = (amount) => {
+    setTransactionAmount(amount);
+    setCalculatorVisible(false);
+  };
+
   const [focusedInput, setFocusedInput] = useState(null);
+  const [focusedInputAmount, setFocusedInputAmount] = useState(false);
+
   const [payee, setPayee] = useState(null);
   const [transactionAmount, setTransactionAmount] = useState(0);
   // console.log('after edit prop set transactionAmount', transactionAmount);
@@ -34,6 +43,7 @@ const AddEditDeleteTransaction = () => {
   );
 
   // code for envelope menu
+  const [envelopeRemainingIncome, setEnvelopeRemainingIncome] = useState(0);
   const [envelopeMenuVisible, setEnvelopeMenuVisible] = useState(false);
   const [selectedEnvelope, setSelectedEnvelope] = useState(false); // selectedEnvelope holds envelopeName for transaction
   const handleEnvelopeMenuToggle = useMemo(
@@ -97,6 +107,7 @@ const AddEditDeleteTransaction = () => {
     if (isTooltipVisible) {
       toggleTooltip();
     }
+    setFocusedInputAmount(false);
   };
   const handleTooltipPress = () => {
     toggleTooltip();
@@ -141,11 +152,13 @@ const AddEditDeleteTransaction = () => {
 
   // code for getting total income from income table which is default account for now
   const incomes = [{ accountName: "My Account" },]; // later on when adding multiple accounts replace it with accounts table
-  const [totalIncome, setTotalIncome] = useState(0); // for now you can use totalIncome to be filled in accountName
-
-  useFocusEffect(() => {
-    fetchTotalIncome(setTotalIncome);
-  });
+  const [accountName, setAccountName] = useState('My Account'); // for now you can use totalIncome to be filled in accountName
+  const [budgetAmount, setBudgetAmount] = useState(0); 
+  useFocusEffect(
+    useCallback(() => {
+      fetchTotalIncome(setBudgetAmount);
+    }, [])
+  );
 
   // data being passed as props from transaction screen to add/edit transaction
   const [transactionId, setTransactionId] = useState(null);
@@ -174,26 +187,28 @@ const AddEditDeleteTransaction = () => {
       transactionAmount: transactionAmount, 
       transactionType: transactionType,
       envelopeName: selectedEnvelope,
-      accountName: totalIncome, // passing totalIncome of default account that is income
+      envelopeRemainingIncome: envelopeRemainingIncome, // now added
+      accountName: accountName,
       transactionDate: transactionDate, 
       transactionNote: note,
     };
-    // console.log('Transaction values to be added :', transaction);
+    console.log('Transaction values to be added:', transaction);
     insertTransaction(transaction);
   };
   
-  // code for adding transaction and updating envelope
+  // code for adding transaction, updating envelope, updating Income table or monthly budget
   const insertTransaction = (transaction) => {
     db.transaction((tx) => {
       // Insert the transaction into the Transactions table
       tx.executeSql(
-        `INSERT INTO Transactions (payee, transactionAmount, transactionType, envelopeName, accountName, transactionDate, transactionNote) 
-            VALUES (?, ?, ?, ?, ?, ?, ?);`,
+        `INSERT INTO Transactions (payee, transactionAmount, transactionType, envelopeName, envelopeRemainingIncome, accountName, transactionDate, transactionNote) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
         [
           transaction.payee,
           transaction.transactionAmount,
           transaction.transactionType,
           transaction.envelopeName,
+          transaction.envelopeRemainingIncome,
           transaction.accountName,
           transaction.transactionDate,
           transaction.transactionNote,
@@ -205,6 +220,7 @@ const AddEditDeleteTransaction = () => {
           const amount = transaction.transactionAmount;
           const envelopeName = transaction.envelopeName;
           const transactionType = transaction.transactionType;
+          // const accountName = transaction.accountName; // for Income table
 
           // Update the envelope based on the transaction type
           if (transactionType === 'Credit') {
@@ -219,6 +235,17 @@ const AddEditDeleteTransaction = () => {
                 console.error('Error updating envelope for credit:', error.message);
               }
             );
+            // to update Income table 
+            tx.executeSql(
+              `UPDATE Income SET budgetAmount = budgetAmount + ? WHERE accountName = 'My Account' AND budgetPeriod = 'Monthly';`,
+              [amount],
+              (_, updateResult) => {
+                console.log('Income table updated successfully for credit:', updateResult);
+              },
+              (_, error) => {
+                console.error('Error updating Income table for credit:', error.message);
+              }
+            );
           } else if (transactionType === 'Expense') {
             tx.executeSql(
               `UPDATE envelopes SET filledIncome = filledIncome - ? WHERE envelopeName = ?;`,
@@ -229,6 +256,17 @@ const AddEditDeleteTransaction = () => {
               },
               (_, error) => {
                 console.error('Error updating envelope for expense:', error.message);
+              }
+            );
+            // to update Income table for expense
+            tx.executeSql(
+              `UPDATE Income SET budgetAmount = budgetAmount - ? WHERE accountName = 'My Account' AND budgetPeriod = 'Monthly';`,
+              [amount],
+              (_, updateResult) => {
+                console.log('Income table updated successfully for expense:', updateResult);
+              },
+              (_, error) => {
+                console.error('Error updating Income table for expense:', error.message);
               }
             );
           }
@@ -265,6 +303,17 @@ const AddEditDeleteTransaction = () => {
                     console.error('Error updating envelope for deleted credit:', error.message);
                   }
                 );
+                // Subtract the amount from Income table budgetAmount for "My Account" and "Monthly"
+                tx.executeSql(
+                  `UPDATE Income SET budgetAmount = budgetAmount - ? WHERE accountName = ? AND budgetPeriod = ?;`,
+                  [transactionAmount, "My Account", "Monthly"],
+                  (_, updateResult) => {
+                    console.log('Income updated successfully for deleted credit:', updateResult);
+                  },
+                  (_, error) => {
+                    console.error('Error updating Income for deleted credit:', error.message);
+                  }
+                );
               } else if (transactionType === 'Expense') {
                 // If it was an expense, add the amount back to the envelope
                 tx.executeSql(
@@ -275,6 +324,17 @@ const AddEditDeleteTransaction = () => {
                   },
                   (_, error) => {
                     console.error('Error updating envelope for deleted expense:', error.message);
+                  }
+                );
+                // Add the amount back to Income table budgetAmount for "My Account" and "Monthly"
+                tx.executeSql(
+                  `UPDATE Income SET budgetAmount = budgetAmount + ? WHERE accountName = ? AND budgetPeriod = ?;`,
+                  [transactionAmount, "My Account", "Monthly"],
+                  (_, updateResult) => {
+                    console.log('Income updated successfully for deleted expense:', updateResult);
+                  },
+                  (_, error) => {
+                    console.error('Error updating Income for deleted expense:', error.message);
                   }
                 );
               }
@@ -328,6 +388,15 @@ const AddEditDeleteTransaction = () => {
               );
             }
 
+            // Also, revert impact on the Income table based on the old type
+            let revertIncomeAmount = oldType === 'Credit' ? -oldAmount : oldAmount;
+            tx.executeSql(
+              `UPDATE Income SET budgetAmount = budgetAmount + ? WHERE accountName = "My Account" AND budgetPeriod = "Monthly";`,
+              [revertIncomeAmount],
+              () => console.log('Reverted impact on Income table successfully'),
+              (error) => console.error('Error reverting Income table', error)
+            );
+
             // Step 3: Apply impact on the new or updated envelope based on new transaction details
             let newAmountImpact = transactionType === 'Credit' ? transactionAmount : -transactionAmount;
             tx.executeSql(
@@ -337,16 +406,24 @@ const AddEditDeleteTransaction = () => {
               (error) => console.error('Error updating new envelope', error)
             );
 
+            // Also, update the Income table based on the new transaction type
+            let newIncomeAmount = transactionType === 'Credit' ? transactionAmount : -transactionAmount;
+            tx.executeSql(
+              `UPDATE Income SET budgetAmount = budgetAmount + ? WHERE accountName = "My Account" AND budgetPeriod = "Monthly";`,
+              [newIncomeAmount],
+              () => console.log('Updated impact on Income table successfully'),
+              (error) => console.error('Error updating Income table', error)
+            );
+
             // Step 4: Update the transaction in the Transactions table
             tx.executeSql(
-              `UPDATE Transactions 
-                         SET payee = ?, transactionAmount = ?, transactionType = ?, envelopeName = ?, accountName = ?, transactionDate = ?, transactionNote = ?
-                         WHERE id = ?;`,
+              `UPDATE Transactions SET payee = ?, transactionAmount = ?, transactionType = ?, envelopeName = ?, envelopeRemainingIncome = ?, accountName = ?, transactionDate = ?, transactionNote = ? WHERE id = ?;`,
               [
                 payee,
                 transactionAmount,
                 transactionType,
                 selectedEnvelope,
+                envelopeRemainingIncome,
                 selectedAccount,
                 transactionDate.toISOString(),
                 note,
@@ -354,10 +431,11 @@ const AddEditDeleteTransaction = () => {
               ],
               () => {
                 console.log('Transaction updated successfully');
-                navigation.goBack();
               },
               (error) => console.error('Error updating transaction', error)
             );
+
+            navigation.goBack();
           } else {
             console.error('Transaction not found for updating');
           }
@@ -366,8 +444,6 @@ const AddEditDeleteTransaction = () => {
       );
     });
   };
-
-  
 
   return (
     <Pressable style={{ flex: 1 }} onPress={handleOutsidePress}>
@@ -399,8 +475,6 @@ const AddEditDeleteTransaction = () => {
 
       {/* screen code onward */}
       <ScrollView style={{ flex: 1 }}>
-
-
         {/* payee */}
         <View style={styles.how_to_fill_view}>
           <Text style={styles.payee_title}>Payee</Text>
@@ -430,7 +504,7 @@ const AddEditDeleteTransaction = () => {
             <Text style={styles.payee_title}>Amount</Text>
             <View style={styles.name_input_view}>
               <View style={styles.input_view}>
-                <TextInput
+                {/* <TextInput
                   value={transactionAmount}
                   onChangeText={handleTransactionAmountChange}
                   mode="flat"
@@ -445,7 +519,19 @@ const AddEditDeleteTransaction = () => {
                   keyboardType='numeric'
                   onFocus={() => setFocusedInput('transactionAmount')}
                   onBlur={() => setFocusedInput(null)}
-                />
+                /> */}
+                <TouchableWithoutFeedback
+                  onPressIn={() => {
+                    setFocusedInputAmount(true);
+                  }}
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    setCalculatorVisible(true);
+                  }}>
+                  <View style={[styles.touchable_input, focusedInputAmount ? styles.touchable_focusedInput : styles.touchable_input]}>
+                    <Text style={{ color: colors.black, fontSize: hp('2.5%') }}>{transactionAmount || '0.00'}</Text>
+                  </View>
+                </TouchableWithoutFeedback>
               </View>
             </View>
           </View>
@@ -470,7 +556,6 @@ const AddEditDeleteTransaction = () => {
 
         <View style={styles.how_to_fill_view}>
           <Text style={styles.title}>Envelope</Text>
-
           <View style={styles.envelope_type_view}>
             <Menu
               visible={envelopeMenuVisible}
@@ -493,8 +578,9 @@ const AddEditDeleteTransaction = () => {
                     onPress={() => {
                       setSelectedEnvelope(item.envelopeName);
                       setEnvelopeMenuVisible(false);
+                      setEnvelopeRemainingIncome(item.filledIncome);
                     }}
-                    title={`${item.envelopeName} [${item.filledIncome || 0}.00 left]`}
+                    title={`${item.envelopeName} [${item.filledIncome.toFixed(2) || 0} left]`}
                     titleStyle={{ color: colors.black }}
                   />
                 )}
@@ -513,9 +599,11 @@ const AddEditDeleteTransaction = () => {
               anchor={
                 <TouchableOpacity style={styles.envelope_txt_icon_view} onPress={handleAccountMenuToggle}>
                   <Text style={styles.selectionText}>
-                    {selectedAccount ? `My Account [${selectedAccount}.00]` : '-Select Account-'}
+                    {selectedAccount
+                      ? `[${selectedAccount}] ${budgetAmount}`
+                      : '-Select Account-'}
                   </Text>
-                  {/* <Text style={styles.selectionText}>{selectedAccount || '-Select Account-'}</Text> */}
+                  {/* <Text style={styles.selectionText}>{selectedAccount  || '-Select Account-'}</Text> */}
                   <VectorIcon name="arrow-drop-down" size={24} color={colors.gray} type="mi" />
                 </TouchableOpacity>
               }
@@ -529,10 +617,10 @@ const AddEditDeleteTransaction = () => {
                 renderItem={({ item }) => (
                   <Menu.Item
                     onPress={() => {
-                      setSelectedAccount(totalIncome);
+                      setSelectedAccount(accountName);
                       setAccountMenuVisible(false);
                     }}
-                    title={`${item.accountName} [${totalIncome.toFixed(2)} left]`}
+                    title={`${item.accountName} [${budgetAmount.toFixed(2)} left]`}
                     titleStyle={{ color: colors.black }}
                   />
                 )}
@@ -554,7 +642,7 @@ const AddEditDeleteTransaction = () => {
             </View>
             <TouchableOpacity onPress={handleSelectAccount}>
               <View style={styles.radioButton}>
-                <Text style={styles.radio_texts}>My Account {totalIncome}</Text>
+                <Text style={styles.radio_texts}>My Account {budgetAmount}</Text>
               </View>
             </TouchableOpacity>
           </Modal>
@@ -580,9 +668,8 @@ const AddEditDeleteTransaction = () => {
           />
         )}
         {/* for note */}
-        <View style={styles.how_to_fill_view}>
+        <View style={styles.notes_main_view}>
           <Text style={styles.title}>Note</Text>
-
           <View style={styles.name_input_view}>
             <View style={styles.input_view}>
               <TextInput
@@ -603,8 +690,14 @@ const AddEditDeleteTransaction = () => {
               />
             </View>
           </View>
-
         </View>
+
+        <Calculator
+          visible={calculatorVisible}
+          textInputValue={transactionAmount}
+          onValueChange={handleValueChange}
+          onClose={() => setCalculatorVisible(false)}
+        />
       </ScrollView>
     </Pressable>
   );
@@ -802,7 +895,27 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.brightgreen,
   },
 
+  // touchable input styles
+  touchable_input: {
+    flex: 1,
+    borderBottomWidth: 1,
+    backgroundColor: 'transparent',
+    borderBottomColor: colors.gray,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    fontSize: hp('2.5%'),
+    color: colors.black,
+    marginTop: hp('1%'),
+  },
+  touchable_focusedInput: {
+    borderBottomWidth: 2.5,
+    borderBottomColor: colors.brightgreen,
+  },
 
-
+  notes_main_view: {
+    flex: 1,
+    paddingHorizontal: hp('1.5%'),
+    paddingBottom: hp('36%'),
+  },
 
 });

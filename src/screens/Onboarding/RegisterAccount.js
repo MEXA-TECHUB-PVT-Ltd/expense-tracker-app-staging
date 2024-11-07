@@ -241,7 +241,7 @@ const RegisterAccount = () => {
                 // onSubmit={(values) => handleFinishPress(values)}
                 onSubmit={handleFinishPress}
             >
-                {({ handleChange, handleBlur, handleSubmit, values, errors, validateForm, touched }) => (
+                {({ handleChange, handleBlur, handleSubmit, values, errors, validateForm, touched, setFieldValue }) => (
                     <View style={{ flex: 1 }}>
                         <Appbar.Header style={styles.appBar}>
                             <Appbar.BackAction onPress={handleLeftIconPress} size={24} color={colors.white} />
@@ -274,8 +274,13 @@ const RegisterAccount = () => {
                                     <TextInput
                                         value={values.email}
                                         // onChangeText={setEmail}
-                                        onChangeText={handleChange('email')}
-                                        onBlur={handleBlur('email')}
+                                        // onChangeText={handleChange('email')}
+                                        // onBlur={handleBlur('email')}
+                                        onChangeText={(text) => setFieldValue('email', text.trim())} // Trims spaces as text changes
+                                        onBlur={() => {
+                                            setFieldValue('email', values.email.trim()); // Trims any remaining spaces on blur
+                                            handleBlur('email'); // Calls original handleBlur functionality
+                                        }}
                                         mode="flat"
                                         placeholder='johnj@email.com'
                                         style={[

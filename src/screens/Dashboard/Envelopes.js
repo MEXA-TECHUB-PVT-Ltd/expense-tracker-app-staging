@@ -9,6 +9,7 @@ import { useNavigation } from '@react-navigation/native'
 import { useDispatch } from 'react-redux'
 import { logout } from '../../redux/slices/userSlice'
 import { db, fetchTotalEnvelopesAmount, envelopes, } from '../../database/database'
+import CustomProgressBar from '../../components/CustomProgressBar';
 
 const Envelopes = () => {
   const navigation = useNavigation();
@@ -112,7 +113,7 @@ const Envelopes = () => {
       <StatusBar backgroundColor={colors.munsellgreen} />
       <View style={styles.budget_period_view}>
         <Text style={styles.monthly_txt}>Monthly</Text>
-        <Text style={styles.monthly_txt}>{totalIncome}</Text>
+        <Text style={styles.monthly_txt}>{totalIncome.toFixed(2)}</Text>
       </View>
 
       <FlatList
@@ -120,27 +121,24 @@ const Envelopes = () => {
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => {
 
-          const filledIncome = filledIncomes.find(filled => filled.envelopeId === item.envelopeId)?.filledIncome || 0;
-          const progress = item.amount > 0 ? filledIncome / item.amount : 0;
-
-          // later on check code for calculatin progress bar
-          // make sure it calculates on updated values
-          // console.log('item.filledIncome is:', item.filledIncome);
-          // console.log('filledIncome is:', filledIncome);
+          // const filledIncome = filledIncomes.find(filled => filled.envelopeId === item.envelopeId)?.filledIncome || 0;
 
           return (
             <View style={styles.item_view}>
-              <TouchableOpacity style={styles.item}>
+              <TouchableOpacity 
+              onPress={() => navigation.navigate('SingleEnvelopeDetails', { envelope: item })}
+              style={styles.item}
+              >
                 <View style={styles.name_filledIncome_view}>
                   <Text style={styles.item_text_name}>{item.envelopeName}</Text>
-                  <Text style={styles.item_text_filledIncome}>{item.filledIncome || 0}</Text>
+                  <Text style={styles.item_text_filledIncome}>{item.filledIncome.toFixed(2) || 0}</Text>
                 </View>
                 <View style={styles.bar_icon_view}>
                   <View style={styles.progress_bar_view}>
-                    <ProgressBar progress={progress} color={colors.brightgreen} />
+                    <CustomProgressBar filledIncome={item.filledIncome} amount={item.amount} />
                   </View>
                   <View style={styles.progress_bar_view_icon}>
-                    <Text style={styles.item_text_amount}>{item.amount}</Text>
+                    <Text style={styles.item_text_amount}>{item.amount.toFixed(2)}</Text>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -149,7 +147,6 @@ const Envelopes = () => {
         }}
         scrollEnabled={false}
       />
-      {/* <Button title="Logout" onPress={handleLogout} /> */}
     </View>
   )
 }
@@ -189,6 +186,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginRight: hp('1%'),
   },
   item_text_name: {
     fontSize: hp('2.2%'),
@@ -198,7 +196,7 @@ const styles = StyleSheet.create({
   item_text_filledIncome: {
     fontSize: hp('2.4%'),
     color: colors.black,
-    fontWeight: '500',
+    fontWeight: '400',
   },
   item_text_amount: {
     color: colors.black,
@@ -207,11 +205,13 @@ const styles = StyleSheet.create({
   bar_icon_view: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginRight: hp('1%'),
+
   },
   progress_bar_view: {
     paddingVertical: hp('0.2'),
     flex: 1,
-    paddingRight: hp('2%'),
+    paddingRight: hp('8%'),
   },
   progress_bar_view_icon: {
     flexDirection: 'row',

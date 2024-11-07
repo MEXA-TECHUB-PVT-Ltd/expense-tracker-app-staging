@@ -162,10 +162,12 @@ const SetupBudget = () => {
 
     // for showing total sum of all envelopes incomes single sumup of all
     const [totalSumOfEnvelopes, setTotalSumOfAllEnvelopes] = useState(0);
-    useEffect(() => {
-        const totalSum = envelopes.reduce((sum, envelope) => sum + envelope.amount, 0);
-        setTotalSumOfAllEnvelopes(totalSum);
-    }, [envelopes]);
+    useFocusEffect(
+        React.useCallback(() => {
+            const totalSum = envelopes.reduce((sum, envelope) => sum + envelope.amount, 0);
+            setTotalSumOfAllEnvelopes(totalSum);
+        }, [envelopes])
+    );
 
 
     // if totalIncome is negative show modal
@@ -176,6 +178,15 @@ const SetupBudget = () => {
     const handleKeepGoing = () => {
         setNegativeIncomeModal(false);
         navigation.navigate('FillEnvelopes');
+    };
+
+    // pressing remaining view if negative or positive shows relevent message modal
+    const [remainingModalVisible, setRemainingModalVisible] = useState(false);
+    const handleRemainingPress = () => {
+        setRemainingModalVisible(true);
+    };
+    const handleRemainingClose = () => {
+        setRemainingModalVisible(false);
     };
 
     return (
@@ -388,8 +399,14 @@ const SetupBudget = () => {
                     </View>
                 </Pressable>
 
-                <View
-                    style={totalIncome < 0 ? styles.redRemainingContainer : styles.remainingContainer}
+                <TouchableOpacity onPress={handleRemainingPress}
+                    style={
+                        totalIncome === 0
+                            ? styles.remainingContainer // Case where totalIncome is 0
+                            : remainingAmount < 0
+                                ? styles.redRemainingContainer // Case where remainingAmount is negative
+                                : styles.remainingContainer // Case where remainingAmount is positive
+                    }
                 >
                     <View>
                         <Text style={styles.remainingText}>
@@ -404,23 +421,7 @@ const SetupBudget = () => {
                             <VectorIcon name="exclamationcircle" size={16} color={colors.lightGray} type="ad" />
                         </View>
                     </View>
-                </View>
-
-
-                {/* <View 
-                    style={remainingAmount < 0 ? styles.redRemainingContainer : styles.remainingContainer}
-                >
-                    <View>
-                        <Text style={styles.remainingText}>Remaining</Text>
-                    </View>
-                    <View style={styles.total_txt_icon_view}>
-                        <Text style={styles.remainingText}>{remainingAmount}</Text>
-                        <View style={styles.icon_remaining_view}>
-                            <VectorIcon name="exclamationcircle" size={16} color={colors.lightGray} type="ad" />
-                        </View>
-                    </View>
-                </View> */}
-
+                </TouchableOpacity>
             </View>
 
             <View style={styles.secondView}>
@@ -497,6 +498,48 @@ const SetupBudget = () => {
                 </View>
             </Modal>
 
+            {/* remaining view modal */}
+            <Modal visible={remainingModalVisible} onDismiss={handleRemainingClose} contentContainerStyle={styles.modalContainer}>
+                <View style={styles.modalContent}>
+                    <View style={styles.img_title_view}>
+                        <Image
+                            source={
+                                totalIncome === 0
+                                    ? Images.expenseplannerimage
+                                    : remainingAmount >= 0 && remainingAmount < totalIncome
+                                        ? Images.expenseplannerimage
+                                        : remainingAmount < totalIncome
+                                            ? Images.expenseplannerimagegray
+                                            : Images.expenseplannerimage
+                            }
+                            style={styles.image}
+                        />
+                        <Text style={styles.modalTitle}>
+                            {totalIncome === 0
+                                ? 'Total Budgeted'
+                                : remainingAmount >= 0 && remainingAmount < totalIncome
+                                    ? `You have ${remainingAmount} left`
+                                    : remainingAmount < totalIncome
+                                        ? 'Hmmm...'
+                                        : `You have ${totalSumOfEnvelopes} left`}
+                        </Text>
+                    </View>
+                    <Text style={styles.modalMessage}>
+                        {totalIncome === 0
+                            ? `You plan to spend a total of ${totalSumOfEnvelopes} every month in all your budgeting Envelopes.`
+                            : remainingAmount >= 0 && remainingAmount < totalIncome
+                                ? `You have ${remainingAmount} left over from your income every month. Tap 'Add Envelope' to budget more.`
+                                : remainingAmount < totalIncome
+                                    ? "It looks like you plan to spend more than you earn. Tap 'Income' or an Envelope to edit."
+                                    : `You have ${totalSumOfEnvelopes} left over from your income every month. Tap 'Add Envelope' to budget more.`}
+                    </Text>
+                    <View style={styles.modalButtons}>
+                        <TouchableOpacity onPress={handleRemainingClose}>
+                            <Text style={styles.agreeButton}>OK</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </Pressable>
     );
 };
