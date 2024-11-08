@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { BackHandler, View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
-import { FAB } from 'react-native-paper';
+import { BackHandler, View, Text, Image, TouchableOpacity, TouchableWithoutFeedback, StyleSheet } from 'react-native';
+import { FAB, Modal, Portal } from 'react-native-paper';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import Envelopes from '../../screens/Dashboard/Envelopes';
 import Transactions from '../../screens/Dashboard/Transactions';
@@ -19,6 +19,10 @@ const Tab = createMaterialTopTabNavigator();
 const TopTab = () => {
     const navigation = useNavigation();
     const [selectedTab, setSelectedTab] = useState('Envelopes');
+    const [isSearched, setIsSearched] = useState(false);
+    const [searchModalVisible, setSearchModalVisible] = useState(false);
+    // const [isModalVisible, setIsModalVisible] = useState(false);
+
     const dispatch = useDispatch();
 
     const handleLogout = () => {
@@ -48,7 +52,11 @@ const TopTab = () => {
 
     return (
         <>
-            <DashboardAppBar selectedTab={selectedTab} />
+            <DashboardAppBar
+                selectedTab={selectedTab} 
+                setIsSearched={setIsSearched}
+                setSearchModalVisible={setSearchModalVisible}
+                />
             <Tab.Navigator
                 screenOptions={{
                     tabBarStyle: styles.tabBar,
@@ -76,7 +84,7 @@ const TopTab = () => {
                         ),
                     }}
                 />
-                <Tab.Screen
+                {/* <Tab.Screen
                     name="Transactions"
                     component={Transactions}
                     key="transactions"
@@ -87,7 +95,26 @@ const TopTab = () => {
                             </Text>
                         ),
                     }}
-                />
+                /> */}
+                <Tab.Screen
+                    name="Transactions"
+                    key="transactions"
+                    options={{
+                        tabBarLabel: ({ focused }) => (
+                            <Text style={{ color: focused ? colors.white : colors.lightgreen }} numberOfLines={1}>
+                                Transactions
+                            </Text>
+                        ),
+                    }}
+                >
+                    {(props) => <Transactions 
+                    {...props} 
+                    isSearched={isSearched}
+                    setIsSearched={setIsSearched}
+                    searchModalVisible={searchModalVisible}
+                    setSearchModalVisible={setSearchModalVisible}
+                    />}
+                </Tab.Screen>
                 <Tab.Screen
                     name="Accounts"
                     component={Accounts}
@@ -114,13 +141,16 @@ const TopTab = () => {
                 />
             </Tab.Navigator>
             {selectedTab !== 'Reports' && (
+                // <Portal>
                 <FAB
                     icon="plus"
                     style={styles.fab}
                     onPress={() => navigation.navigate('AddEditDeleteTransaction')}
                 />
+                // </Portal>
             )}
         </>
+
     );
 };
 

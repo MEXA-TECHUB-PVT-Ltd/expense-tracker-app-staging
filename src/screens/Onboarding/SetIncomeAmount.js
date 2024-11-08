@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, Pressable, Animated, TouchableOpacity, FlatList
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import colors from '../../constants/colors';
 import { TextInput, Appbar, Button, Menu } from 'react-native-paper';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import dimensions from '../../constants/dimensions';
 import { VectorIcon } from '../../constants/vectoricons';
 const { width: screenWidth } = dimensions;
@@ -73,6 +73,10 @@ const IncomeInput = ({ item, index, selectedIncomeIndex, setSelectedIncomeIndex,
 
 const SetIncomeAmount = () => {
     const navigation = useNavigation();
+    const route = useRoute();
+    const envelope_prop = route.params?.envelope_prop;
+
+
     const [isTooltipVisible, setIsTooltipVisible] = useState(false);
     const slideAnim = useRef(new Animated.Value(screenWidth)).current;
     const handleLeftIconPress = () => {
@@ -173,7 +177,11 @@ const SetIncomeAmount = () => {
             error => console.error('Transaction error:', error),
             () => {
                 fetchAllIncome();
-                navigation.navigate('SetupBudget');
+                if (envelope_prop) {
+                    navigation.navigate('SetupBudget', { envelope_prop });
+                } else {
+                    navigation.navigate('SetupBudget');
+                }
             });
     };
 
@@ -264,7 +272,15 @@ const SetIncomeAmount = () => {
             />
 
             <View style={styles.bottomButtonContainer}>
-                <Button mode="text" textColor={colors.gray} onPress={() => { navigation.navigate('SetupBudget') }}>
+                <Button mode="text" textColor={colors.gray} 
+                    onPress={() => {
+                        if (envelope_prop) {
+                            navigation.navigate('SetupBudget', { envelope_prop });
+                        } else {
+                            navigation.navigate('SetupBudget');
+                        }
+                    }}
+                >
                     NO THANKS
                 </Button>
                 <Button

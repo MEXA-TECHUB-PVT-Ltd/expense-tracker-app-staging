@@ -145,10 +145,6 @@ const SingleEnvelopeDetails = ({ route }) => {
     console.log('Searched Transactions:', allTransactions);
   };
 
-
-
-
-
   return (
     <View style={styles.container}>
       <Appbar.Header style={styles.appBar}>
@@ -158,22 +154,18 @@ const SingleEnvelopeDetails = ({ route }) => {
         <Appbar.Action onPress={handleRightIconPress} icon="dots-vertical" color={colors.white} />
       </Appbar.Header>
 
-      {/* {!isSearched && (
-       
-      )} */}
-
       {!isSearched && (
         <View style={styles.envelope_details_view}>
           <View style={styles.name_amount_view}>
             <Text style={styles.envelope_name}>{envelope.envelopeName}</Text>
-            <Text style={styles.filledIncome_text}>{envelope.filledIncome.toFixed(2)}</Text>
+            <Text style={styles.filledIncome_text}>{envelope.filledIncome}</Text>
           </View>
           <View style={styles.bar_amount_view}>
             <View style={styles.bar_view}>
               <CustomProgressBar filledIncome={envelope.filledIncome} amount={envelope.amount} />
             </View>
             <View style={styles.amount_view}>
-              <Text style={styles.amount_text}>{envelope.amount.toFixed(2)}</Text>
+              <Text style={styles.amount_text}>{envelope.amount}</Text>
             </View>
           </View>
           <View style={styles.text_image_view}>

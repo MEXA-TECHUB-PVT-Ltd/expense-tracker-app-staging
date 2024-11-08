@@ -580,7 +580,7 @@ const AddEditDeleteTransaction = () => {
                       setEnvelopeMenuVisible(false);
                       setEnvelopeRemainingIncome(item.filledIncome);
                     }}
-                    title={`${item.envelopeName} [${item.filledIncome.toFixed(2) || 0} left]`}
+                    title={`${item.envelopeName} [${item.filledIncome || 0} left]`}
                     titleStyle={{ color: colors.black }}
                   />
                 )}
@@ -620,7 +620,7 @@ const AddEditDeleteTransaction = () => {
                       setSelectedAccount(accountName);
                       setAccountMenuVisible(false);
                     }}
-                    title={`${item.accountName} [${budgetAmount.toFixed(2)} left]`}
+                    title={`${item.accountName} [${budgetAmount} left]`}
                     titleStyle={{ color: colors.black }}
                   />
                 )}

@@ -11,7 +11,7 @@ const initializeDatabase = () => {
 
         // in case any table is not created correct first drop then create when sure about its values and structure
         // tx.executeSql(
-        //     "DROP TABLE IF EXISTS Transactions;",
+        //     "DROP TABLE IF EXISTS envelopes;",
         //     [],
         //     () => console.log('Table dropped'),
         //     (_, error) => console.error('Error dropping income table:', error)
@@ -23,10 +23,8 @@ const initializeDatabase = () => {
             [],
             (tx, results) => {
                 if (results.rows.length > 0) {
-                    // The table already exists
                     console.log("Users table already exists");
                 } else {
-                    // The table does not exist, create it
                     tx.executeSql(
                         `CREATE TABLE Users (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -42,18 +40,6 @@ const initializeDatabase = () => {
             },
             error => console.error("Error checking Users table:", error)
         );
-
-        // create envelope table if not exists working individually older
-        // tx.executeSql(
-        //     'CREATE TABLE IF NOT EXISTS envelopes (id INTEGER PRIMARY KEY NOT NULL, envelopeName TEXT NOT NULL, amount REAL NOT NULL, budgetPeriod TEXT NOT NULL)',
-        //     [],
-        //     // () => console.log('Envelopes Table created successfully'),
-        //     (_, error) => {
-        //         // console.log('Error creating envelopes table:', error);
-        //         return true; // Consider changing return value for better clarity
-        //     }
-        // );
-        
         
         // creates envelopes table now fully working
         tx.executeSql(
@@ -75,16 +61,6 @@ const initializeDatabase = () => {
         );
 
         // create Income table if not exists
-        // tx.executeSql(
-        //     `CREATE TABLE IF NOT EXISTS Income (
-        //     id INTEGER PRIMARY KEY AUTOINCREMENT,
-        //     amount REAL NOT NULL,
-        //     budgetPeriod TEXT
-        //     );`, [],
-        //     [],
-        //     () => console.log('Income table created successfully'),
-        //     error => console.error('Error creating Income table:', error)
-        // );
 
         tx.executeSql(
             `CREATE TABLE IF NOT EXISTS Income (

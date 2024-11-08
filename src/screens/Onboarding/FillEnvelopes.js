@@ -6,7 +6,7 @@ import colors from '../../constants/colors';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import dimensions from '../../constants/dimensions';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { VectorIcon } from '../../constants/vectoricons';
 import { db, fetchTotalEnvelopesAmount, fetchTotalIncome } from '../../database/database';
 import Images from '../../constants/images';
@@ -16,6 +16,8 @@ import CustomProgressBar from '../../components/CustomProgressBar';
 const { width: screenWidth } = dimensions;
 
 const FillEnvelopes = () => {
+  const route = useRoute();
+  const fill_envelope = route.params?.fill_envelope;
   const navigation = useNavigation();
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
   const slideAnim = useRef(new Animated.Value(screenWidth)).current;
@@ -381,7 +383,7 @@ const FillEnvelopes = () => {
                WHERE envelopeId = ?;`,
                 [envelopeName, amount, budgetPeriod, filledIncome, date, envelopeId],
                 (tx, results) => {
-                  console.log(`Record updated for envelopeId: ${envelopeId}`);
+                  console.log(`Record updated for envelopeId and record: ${envelopeId}`);
                 },
                 (tx, error) => {
                   console.error('Error updating record:', error);
@@ -456,7 +458,7 @@ const FillEnvelopes = () => {
         // Execute the SQL query to clear filledIncome and fillDate
         db.transaction(tx => {
           tx.executeSql(
-            'UPDATE envelopes SET filledIncome = NULL, fillDate = NULL',
+            'UPDATE envelopes SET filledIncome = 0, fillDate = NULL',
             [],
             // () => console.log('All filledIncome and fillDate values cleared successfully'),
             // console.log('after running fetcha and log individual in clear effect'),
@@ -762,6 +764,7 @@ const FillEnvelopes = () => {
           onClose={() => setCalculatorVisible(false)}
         />
 
+        {!fill_envelope && (
         <View style={styles.secondView}>
           <View style={styles.left_icon_btn_view}>
             <VectorIcon name="chevron-back" size={20} color={colors.androidbluebtn} type="ii" />
@@ -790,7 +793,7 @@ const FillEnvelopes = () => {
             <VectorIcon name="chevron-forward" size={20} color={colors.androidbluebtn} type="ii" />
           </View>
         </View>
-
+        )}
       </View>
     </TouchableWithoutFeedback>
   );
