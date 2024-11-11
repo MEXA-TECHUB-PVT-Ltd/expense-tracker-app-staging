@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { StyleSheet, Text, View, Pressable, Animated, Dimensions, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, View, Pressable, Animated, TouchableOpacity } from 'react-native';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import { Appbar } from 'react-native-paper';
 import colors from '../../constants/colors';

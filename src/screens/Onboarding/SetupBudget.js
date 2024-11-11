@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { StyleSheet, Text, View, Pressable, ScrollView, FlatList, Animated, Image, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, View, Pressable, ScrollView, Alert, FlatList, Animated, Image, TouchableOpacity } from 'react-native';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
-import { Appbar, Button } from 'react-native-paper';
+import { Appbar, Button, Snackbar, Modal } from 'react-native-paper';
 import { VectorIcon } from '../../constants/vectoricons';
 import colors from '../../constants/colors';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -9,8 +9,8 @@ import { TouchableWithoutFeedback } from 'react-native-gesture-handler';
 import Images from '../../constants/images';
 import dimensions from '../../constants/dimensions';
 import { useFocusEffect } from '@react-navigation/native';
-
-import { db, fetchTotalIncome,  } from '../../database/database';
+import DraggableFlatList from 'react-native-draggable-flatlist';
+import { db, fetchTotalIncome, fetchTotalEnvelopesAmount } from '../../database/database';
 
 const { width: screenWidth } = dimensions;
 
@@ -19,18 +19,19 @@ const SetupBudget = () => {
     const route = useRoute();
     const [isTooltipVisible, setIsTooltipVisible] = useState(false);
     const slideAnim = useRef(new Animated.Value(screenWidth)).current;
-
-    //sqlite
     const [envelopes, setEnvelopes] = useState([]);
+    // console.log('after rearrange envelopes state is: ', envelopes);
+    const [totalIncome, setTotalIncome] = useState(0);
+    const [remainingAmount, setRemainingAmount] = useState(0);
+   
     useFocusEffect(
         useCallback(() => {
             getAllEnvelopes(setEnvelopes);
         }, [])
     );
-   
     const getAllEnvelopes = (callback) => {
         db.transaction(tx => {
-            const sqlQuery = 'SELECT * FROM envelopes';
+            const sqlQuery = 'SELECT * FROM envelopes ORDER BY orderIndex';
             tx.executeSql(
                 sqlQuery,
                 [],
@@ -57,9 +58,31 @@ const SetupBudget = () => {
         });
     };
 
+    //to update/sync order of envelopes in table
+    const updateEnvelopeOrderInDatabase = (data) => {
+        db.transaction(tx => {
+            data.forEach((envelope, index) => {
+                const sqlQuery = 'UPDATE envelopes SET orderIndex = ? WHERE envelopeId = ?';
+                tx.executeSql(
+                    sqlQuery,
+                    [index, envelope.envelopeId],
+                    (_, result) => {
+                        console.log(`Updated order of envelopeId ${envelope.envelopeId} to ${index}`);
+                    },
+                    (_, error) => {
+                        console.log('Error updating order in database:', error);
+                        return true;
+                    }
+                );
+            });
+        }, (error) => {
+            console.log('Transaction Error:', error);
+        });
+    };
+
     const handleEditEnvelope = (envelope) => {
-        navigation.navigate('AddEnvelope', {
-            envelopeId: envelope.id,
+        navigation.navigate('AddEditDeleteEnvelope', {
+            envelopeId: envelope.envelopeId,
             envelopeName: envelope.envelopeName,
             amount: envelope.amount,
             budgetPeriod: envelope.budgetPeriod,
@@ -68,28 +91,35 @@ const SetupBudget = () => {
         });
     };
 
-    // for income total and remainin
+    useFocusEffect(() => {
+        fetchTotalIncome(setTotalIncome);
+    });
+
     const calculateRemainingAmount = (totalIncome, envelopes) => {
         const totalExpenses = envelopes.reduce((sum, envelope) => sum + envelope.amount, 0);
         return totalIncome - totalExpenses;
     };
-    const [totalIncome, setTotalIncome] = useState(0);
-    const [remainingAmount, setRemainingAmount] = useState(0);
-    // useEffect(() => {
-    //     fetchTotalIncome(setTotalIncome); // Fetch total income
-    // }, []);
 
-    useFocusEffect(() => {
-        fetchTotalIncome(setTotalIncome); // Fetch total income
-    });
+    useFocusEffect(
+        useCallback(() => {
+            const remaining = calculateRemainingAmount(totalIncome, envelopes);
+            setRemainingAmount(remaining);
+        }, [totalIncome, envelopes])
+    );
 
-    useEffect(() => {
-        const remaining = calculateRemainingAmount(totalIncome, envelopes);
-        setRemainingAmount(remaining);
-    }, [totalIncome, envelopes]);
+    const [noEnvelopeAlertVisible, setNoEnvelopeAlertVisible] = useState(false);
+    const handleNextPress = () => {
+        if (envelopes.length === 0) {
+            setNoEnvelopeAlertVisible(true);
+        } else if (totalIncome < 0) {
+            setNegativeIncomeModal(true);
+        } else {
+            navigation.navigate('FillEnvelopes');
+        }
+    };
 
 
-
+    // screen
     const handleLeftIconPress = () => {
         navigation.goBack();
     };
@@ -127,7 +157,25 @@ const SetupBudget = () => {
     };
 
     const handleAddEnvelope = () => {
-        navigation.navigate('AddEnvelope');
+        navigation.navigate('AddEditDeleteEnvelope');
+    };
+
+    // for showing total sum of all envelopes incomes single sumup of all
+    const [totalSumOfEnvelopes, setTotalSumOfAllEnvelopes] = useState(0);
+    useEffect(() => {
+        const totalSum = envelopes.reduce((sum, envelope) => sum + envelope.amount, 0);
+        setTotalSumOfAllEnvelopes(totalSum);
+    }, [envelopes]);
+
+
+    // if totalIncome is negative show modal
+    const [negativeIncomeModal, setNegativeIncomeModal] = useState(false);
+    const handleEditPress = () => {
+        setNegativeIncomeModal(false);
+    };
+    const handleKeepGoing = () => {
+        setNegativeIncomeModal(false);
+        navigation.navigate('FillEnvelopes');
     };
 
     return (
@@ -160,16 +208,51 @@ const SetupBudget = () => {
                 showsVerticalScrollIndicator={false}
                 style={styles.scroll_view}
             >
-                <TouchableWithoutFeedback onPress={() => navigation.navigate('ChangeBudgetPeriod')} style={styles.budget_period_view}>
+                <TouchableWithoutFeedback 
+                // onPress={() => navigation.navigate('ChangeBudgetPeriod')} 
+                style={styles.budget_period_view}
+                >
                     <Text style={styles.monthly_txt}>Monthly</Text>
                     {/* <VectorIcon name="menu-down" size={24} color={colors.black} type="mci" />
                     <Text style={styles.envelope_left_txt}>8 of 10 free Envelopes left</Text> */}
                 </TouchableWithoutFeedback>
 
-                {/* Monthly Envelopes Flatlist sqlite */}
-                <FlatList
+                <DraggableFlatList
                     data={envelopes}
-                    keyExtractor={(item) => item.id.toString()}
+                    onDragEnd={({ data }) => {
+                        setEnvelopes(data); // Update the state with the new order
+                        updateEnvelopeOrderInDatabase(data); // Update the database with the new order
+                    }}
+                    // key={envelopes.envelopeId}
+                    keyExtractor={(item) => item.envelopeId}
+                    renderItem={({ item, drag, isActive }) => (
+                        <View style={[styles.item_view, isActive && styles.activeItem]}>
+                            <TouchableOpacity
+                                style={styles.item}
+                                onPress={() => handleEditEnvelope(item)}
+                            >
+                                <View style={styles.left_view}>
+                                    <VectorIcon name="envelope" size={18} color={colors.gray} type="fa" />
+                                    <Text style={styles.item_text_name}>{item.envelopeName}</Text>
+                                </View>
+                                <View style={styles.right_view}>
+                                    <Text style={styles.item_text_amount}>{item.amount}</Text>
+                                    <TouchableOpacity onLongPress={drag} delayLongPress={10}>
+                                        <VectorIcon name="bars" size={18} color={colors.gray} type="fa6" />
+                                    </TouchableOpacity>
+                                </View>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+                    scrollEnabled={false}
+                    contentContainerStyle={styles.flatListContainer}
+                />
+
+                {/* Monthly Envelopes Flatlist sqlite */}
+                {/* <FlatList
+                    data={envelopes}
+                    key={envelopes.envelopeId}
+                    keyExtractor={(item) => item.envelopeId}
                     renderItem={({ item }) => (
                         <View style={styles.item_view}>
                             <TouchableOpacity
@@ -189,7 +272,7 @@ const SetupBudget = () => {
                     )}
                     scrollEnabled={false}
                     contentContainerStyle={styles.flatListContainer}
-                />
+                /> */}
 
                 {/* Monthly Envelopes Flatlist */}
                 {/* {categories['Monthly'].length > 0 && (
@@ -298,15 +381,34 @@ const SetupBudget = () => {
                 <Pressable onPress={() => navigation.navigate('SetIncomeAmount')} style={styles.incomeTextContainer}>
                     <View style={styles.texts_view}>
                         <Text style={styles.estimatedIncomeText}>Estimated{"\n"}Income</Text>
-                        <Text style={styles.monthlyIncomeText}>Monthly{"\n"}{totalIncome}</Text>
+                        <Text style={styles.monthlyIncomeText}>Monthly{"\n"}{totalIncome || '---'}</Text>
                     </View>
                     <View style={styles.icon_view}>
                         <VectorIcon name="menu-down" size={24} color={colors.gray} type="mci" />
                     </View>
                 </Pressable>
-                <View 
-                    style={[styles.remainingContainer, { backgroundColor: remainingAmount > totalIncome ? colors.danger : colors.brightgreen }]}
-                // style={styles.remainingContainer}
+
+                <View
+                    style={totalIncome < 0 ? styles.redRemainingContainer : styles.remainingContainer}
+                >
+                    <View>
+                        <Text style={styles.remainingText}>
+                            {totalIncome === 0 ? 'Total' : 'Remaining'}
+                        </Text>
+                    </View>
+                    <View style={styles.total_txt_icon_view}>
+                        <Text style={styles.remainingText}>
+                            {totalIncome === 0 ? totalSumOfEnvelopes : remainingAmount}
+                        </Text>
+                        <View style={styles.icon_remaining_view}>
+                            <VectorIcon name="exclamationcircle" size={16} color={colors.lightGray} type="ad" />
+                        </View>
+                    </View>
+                </View>
+
+
+                {/* <View 
+                    style={remainingAmount < 0 ? styles.redRemainingContainer : styles.remainingContainer}
                 >
                     <View>
                         <Text style={styles.remainingText}>Remaining</Text>
@@ -317,7 +419,8 @@ const SetupBudget = () => {
                             <VectorIcon name="exclamationcircle" size={16} color={colors.lightGray} type="ad" />
                         </View>
                     </View>
-                </View>
+                </View> */}
+
             </View>
 
             <View style={styles.secondView}>
@@ -337,7 +440,7 @@ const SetupBudget = () => {
                 <View style={styles.right_icon_btn_view}>
                     <Button
                         mode="text"
-                        onPress={() => navigation.navigate('FillEnvelopes')}
+                        onPress={handleNextPress}
                         // onPress={() => console.log('later press')}
                         style={styles.nextButton}
                         labelStyle={styles.nextText}
@@ -348,6 +451,52 @@ const SetupBudget = () => {
                     <VectorIcon name="chevron-forward" size={20} color={colors.androidbluebtn} type="ii" />
                 </View>
             </View>
+
+            <Snackbar
+                visible={noEnvelopeAlertVisible}
+                onDismiss={() => setNoEnvelopeAlertVisible(false)}
+                duration={1000}
+                style={[
+                    styles.snack_bar,
+                    {
+                        position: 'absolute',
+                        bottom: 42,
+                        left: 20,
+                        right: 20,
+                        zIndex: 1000,
+                    }
+                ]}
+            >
+                <View style={styles.img_txt_view}>
+                    <Image
+                        source={Images.expenseplannerimage}
+                        style={styles.snack_bar_img}
+                    />
+                    <Text style={styles.snack_bar_text}>Please add an envelope.</Text>
+                </View>
+            </Snackbar>
+
+            <Modal visible={negativeIncomeModal} onDismiss={handleEditPress} contentContainerStyle={styles.modalContainer}>
+                <View style={styles.modalContent}>
+                    <View style={styles.img_title_view}>
+                        <Image source={Images.expenseplannerimagegray} style={styles.image} />
+                        <Text style={styles.modalTitle}>Hmmm...</Text>
+                    </View>
+
+                    <Text style={styles.modalMessage}>
+                        Your estimated expenses are more than your estimated income.
+                    </Text>
+                    <View style={styles.modalButtons}>
+                        <TouchableOpacity onPress={handleKeepGoing}>
+                            <Text style={styles.cancelButton}>Keep Going</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={handleEditPress}>
+                            <Text style={styles.agreeButton}>Edit</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
         </Pressable>
     );
 };
@@ -486,7 +635,13 @@ const styles = StyleSheet.create({
     },
     remainingContainer: {
         justifyContent: 'center',
-        // backgroundColor: colors.brightgreen,
+        backgroundColor: colors.brightgreen,
+        paddingHorizontal: hp('1%'),
+        paddingVertical: hp('1%'),
+    },
+    redRemainingContainer: {
+        justifyContent: 'center',
+        backgroundColor: colors.danger,
         paddingHorizontal: hp('1%'),
         paddingVertical: hp('1%'),
     },
@@ -548,6 +703,9 @@ const styles = StyleSheet.create({
     item_view: {
         // flexDirection: 'row',
     },
+    activeItem: {
+        backgroundColor: colors.lightgreen, // Change to your desired color
+    },
     item: {
         paddingVertical: 10,
         paddingHorizontal: hp('1.3%'),
@@ -576,5 +734,79 @@ const styles = StyleSheet.create({
     },
     scroll_view: {
         marginBottom: hp('14%'),
+    },
+
+    // snackbar styles
+    snack_bar: {
+        backgroundColor: colors.gray,
+        borderRadius: 50,
+        zIndex: 1000,
+    },
+    img_txt_view: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    snack_bar_img: {
+        width: wp('10%'),
+        height: hp('3%'),
+        marginRight: 10,
+        resizeMode: 'contain',
+    },
+    snack_bar_text: {
+        color: colors.white,
+        fontSize: hp('2%'),
+    },
+
+    //modal styles
+    modalContainer: {
+        backgroundColor: colors.white,
+        padding: hp('2%'),
+        margin: hp('3.5%'),
+    },
+    modalContent: {
+        alignItems: 'flex-start',
+        paddingHorizontal: hp('1.5%'),
+    },
+    img_title_view: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 5,
+    },
+    image: {
+        width: hp('4%'),
+        height: hp('4%'),
+        resizeMode: 'contain',
+    },
+    modalTitle: {
+        color: colors.black,
+        fontSize: hp('2.5%'),
+        fontWeight: '600',
+        marginLeft: hp('1%'),
+    },
+    modalMessage: {
+        fontSize: hp('2%'),
+        fontWeight: '400',
+        color: colors.black,
+    },
+    modalButtons: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        width: '100%',
+        marginVertical: hp('1.8%'),
+    },
+    ok_btn: {
+        color: colors.androidbluebtn,
+    },
+    cancelButton: {
+        color: colors.androidbluebtn,
+        marginRight: hp('7%'),
+    },
+    agreeButton: {
+        color: colors.androidbluebtn,
+        marginRight: hp('2.5%'),
+    },
+    termsText: {
+        color: colors.androidbluebtn,
+        textDecorationLine: 'underline',
     },
 });

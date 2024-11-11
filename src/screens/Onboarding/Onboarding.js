@@ -10,9 +10,21 @@ import dimensions from '../../constants/dimensions';
 import { db, fetchUsers } from '../../database/database';
 import { useDispatch } from 'react-redux';
 import { setUser } from '../../redux/slices/userSlice';
+import { saveUserData } from '../../utils/authUtils';
 import bcrypt from 'react-native-bcrypt';
+import { useFormik, Formik } from 'formik';
+import * as Yup from 'yup';
 
 const { width: screenWidth } = dimensions;
+
+// Validation schema for the form
+const validationSchema = Yup.object().shape({
+  email: Yup.string()
+    .email('Invalid email')
+    .required('Email is required'),
+  password: Yup.string()
+    .required('Password is required'),
+});
 
 const Onboarding = () => {
   const dispatch = useDispatch();
@@ -26,6 +38,7 @@ const Onboarding = () => {
   const [password, setPassword] = useState('');
 
   const [snackbarVisible, setSnackbarVisible] = useState(false);
+  const [snackbarVisiblePassword, setSnackbarVisiblePassword] = useState(false);
   const [snackbarLoginVisible, setSnackbarLoginVisible] = useState(false);
 
 
@@ -66,12 +79,32 @@ const Onboarding = () => {
 
   const handleCancelPress = () => {
     setCenterModalVisible(false);
+    formik.resetForm();
     setEmail('');
     setPassword('');
   };
 
   const handleCreateNewHousehold = () => {
     navigation.navigate('SetupBudget');
+  };
+
+  // Use Formik
+  // const formik = useFormik({
+  //   initialValues: {
+  //     email: '',
+  //     password: '',
+  //   },
+  //   validationSchema: validationSchema,
+  //   onSubmit: (values) => {
+  //     loginUser(values.email, values.password);
+  //     formik.resetForm(); // Reset the form after submission
+  //   },
+  // });
+
+  const handleLogin = (values) => {
+    loginUser(values.email, values.password);
+    setEmail('');
+    setPassword('');
   };
 
   // transaction to login user
@@ -92,13 +125,18 @@ const Onboarding = () => {
               // Dispatch the user details to Redux
               dispatch(setUser({ email }));
               console.log('Login successful');
-              // navigation.navigate('TopTab');
-              setSnackbarLoginVisible(true);
+              // setSnackbarLoginVisible(true);
+
+              saveUserData({ email, isAuthenticated: true })
+                .then(() => console.log('User data saved to Async Storage'))
+                .catch(error => console.error('Error saving user data to Async Storage:', error));
+
             } else {
               console.log('Invalid password');
-              setSnackbarVisible(true);
+              setSnackbarVisiblePassword(true);
             }
-          } else {
+          } 
+          else {
             console.log('Login failed. Please try again.');
             setSnackbarVisible(true);
           }
@@ -106,12 +144,6 @@ const Onboarding = () => {
         error => console.error('Error fetching user for login:', error)
       );
     });
-  };
-
-  const handleLogin = () => {
-    loginUser(email, password);
-    setEmail('');
-    setPassword('');
   };
 
   return (
@@ -177,52 +209,78 @@ const Onboarding = () => {
           <Modal
             visible={centerModalVisible}
             dismissable={true}
-            onDismiss={() => setCenterModalVisible(false)}
+            // onDismiss={() => setCenterModalVisible(false)}
+            onDismiss={handleCancelPress}
           >
-            <View style={styles.login_container}>
-              <Text style={styles.title}>Log In to ExpensePlanner</Text>
-              <Text style={styles.label}>Household Name or Email</Text>
-              <TextInput
-                value={email}
-                onChangeText={setEmail}
-                mode="flat"
-                style={[
-                  styles.input,
-                  focusedInput === 'email' ? styles.focusedInput : {}
-                ]}
-                theme={{ colors: { primary: focusedInput ? colors.androidbluebtn : colors.androidbluebtn } }}
-                textColor={colors.black}
-                dense={true}
-                onFocus={() => setFocusedInput('email')}
-                onBlur={() => setFocusedInput(null)}
-              />
-              <View style={styles.passwordContainer}>
-                <Text style={styles.passwordLabel}>Password</Text>
-                <Pressable>
-                  <Text style={styles.forgotText}>FORGOT?</Text>
-                </Pressable>
-              </View>
-              <TextInput
-                value={password}
-                onChangeText={setPassword}
-                mode="flat"
-                style={styles.input}
-                theme={{ colors: { primary: focusedInput ? colors.androidbluebtn : colors.androidbluebtn } }}
-                textColor={colors.black}
-                secureTextEntry={true}
-                dense={true}
-                onFocus={() => setFocusedInput('password')}
-                onBlur={() => setFocusedInput(null)}
-              />
-              <View style={styles.buttonContainer}>
-                <Pressable onPress={handleCancelPress}>
-                  <Text style={styles.cancelText}>CANCEL</Text>
-                </Pressable>
-                <Pressable onPress={handleLogin}>
-                  <Text style={styles.loginText}>LOG IN</Text>
-                </Pressable>
-              </View>
-            </View>
+            <Formik
+              initialValues={{ email: '', password: '' }}
+              validationSchema={validationSchema}
+              onSubmit={handleLogin}  // Pass handleLogin as onSubmit
+            >
+              {({ handleChange, handleBlur, handleSubmit, values, errors, touched }) => (
+                <View style={styles.login_container}>
+                  <Text style={styles.title}>Log In to ExpensePlanner</Text>
+                  <Text style={styles.label}>Household Name or Email</Text>
+                  <TextInput
+                    value={values.email}
+                    onChangeText={handleChange('email')}
+                    onBlur={handleBlur('email')}
+
+                    // value={email}
+                    // onChangeText={setEmail}
+                    mode="flat"
+                    style={[
+                      styles.input,
+                      focusedInput === 'email' ? styles.focusedInput : {}
+                    ]}
+                    theme={{ colors: { primary: focusedInput ? colors.androidbluebtn : colors.androidbluebtn } }}
+                    textColor={colors.black}
+                    dense={true}
+                    onFocus={() => setFocusedInput('email')}
+                  // onBlur={() => setFocusedInput(null)}
+                  />
+                  {touched.email && errors.email && (
+                    <Text style={styles.errorText}>{errors.email}</Text>
+                  )}
+                  <View style={styles.passwordContainer}>
+                    <Text style={styles.passwordLabel}>Password</Text>
+                    <Pressable>
+                      <Text style={styles.forgotText}>FORGOT?</Text>
+                    </Pressable>
+                  </View>
+                  <TextInput
+                    value={values.password}
+                    onChangeText={handleChange('password')}
+                    onBlur={handleBlur('password')}
+
+                    // value={password}
+                    // onChangeText={setPassword}
+                    mode="flat"
+                    style={styles.input}
+                    theme={{ colors: { primary: focusedInput ? colors.androidbluebtn : colors.androidbluebtn } }}
+                    textColor={colors.black}
+                    secureTextEntry={true}
+                    dense={true}
+                    onFocus={() => setFocusedInput('password')}
+                  // onBlur={() => setFocusedInput(null)}
+                  />
+                  {touched.password && errors.password && (
+                    <Text style={styles.errorText}>{errors.password}</Text>
+                  )}
+                  <View style={styles.buttonContainer}>
+                    <Pressable onPress={handleCancelPress}>
+                      <Text style={styles.cancelText}>CANCEL</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={handleSubmit}
+                    // onPress={handleLogin}
+                    >
+                      <Text style={styles.loginText}>LOG IN</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              )}
+            </Formik>
           </Modal>
 
           <Snackbar
@@ -246,6 +304,30 @@ const Onboarding = () => {
                 style={styles.snack_bar_img}
               />
               <Text style={styles.snack_bar_text}>Login failed. Please try again.</Text>
+            </View>
+          </Snackbar>
+
+          <Snackbar
+            visible={snackbarVisiblePassword}
+            onDismiss={() => setSnackbarVisiblePassword(false)}
+            duration={1000}
+            style={[
+              styles.snack_bar,
+              {
+                position: 'absolute',
+                bottom: 20,
+                left: 20,
+                right: 20,
+                zIndex: 1000,
+              }
+            ]}
+          >
+            <View style={styles.img_txt_view}>
+              <Image
+                source={Images.expenseplannerimage}
+                style={styles.snack_bar_img}
+              />
+              <Text style={styles.snack_bar_text}>Invalid Password. Please try again.</Text>
             </View>
           </Snackbar>
 
@@ -478,6 +560,10 @@ const styles = StyleSheet.create({
   snack_bar_text: {
     color: colors.white,
     fontSize: hp('2%'),
+  },
+  errorText: {
+    color: 'red',
+    fontSize: 12,
   },
 
 })
