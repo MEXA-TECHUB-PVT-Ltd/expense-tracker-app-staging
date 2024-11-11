@@ -21,6 +21,7 @@ const DashboardAppBar = ({ selectedTab, setIsSearched, setSearchModalVisible }) 
     const handleLogout = async () => {
         await removeUserData();
         dispatch(logout());
+        navigation.navigate('Onboarding');  // later on check actual navigation on basis of redux and async
     };
 
     // code for tooltip

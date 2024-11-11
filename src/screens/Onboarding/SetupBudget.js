@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { StyleSheet, Text, View, Pressable, ScrollView, Alert, FlatList, Animated, Image, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, View, Pressable, ScrollView, Alert, FlatList, BackHandler, Animated, Image, TouchableOpacity } from 'react-native';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import { Appbar, Button, Snackbar, Modal } from 'react-native-paper';
 import { VectorIcon } from '../../constants/vectoricons';
@@ -11,6 +11,7 @@ import dimensions from '../../constants/dimensions';
 import { useFocusEffect } from '@react-navigation/native';
 import DraggableFlatList from 'react-native-draggable-flatlist';
 import { db, fetchTotalIncome, fetchTotalEnvelopesAmount } from '../../database/database';
+import { useSelector } from 'react-redux';
 
 const { width: screenWidth } = dimensions;
 
@@ -20,6 +21,58 @@ const SetupBudget = () => {
     const edit_envelope = route.params?.edit_envelope;
     const envelope_prop = route.params?.envelope_prop;
     const navigation = useNavigation();
+
+    // to conditionally navigate user based on isAuthenticated state from redux
+    const isAuthenticated = useSelector((state) => state.user.isAuthenticated);
+    // Hardware back button handler
+    // useFocusEffect(
+    //     useCallback(() => {
+    //         const onBackPress = () => {
+    //             if (isAuthenticated) {
+    //                 navigation.navigate('TopTab');
+    //                 return true; // Prevent default back action
+    //             }
+    //             return false; // Allow default back action if not authenticated
+    //         };
+
+    //         BackHandler.addEventListener('hardwareBackPress', onBackPress);
+
+    //         // Cleanup listener on unmount
+    //         return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+    //     }, [isAuthenticated, navigation])
+    // );
+
+    // Function to determine whether to navigate to TopTab or go back
+    const navigateBack = () => {
+        if (isAuthenticated && (navigation.isFocused() && (navigation.getState().routes[navigation.getState().index]?.name === 'SetupBudget' || navigation.getState().routes[navigation.getState().index]?.name === 'FillEnvelopes'))) {
+            // Navigate to TopTab if authenticated and currently on SetupBudget or FillEnvelopes
+            navigation.navigate('TopTab');
+        } else {
+            // Normal goBack behavior for other cases
+            navigation.goBack();
+        }
+    };
+
+    // Back icon handler
+    const handleLeftIconPress = () => {
+        navigateBack();
+    };
+
+    // Hardware back button handler
+    useFocusEffect(
+        useCallback(() => {
+            const onBackPress = () => {
+                navigateBack();
+                return true; // Prevent default back action
+            };
+
+            // Attach the event listener
+            BackHandler.addEventListener('hardwareBackPress', onBackPress);
+
+            // Cleanup the event listener on unmount
+            return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+        }, [isAuthenticated, navigation])
+    );
   
     const [isTooltipVisible, setIsTooltipVisible] = useState(false);
     const slideAnim = useRef(new Animated.Value(screenWidth)).current;
@@ -138,9 +191,14 @@ const SetupBudget = () => {
 
 
     // screen
-    const handleLeftIconPress = () => {
-        navigation.goBack();
-    };
+    // const handleLeftIconPress = () => {
+    //     if (isAuthenticated) {
+    //         navigation.navigate('TopTab');
+    //     } else {
+    //         navigation.goBack();
+    //     }
+    // };
+
 
     const handleRightIconPress = () => {
         toggleTooltip();

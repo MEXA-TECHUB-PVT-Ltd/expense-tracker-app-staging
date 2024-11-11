@@ -114,7 +114,7 @@ const RegisterAccount = () => {
                     try {
                         await saveUserData({ email, isAuthenticated: true });
                         console.log('User data saved to Async Storage');
-                        // navigation.navigate('TopTab'); // Navigate to Dashboard or TopTab if needed
+                        navigation.navigate('TopTab'); // Navigate to Dashboard or TopTab if needed check logic again
                     } catch (error) {
                         console.error('Error saving user data to Async Storage:', error);
                     }

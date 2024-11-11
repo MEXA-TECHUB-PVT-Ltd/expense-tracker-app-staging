@@ -132,6 +132,8 @@ const Onboarding = () => {
                 .then(() => console.log('User data saved to Async Storage'))
                 .catch(error => console.error('Error saving user data to Async Storage:', error));
 
+              navigation.navigate('TopTab');
+
             } else {
               console.log('Invalid password');
               setSnackbarVisiblePassword(true);
