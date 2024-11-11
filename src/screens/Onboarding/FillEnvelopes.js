@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { View, Text, Image, StyleSheet, ScrollView, Animated, FlatList, Pressable, Keyboard, TouchableWithoutFeedback, TouchableOpacity } from 'react-native';
+import { View, Text, Image, StyleSheet, ScrollView, Animated, FlatList, Pressable, BackHandler, Keyboard, TouchableWithoutFeedback, TouchableOpacity } from 'react-native';
 import { Appbar, Button, Checkbox, TextInput, RadioButton, Modal, Portal, Provider, Menu, Divider, Card, ProgressBar } from 'react-native-paper';
 import colors from '../../constants/colors';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -12,6 +12,7 @@ import { db, fetchTotalEnvelopesAmount, fetchTotalIncome } from '../../database/
 import Images from '../../constants/images';
 import Calculator from './Calculator';
 import CustomProgressBar from '../../components/CustomProgressBar';
+import { useSelector } from 'react-redux';
 
 const { width: screenWidth } = dimensions;
 
@@ -21,6 +22,58 @@ const FillEnvelopes = () => {
   const navigation = useNavigation();
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
   const slideAnim = useRef(new Animated.Value(screenWidth)).current;
+
+  // to conditionally navigate user based on isAuthenticated state from redux
+  const isAuthenticated = useSelector((state) => state.user.isAuthenticated);
+  // Hardware back button handler
+  // useFocusEffect(
+  //   useCallback(() => {
+  //     const onBackPress = () => {
+  //       if (isAuthenticated) {
+  //         navigation.navigate('TopTab');
+  //         return true; // Prevent default back action
+  //       }
+  //       return false; // Allow default back action if not authenticated
+  //     };
+
+  //     BackHandler.addEventListener('hardwareBackPress', onBackPress);
+
+  //     // Cleanup listener on unmount
+  //     return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+  //   }, [isAuthenticated, navigation])
+  // );
+
+  // Function to determine whether to navigate to TopTab or go back
+  const navigateBack = () => {
+    if (isAuthenticated && (navigation.isFocused() && (navigation.getState().routes[navigation.getState().index]?.name === 'SetupBudget' || navigation.getState().routes[navigation.getState().index]?.name === 'FillEnvelopes'))) {
+      // Navigate to TopTab if authenticated and currently on SetupBudget or FillEnvelopes
+      navigation.navigate('TopTab');
+    } else {
+      // Normal goBack behavior for other cases
+      navigation.goBack();
+    }
+  };
+
+  // Back icon handler
+  const handleLeftIconPress = () => {
+    navigateBack();
+  };
+
+  // Hardware back button handler
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        navigateBack();
+        return true; // Prevent default back action
+      };
+
+      // Attach the event listener
+      BackHandler.addEventListener('hardwareBackPress', onBackPress);
+
+      // Cleanup the event listener on unmount
+      return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+    }, [isAuthenticated, navigation])
+  );
 
   const [totalBudgetAmount, setTotalBudgetAmount] = useState(0);
   useFocusEffect(() => {
@@ -37,9 +90,14 @@ const FillEnvelopes = () => {
   const [checked, setChecked] = React.useState(true);
   const toggleMenu = () => setVisible(!visible);
 
-  const handleLeftIconPress = () => {
-    navigation.goBack();
-  };
+  // const handleLeftIconPress = () => {
+  //   if (isAuthenticated) {
+  //     navigation.navigate('TopTab');
+  //   } else {
+  //     navigation.goBack();
+  //   }
+  // };
+
 
   const handleRightIconPress = () => {
     toggleTooltip();
@@ -319,52 +377,6 @@ const FillEnvelopes = () => {
     fillIndividualEnvelope(envelopeId, envelopeName, amount, budgetPeriod, filledIncome, date);
   };
 
-  // const saveOrUpdateSingleIncome = (selectedEnvelopeName, filledIncome, fillDate, callback) => {
-  //   console.log('Parameters:', {
-  //     selectedEnvelopeName,
-  //     filledIncome,
-  //     fillDate
-  //   });
-
-  //   db.transaction(tx => {
-  //     // First attempt to update the record
-  //     tx.executeSql(
-  //       `UPDATE FilledIncome SET filledIncome = ?, selectedEnvelopeName = ?, fillDate = ? WHERE envelopeId = ?;`,
-  //       [filledIncome, fillDate, selectedEnvelopeName],
-  //       (tx, results) => {
-  //         // Check if any rows were affected
-  //         if (results.rowsAffected > 0) {
-  //           console.log(`Record updated for envelopeId: ${envelopeId}`);
-  //           console.log(`Updated values - filledIncome: ${filledIncome}, selectedEnvelopeName: ${selectedEnvelopeName}, fillDate: ${fillDate}`);
-  //         } else {
-  //           // If no rows were affected, insert a new record
-  //           console.log(`No record found for envelopeId: ${envelopeId}. Inserting a new record.`);
-  //           tx.executeSql(
-  //             `INSERT INTO FilledIncome (envelopeId, selectedEnvelopeName, filledIncome, fillDate) VALUES (?, ?, ?, ?);`,
-  //             [envelopeId, filledIncome, selectedEnvelopeName, fillDate],
-  //             (tx, results) => {
-  //               console.log(`New record inserted for envelopeId: ${envelopeId}`);
-  //               console.log(`Inserted values - envelopeId: ${envelopeId}, selectedEnvelopeName: ${selectedEnvelopeName}, filledIncome: ${filledIncome}, fillDate: ${fillDate}`);
-  //             },
-  //             (tx, error) => {
-  //               console.error('Error inserting new record:', error);
-  //             }
-  //           );
-  //         }
-  //       },
-  //       (tx, error) => {
-  //         console.error('Error updating record:', error);
-  //       }
-  //     );
-  //   },
-  //     (error) => {
-  //       console.error('Transaction error:', error);
-  //     },
-  //     () => {
-  //       console.log('Transaction completed.');
-  //       if (callback) callback();
-  //     });
-  // };
 
   const fillIndividualEnvelope = (envelopeId, envelopeName, amount, budgetPeriod, filledIncome, date, callback) => {
     db.transaction(

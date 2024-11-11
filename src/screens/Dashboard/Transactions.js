@@ -65,7 +65,6 @@ const Transactions = ({ isSearched, setIsSearched, searchModalVisible, setSearch
 
   // for searching transactions
   const [searchEnvelopeName, setSearchEnvelopeName] = useState('');
-  const [searchedTransactions, setSearchedTransactions] = useState([]);
   // Effect to open the modal when isSearched is true
   useEffect(() => {
     if (isSearched) {
@@ -157,7 +156,6 @@ const Transactions = ({ isSearched, setIsSearched, searchModalVisible, setSearch
           </Button>
         </View>
       </Modal>
-
     </View>
   )
 }

@@ -36,6 +36,12 @@ const TopTab = () => {
             const backAction = () => {
                 const state = navigation.getState();
                 const tabState = state.routes[state.index].state;
+
+                if (!tabState || tabState.index === 0) {  // Checking if no nested navigation has occurred
+                    BackHandler.exitApp();
+                    return true;
+                }
+                
                 if (tabState && tabState.index !== undefined) {
                     const currentTabRoute = tabState.routes[tabState.index];
                     if (currentTabRoute.name === 'Envelopes') {
