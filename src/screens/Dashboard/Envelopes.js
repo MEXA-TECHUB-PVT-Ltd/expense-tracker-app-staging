@@ -1,24 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useFocusEffect } from '@react-navigation/native';
-import { StyleSheet, Text, View, Button, FlatList, TouchableOpacity, StatusBar } from 'react-native'
-import { ProgressBar } from 'react-native-paper';
+import { StyleSheet, Text, View, Button, FlatList, TouchableOpacity, StatusBar, TouchableWithoutFeedback, Pressable, Keyboard } from 'react-native'
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import colors from '../../constants/colors';
 import { VectorIcon } from '../../constants/vectoricons';
 import { useNavigation } from '@react-navigation/native'
-import { useDispatch } from 'react-redux'
-import { logout } from '../../redux/slices/userSlice'
 import { db, fetchTotalEnvelopesAmount, envelopes, } from '../../database/database'
 import CustomProgressBar from '../../components/CustomProgressBar';
 
 const Envelopes = () => {
   const navigation = useNavigation();
-  const dispatch = useDispatch();
-
-  const handleLogout = () => {
-    // navigation.navigate('SetupBudget');
-    dispatch(logout());
-  };
 
   // for showing total sum of all envelopes incomes single sumup of all
   const [totalIncome, setTotalIncome] = useState(0);
@@ -32,7 +23,6 @@ const Envelopes = () => {
   const [filledIncomes, setFilledIncomes] = useState([]);
 
   const [envelopes, setEnvelopes] = useState([]);
-  // console.log('envelopes', envelopes);
 
   const fetchEnvelopes = useCallback(() => {
     getAllEnvelopes(setEnvelopes);
@@ -45,7 +35,6 @@ const Envelopes = () => {
       fetchEnvelopes();
     }, [fetchEnvelopes]) // Ensure fetchEnvelopes is a dependency
   );
-
 
   // function to get all envelopes their rows
   const getAllEnvelopes = (callback) => {
@@ -113,7 +102,7 @@ const Envelopes = () => {
       <StatusBar backgroundColor={colors.munsellgreen} />
       <View style={styles.budget_period_view}>
         <Text style={styles.monthly_txt}>Monthly</Text>
-        <Text style={styles.monthly_txt}>{totalIncome.toFixed(2)}</Text>
+        <Text style={styles.monthly_txt}>{totalIncome}</Text>
       </View>
 
       <FlatList
@@ -131,14 +120,14 @@ const Envelopes = () => {
               >
                 <View style={styles.name_filledIncome_view}>
                   <Text style={styles.item_text_name}>{item.envelopeName}</Text>
-                  <Text style={styles.item_text_filledIncome}>{item.filledIncome.toFixed(2) || 0}</Text>
+                  <Text style={styles.item_text_filledIncome}>{item.filledIncome || 0}</Text>
                 </View>
                 <View style={styles.bar_icon_view}>
                   <View style={styles.progress_bar_view}>
                     <CustomProgressBar filledIncome={item.filledIncome} amount={item.amount} />
                   </View>
                   <View style={styles.progress_bar_view_icon}>
-                    <Text style={styles.item_text_amount}>{item.amount.toFixed(2)}</Text>
+                    <Text style={styles.item_text_amount}>{item.amount}</Text>
                   </View>
                 </View>
               </TouchableOpacity>

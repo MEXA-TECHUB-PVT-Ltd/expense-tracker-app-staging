@@ -15,8 +15,12 @@ import { db, fetchTotalIncome, fetchTotalEnvelopesAmount } from '../../database/
 const { width: screenWidth } = dimensions;
 
 const SetupBudget = () => {
-    const navigation = useNavigation();
     const route = useRoute();
+    // const { edit_envelope } = route.params;
+    const edit_envelope = route.params?.edit_envelope;
+    const envelope_prop = route.params?.envelope_prop;
+    const navigation = useNavigation();
+  
     const [isTooltipVisible, setIsTooltipVisible] = useState(false);
     const slideAnim = useRef(new Animated.Value(screenWidth)).current;
     const [envelopes, setEnvelopes] = useState([]);
@@ -81,14 +85,28 @@ const SetupBudget = () => {
     };
 
     const handleEditEnvelope = (envelope) => {
-        navigation.navigate('AddEditDeleteEnvelope', {
-            envelopeId: envelope.envelopeId,
-            envelopeName: envelope.envelopeName,
-            amount: envelope.amount,
-            budgetPeriod: envelope.budgetPeriod,
-            dueDate: envelope.dueDate,
-            edit_Envelope: true,
-        });
+        // Check if envelope_prop exists
+        if (envelope_prop) {
+            navigation.navigate('AddEditDeleteEnvelope', {
+                envelopeId: envelope.envelopeId,
+                envelopeName: envelope.envelopeName,
+                amount: envelope.amount,
+                budgetPeriod: envelope.budgetPeriod,
+                dueDate: envelope.dueDate,
+                edit_Envelope: true,
+                envelope_prop: envelope_prop, // Pass envelope_prop if it exists
+            });
+        } else {
+            // Navigate without envelope_prop if it doesn't exist
+            navigation.navigate('AddEditDeleteEnvelope', {
+                envelopeId: envelope.envelopeId,
+                envelopeName: envelope.envelopeName,
+                amount: envelope.amount,
+                budgetPeriod: envelope.budgetPeriod,
+                dueDate: envelope.dueDate,
+                edit_Envelope: true,
+            });
+        }
     };
 
     useFocusEffect(() => {
@@ -157,7 +175,11 @@ const SetupBudget = () => {
     };
 
     const handleAddEnvelope = () => {
-        navigation.navigate('AddEditDeleteEnvelope');
+        if (envelope_prop) {
+            navigation.navigate('AddEditDeleteEnvelope', { envelope_prop });
+        } else {
+            navigation.navigate('AddEditDeleteEnvelope');
+        }
     };
 
     // for showing total sum of all envelopes incomes single sumup of all
@@ -194,7 +216,7 @@ const SetupBudget = () => {
             <View>
                 <Appbar.Header style={styles.appBar}>
                     <Appbar.BackAction onPress={handleLeftIconPress} size={24} color={colors.white} />
-                    <Appbar.Content title="Setup Budget" titleStyle={styles.appbar_title} />
+                    <Appbar.Content title={envelope_prop ? "Edit Envelopes" : "Setup Budget"} titleStyle={styles.appbar_title} />
                     <Appbar.Action onPress={handleRightIconPress} icon="dots-vertical" color={colors.white} />
                 </Appbar.Header>
             </View>
@@ -258,138 +280,22 @@ const SetupBudget = () => {
                     scrollEnabled={false}
                     contentContainerStyle={styles.flatListContainer}
                 />
-
-                {/* Monthly Envelopes Flatlist sqlite */}
-                {/* <FlatList
-                    data={envelopes}
-                    key={envelopes.envelopeId}
-                    keyExtractor={(item) => item.envelopeId}
-                    renderItem={({ item }) => (
-                        <View style={styles.item_view}>
-                            <TouchableOpacity
-                                style={styles.item}
-                                onPress={() => handleEditEnvelope(item)}
-                            >
-                                <View style={styles.left_view}>
-                                    <VectorIcon name="envelope" size={18} color={colors.gray} type="fa" />
-                                    <Text style={styles.item_text_name}>{item.envelopeName}</Text>
-                                </View>
-                                <View style={styles.right_view}>
-                                    <Text style={styles.item_text_amount}>{item.amount}</Text>
-                                    <VectorIcon name="bars" size={18} color={colors.gray} type="fa6" />
-                                </View>
-                            </TouchableOpacity>
-                        </View>
-                    )}
-                    scrollEnabled={false}
-                    contentContainerStyle={styles.flatListContainer}
-                /> */}
-
-                {/* Monthly Envelopes Flatlist */}
-                {/* {categories['Monthly'].length > 0 && (
-                    <>
-                        <FlatList
-                            data={categories['Monthly']}
-                            keyExtractor={(item, index) => index.toString()}
-                            renderItem={({ item }) => (
-                                <View style={styles.item_view}>
-                                    <TouchableOpacity
-                                        style={styles.item}
-                                        onPress={() => handleEditEnvelope(item, 'Monthly')}
-                                    >
-                                        <View style={styles.left_view}>
-                                            <VectorIcon name="envelope" size={18} color={colors.gray} type="fa"/>
-                                            <Text style={styles.item_text_name}>{item.envelopeName}</Text>
-                                        </View>
-                                        <View style={styles.right_view}>
-                                            <Text style={styles.item_text_amount}>{item.amount}</Text>
-                                            <VectorIcon name="bars" size={18} color={colors.gray} type="fa6" />
-                                        </View>
-                                    </TouchableOpacity>
-                                </View>
-                            )}
-                            scrollEnabled={false}
-                            contentContainerStyle={styles.flatListContainer}
-                        />
-                    </>
-                )} */}
-
-                {/* <TouchableWithoutFeedback style={styles.budget_period_view}>
-                    <Text style={styles.monthly_txt}>More Envelopes (1) </Text>
-                    <Text style={styles.envelope_left_txt}>9 of 10 free Envelopes left</Text>
-                </TouchableWithoutFeedback> */}
-
-                {/* Annual Envelopes Flatlist */}
-                {/* {categories['Every Year'].length > 0 && (
-                    <>
-                        <View style={styles.annual_txt_view}>
-                            <Text style={styles.annual_txt}>Annual</Text>
-                        </View>
-                        <FlatList
-                            data={categories['Every Year']}
-                            keyExtractor={(item, index) => index.toString()}
-                            renderItem={({ item }) => (
-                                <View style={styles.item_view}>
-                                    <TouchableOpacity
-                                        style={styles.item}
-                                        onPress={() => handleEditEnvelope(item, 'Every Year')}
-                                    >
-                                        <View style={styles.left_view}>
-                                            <VectorIcon name="envelope" size={18} color={colors.gray} type="fa" />
-                                            <Text style={styles.item_text_name}>{item.envelopeName}</Text>
-                                        </View>
-                                        <View style={styles.right_view}>
-                                            <Text style={styles.item_text_amount}>{item.amount}</Text>
-                                            <VectorIcon name="bars" size={18} color={colors.gray} type="fa6" />
-                                        </View>
-                                    </TouchableOpacity>
-                                </View>
-                            )}
-                            scrollEnabled={false}
-                            contentContainerStyle={styles.flatListContainer}
-                        />
-                    </>
-                )} */}
-
-                {/* Goal Envelopes Flatlist */}
-                {/* {categories['Goal'].length > 0 && (
-                    <>
-                        <View style={styles.annual_txt_view}>
-                            <Text style={styles.annual_txt}>Goal</Text>
-                        </View>
-                        <FlatList
-                            data={categories['Goal']}
-                            keyExtractor={(item, index) => index.toString()}
-                            renderItem={({ item }) => (
-                                <View style={styles.item_view}>
-                                    <TouchableOpacity
-                                        style={styles.item}
-                                        onPress={() => handleEditEnvelope(item, 'Goal')}
-                                    >
-                                        <View style={styles.left_view}>
-                                            <VectorIcon name="envelope" size={18} color={colors.gray} type="fa" />
-                                            <Text style={styles.item_text_name}>{item.envelopeName}</Text>
-                                        </View>
-                                        <View style={styles.right_view}>
-                                            <Text style={styles.item_text_amount}>{item.amount}</Text>
-                                            <VectorIcon name="bars" size={18} color={colors.gray} type="fa6" />
-                                        </View>
-                                    </TouchableOpacity>
-                                </View>
-                            )}
-                            scrollEnabled={false}
-                            contentContainerStyle={styles.flatListContainer}
-                        />
-                    </>
-                )} */}
-                
             </ScrollView>
 
-            <View style={styles.firstView}>
+            <View style={envelope_prop ? styles.firstView_edit : styles.firstView}>
                 <View style={styles.imageContainer}>
                     <Image source={Images.expenseplannerimage} style={styles.image} />
                 </View>
-                <Pressable onPress={() => navigation.navigate('SetIncomeAmount')} style={styles.incomeTextContainer}>
+                <Pressable 
+                    onPress={() => {
+                        if (envelope_prop) {
+                            navigation.navigate('SetIncomeAmount', { envelope_prop });
+                        } else {
+                            navigation.navigate('SetIncomeAmount');
+                        }
+                    }}  
+                style={styles.incomeTextContainer}
+                >
                     <View style={styles.texts_view}>
                         <Text style={styles.estimatedIncomeText}>Estimated{"\n"}Income</Text>
                         <Text style={styles.monthlyIncomeText}>Monthly{"\n"}{totalIncome || '---'}</Text>
@@ -424,6 +330,7 @@ const SetupBudget = () => {
                 </TouchableOpacity>
             </View>
 
+            {!envelope_prop && (
             <View style={styles.secondView}>
                 <View style={styles.left_icon_btn_view}>
                     <VectorIcon name="chevron-back" size={20} color={colors.androidbluebtn} type="ii" />
@@ -452,6 +359,7 @@ const SetupBudget = () => {
                     <VectorIcon name="chevron-forward" size={20} color={colors.androidbluebtn} type="ii" />
                 </View>
             </View>
+            )}
 
             <Snackbar
                 visible={noEnvelopeAlertVisible}
@@ -629,11 +537,20 @@ const styles = StyleSheet.create({
     firstView: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        // alignItems: 'center',
         backgroundColor: colors.lightGray,
         height: hp('7%'),
         position: 'absolute',
         bottom: 50,
+        left: 0,
+        right: 0,
+    },
+    firstView_edit: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        backgroundColor: colors.lightGray,
+        height: hp('7%'),
+        position: 'absolute',
+        bottom: 0,
         left: 0,
         right: 0,
     },

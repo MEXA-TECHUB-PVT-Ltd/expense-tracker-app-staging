@@ -1,13 +1,15 @@
 import { StyleSheet, Text, View, FlatList, TouchableOpacity, StatusBar } from 'react-native'
 import React, { useState, useEffect, useCallback } from 'react'
 import { useFocusEffect } from '@react-navigation/native';
+import { TextInput, Modal, Button } from 'react-native-paper';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import colors from '../../constants/colors';
 import { db } from '../../database/database';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 
-const Transactions = () => {
+const Transactions = ({ isSearched, setIsSearched, searchModalVisible, setSearchModalVisible }) => {
+  // console.log('value of isSearched:', isSearched);
   const navigation = useNavigation();
 
   // code to get all transactions in Transaction table 
@@ -54,7 +56,6 @@ const Transactions = () => {
     });
   };
 
-
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -62,10 +63,31 @@ const Transactions = () => {
     return `${month}/${day}`;
   };
 
+  // for searching transactions
+  const [searchEnvelopeName, setSearchEnvelopeName] = useState('');
+  const [searchedTransactions, setSearchedTransactions] = useState([]);
+  // Effect to open the modal when isSearched is true
+  useEffect(() => {
+    if (isSearched) {
+      setSearchModalVisible(true);
+    }
+  }, [isSearched]);
+
+  const handleSearch = () => {
+    setSearchModalVisible(false);
+    navigation.navigate('TransactionsSearch', { searchEnvelopeName });
+    setIsSearched(false); // used this so that modal dont open again
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      setSearchEnvelopeName(''); // Reset to empty when coming back to this screen
+    }, [])
+  );
+
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor={colors.munsellgreen} />
-
       <FlatList
         data={transactions}
         keyExtractor={(item) => item.id}
@@ -89,7 +111,7 @@ const Transactions = () => {
                         numberOfLines={1}
                         elellipsizeMode="tail"
                         style={[styles.amt_txt, { color: item.transactionType === 'Credit' ? colors.brightgreen : colors.black }]}>
-                        {item.transactionType === 'Credit' ? `+ ${item.transactionAmount.toFixed(2)}` : item.transactionAmount.toFixed(2)}
+                        {item.transactionType === 'Credit' ? `+ ${item.transactionAmount}` : item.transactionAmount}
                       </Text>
                     </View>
                   </View>
@@ -103,6 +125,38 @@ const Transactions = () => {
           );
         }}
       />
+
+      <Modal visible={searchModalVisible} onDismiss={() => setSearchModalVisible(false)} contentContainerStyle={styles.modalContainer}>
+        <View style={styles.search_transaction_txt_view}>
+          <Text style={styles.modalText}>Search Transactions</Text>
+        </View>
+        <View style={styles.modal_textinput_view}>
+          <TextInput
+            placeholder='Search Transaction'
+            value={searchEnvelopeName}
+            onChangeText={setSearchEnvelopeName}
+            mode="flat"
+            dense={true}
+            textColor={colors.black}
+            style={styles.textInput}
+            theme={{
+              colors: {
+                primary: colors.androidbluebtn,
+              }
+            }}
+          />
+        </View>
+        <View style={styles.search_btn_view}>
+          <Button
+            mode="text"
+            onPress={handleSearch}
+            style={styles.button}
+            labelStyle={styles.buttonLabel}
+          >
+            Search
+          </Button>
+        </View>
+      </Modal>
 
     </View>
   )
@@ -182,6 +236,47 @@ const styles = StyleSheet.create({
     fontSize: hp('2%'),
     fontWeight: '400',
     color: colors.gray,
+  },
+
+  // modal styles
+  modalContainer: {
+    backgroundColor: 'white',
+    paddingVertical: hp('2%'),
+    paddingHorizontal: hp('2%'),
+    width: '85%',
+    maxWidth: hp('50%'),
+    alignSelf: 'center',
+    top: -40,
+  },
+  search_transaction_txt_view: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  modalText: {
+    fontSize: hp('2.4%'),
+    fontWeight: 'bold',
+    color: 'black',
+    textAlign: 'flex-start',
+  },
+  modal_textinput_view: {
+    marginTop: hp('2%'),
+  },
+  textInput: {
+    backgroundColor: 'transparent',
+    borderBottomWidth: 1,
+    borderBottomColor: 'gray',
+    paddingHorizontal: 0,
+  },
+  search_btn_view: {
+    marginTop: hp('3%'),
+    alignItems: 'flex-end',
+  },
+  button: {
+    color: colors.androidbluebtn,
+  },
+  buttonLabel: {
+    color: colors.androidbluebtn,
   },
 
 

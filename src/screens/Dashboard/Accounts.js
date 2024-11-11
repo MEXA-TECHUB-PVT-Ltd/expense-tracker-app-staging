@@ -18,15 +18,15 @@ const Accounts = () => {
     <View style={styles.container}>
       <StatusBar backgroundColor={colors.munsellgreen} />
       <View style={styles.all_accounts_txt_amt}>
-        <Text style={styles.aa_amt_txt}>All Accounts : {totalIncome.toFixed(2)}</Text>
+        <Text style={styles.aa_amt_txt}>All Accounts : {totalIncome}</Text>
       </View>
       <View style={styles.account_amt_view}>
         <Text style={styles.account_amt_txt}>My Account</Text>
-        <Text style={styles.account_amt_txt}>{totalIncome.toFixed(2)}</Text>
+        <Text style={styles.account_amt_txt}>{totalIncome}</Text>
       </View>
       <View style={styles.subtotal_amt_view}>
         <Text style={styles.subtotal_txt}>Subtotal:</Text>
-        <Text style={styles.subtotal_amt_txt}>{totalIncome.toFixed(2)}</Text>
+        <Text style={styles.subtotal_amt_txt}>{totalIncome}</Text>
       </View>
     </View>
   )

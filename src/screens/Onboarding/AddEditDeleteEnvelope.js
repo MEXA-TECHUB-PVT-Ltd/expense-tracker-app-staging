@@ -17,6 +17,8 @@ const { width: screenWidth } = dimensions;
 const AddEditDeleteEnvelope = () => {
     const navigation = useNavigation();
     const route = useRoute();
+    const envelope_prop = route.params?.envelope_prop;
+    const edit_Envelope = route.params?.edit_Envelope;
     const [isTooltipVisible, setIsTooltipVisible] = useState(false);
     const slideAnim = useRef(new Animated.Value(screenWidth)).current;
     const [envelopeNameFocused, setEnvelopeNameFocused] = useState(false);
@@ -46,11 +48,15 @@ const AddEditDeleteEnvelope = () => {
         }
     }, [envelopeId, route.params]);
 
-    const edit_Envelope = route.params;
-
     const handleDelete = () => {
         deleteEnvelope(envelopeId);
-        navigation.navigate('SetupBudget');
+        if (envelope_prop) {
+            navigation.navigate('SetupBudget', {
+                envelope_prop: envelope_prop,
+            });
+        } else {
+            navigation.navigate('SetupBudget');
+        }
     };
 
     const handleSave = () => {
@@ -64,7 +70,11 @@ const AddEditDeleteEnvelope = () => {
                 addEnvelope(envelopeName, parseFloat(amount), budgetPeriod);
             }
         }
-        navigation.navigate('SetupBudget');
+        if (envelope_prop) {
+            navigation.navigate('SetupBudget', { envelope_prop });
+        } else {
+            navigation.navigate('SetupBudget');
+        }
     };
 
     const handleLeftIconPress = () => {
@@ -198,7 +208,7 @@ const AddEditDeleteEnvelope = () => {
                 </View>
                 <View style={styles.amt_view}>
                     {budgetPeriod === 'Every Year' ? (
-                        <Text style={styles.amountText}>{(amount / 12).toFixed(2)}</Text>
+                        <Text style={styles.amountText}>{(amount / 12)}</Text>
                     ) : budgetPeriod === 'Goal' ? (
                         <Text style={styles.amountText}>0.00</Text>
                     ) : null}
