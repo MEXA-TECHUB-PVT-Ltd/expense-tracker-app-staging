@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { View, Text, Image, StyleSheet, ScrollView, Animated, FlatList, Pressable, TouchableWithoutFeedback, TouchableOpacity } from 'react-native';
+import { View, Text, Image, StyleSheet, ScrollView, Animated, FlatList, Pressable, Keyboard, TouchableWithoutFeedback, TouchableOpacity } from 'react-native';
 import { Appbar, Button, Checkbox, TextInput, RadioButton, Modal, Portal, Provider, Menu, Divider, Card, ProgressBar } from 'react-native-paper';
 import colors from '../../constants/colors';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -8,8 +8,10 @@ import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-nat
 import dimensions from '../../constants/dimensions';
 import { useNavigation } from '@react-navigation/native';
 import { VectorIcon } from '../../constants/vectoricons';
-import { db, fetchTotalEnvelopesAmount } from '../../database/database';
+import { db, fetchTotalEnvelopesAmount, fetchTotalIncome } from '../../database/database';
 import Images from '../../constants/images';
+import Calculator from './Calculator';
+import CustomProgressBar from '../../components/CustomProgressBar';
 
 const { width: screenWidth } = dimensions;
 
@@ -17,6 +19,17 @@ const FillEnvelopes = () => {
   const navigation = useNavigation();
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
   const slideAnim = useRef(new Animated.Value(screenWidth)).current;
+
+  const [totalBudgetAmount, setTotalBudgetAmount] = useState(0);
+  useFocusEffect(() => {
+    fetchTotalIncome(setTotalBudgetAmount);
+  });
+
+  const [calculatorVisible, setCalculatorVisible] = useState(false);
+  const handleValueChange = (customAmount) => {
+    setCustomAmount(customAmount);
+    setCalculatorVisible(false);
+  };
 
   const [visible, setVisible] = React.useState(false);
   const [checked, setChecked] = React.useState(true);
@@ -71,7 +84,7 @@ const FillEnvelopes = () => {
   };
 
   const [accountModalVisible, setAccountModalVisible] = useState(false);
-  const [selectedAccount, setSelectedAccount] = useState('My Account');
+  const [selectedAccount, setSelectedAccount] = useState('');
 
   const showAccountModal = () => setAccountModalVisible(true);
   const hideAccountModal = () => setAccountModalVisible(false);
@@ -246,7 +259,7 @@ const FillEnvelopes = () => {
             });
           }
           setFilledIncomes(records)
-          console.log('Filled Incomes record is:', records);
+          // console.log('Filled Incomes record is:', records);
         },
         (tx, error) => {
           console.error('Error fetching filled incomes:', error);
@@ -263,7 +276,7 @@ const FillEnvelopes = () => {
   const [customAmount, setCustomAmount] = useState('');
   const [focusedInput, setFocusedInput] = useState(null);
   const [individualIncomes, setIndividualIncomes] = useState([]);
-  console.log('individualIncomes state is : ', individualIncomes);
+  // console.log('individualIncomes state is : ', individualIncomes);
 
   const openModal = (item) => {
     setSelectedEnvelope(item);
@@ -445,8 +458,8 @@ const FillEnvelopes = () => {
           tx.executeSql(
             'UPDATE envelopes SET filledIncome = NULL, fillDate = NULL',
             [],
-            () => console.log('All filledIncome and fillDate values cleared successfully'),
-            console.log('after running fetcha and log individual in clear effect'),
+            // () => console.log('All filledIncome and fillDate values cleared successfully'),
+            // console.log('after running fetcha and log individual in clear effect'),
             fetchAndLogIndividualIncomes(),
             (_, error) => {
               console.log('Error clearing filledIncome and fillDate values:', error);
@@ -483,22 +496,23 @@ const FillEnvelopes = () => {
               <VectorIcon name="arrow-drop-down" size={20} color={colors.gray} type="mi" />
             </TouchableOpacity>
             <Portal>
-              <Modal visible={modalVisible} onDismiss={hideModal} contentContainerStyle={styles.modalContainer}>
-                <View style={styles.modalContent}>
-                  <Image
-                    style={styles.modalImage}
-                    source={Images.expenseplannerimage}
-                  />
-                  <Text style={styles.modalText}>How do you want to fund your envelopes?</Text>
+              <Modal visible={modalVisible} onDismiss={hideModal} contentContainerStyle={styles.htf_modalContainer}>
+                <View style={styles.htf_modalContent}>
+                  <View style={styles.htf_image_view}>
+                    <Image style={styles.htf_modalImage} source={Images.expenseplannerimage} />
+                  </View>
+                  <View style={styles.htf_how_to_fill_view}>
+                    <Text style={styles.htf_modalText}>How do you want to fund your envelopes?</Text>
+                  </View>
                 </View>
                 <RadioButton.Group onValueChange={handleSelectOption} value={selectedOption}>
-                  <View style={styles.radioButton}>
+                  <View style={styles.htf_radioButton}>
                     <RadioButton color={colors.brightgreen} value="Fill ALL Envelopes" />
-                    <Text style={styles.radio_texts}>Fill ALL Envelopes</Text>
+                    <Text style={styles.htf_radio_texts}>Fill ALL Envelopes</Text>
                   </View>
-                  <View style={styles.radioButton}>
+                  <View style={styles.htf_radioButton}>
                     <RadioButton color={colors.brightgreen} value="Fill Individually" />
-                    <Text style={styles.radio_texts}>Fill Individually</Text>
+                    <Text style={styles.htf_radio_texts}>Fill Individually</Text>
                   </View>
                 </RadioButton.Group>
               </Modal>
@@ -517,23 +531,25 @@ const FillEnvelopes = () => {
               <View style={styles.how_to_fill_view}>
                 <Text style={styles.title}>Account</Text>
                 <TouchableOpacity style={styles.selectionView} onPress={showAccountModal}>
-                  <Text style={styles.selectionText}>{selectedAccount}</Text>
+                  <Text style={styles.selectionText}>
+                    {selectedAccount ? `${selectedAccount} [ ${totalBudgetAmount} ]` : 'Select Account'}
+                  </Text>
                   <VectorIcon name="arrow-drop-down" size={20} color={colors.gray} type="mi" />
                 </TouchableOpacity>
                 <Portal>
-                  <Modal visible={accountModalVisible} onDismiss={hideAccountModal} contentContainerStyle={styles.modalContainer}>
-                    <View style={styles.modalContent}>
-                      <Text style={styles.modalText}>Account</Text>
+                  <Modal visible={accountModalVisible} onDismiss={hideAccountModal} contentContainerStyle={styles.htf_modalContainer}>
+                    <View style={styles.htf_modalContent}>
+                      <Text style={styles.htf_modalText}>Account</Text>
                     </View>
                     <RadioButton.Group onValueChange={handleSelectAccount} value={selectedAccount}>
-                      <View style={styles.radioButton}>
-                        <RadioButton value="My Account" />
-                        <Text style={styles.radio_texts}>My Account</Text>
+                      <View style={styles.htf_radioButton}>
+                        <RadioButton color={colors.brightgreen} value="My Account" />
+                        <Text style={styles.htf_radio_texts}>My Account</Text>
                       </View>
-                      {/* <View style={styles.radioButton}>
-                    <RadioButton value="Debit Account" />
-                    <Text style={styles.radio_texts}>Debit Account</Text>
-                  </View> */}
+                      {/* <View style={styles.htf_radioButton}>
+                        <RadioButton color={colors.brightgreen} value="Debit Account" />
+                        <Text style={styles.htf_radio_texts}>Debit Account</Text>
+                      </View> */}
                     </RadioButton.Group>
                   </Modal>
                 </Portal>
@@ -570,9 +586,10 @@ const FillEnvelopes = () => {
                     data={envelopes}
                     keyExtractor={(item) => item.id}
                     renderItem={({ item }) => {
-
+                      // Access the amount directly from item
+                      const amount = item.amount;
+                      // Find the corresponding filled income value for this envelope
                       const filledIncome = filledIncomes.find(filled => filled.envelopeId === item.envelopeId)?.filledIncome || 0;
-                      const progress = item.amount > 0 ? filledIncome / item.amount : 0;
 
                       return (
                         <View style={styles.item_view}>
@@ -583,7 +600,7 @@ const FillEnvelopes = () => {
                             <View style={styles.right_view}>
                               <Text style={styles.item_text_name}>{item.envelopeName}</Text>
                               <View style={styles.progress_bar_view}>
-                                <ProgressBar progress={progress} color={colors.brightgreen} />
+                                <CustomProgressBar filledIncome={filledIncome} amount={amount} />
                               </View>
                               <Text style={styles.item_text_amount}><Text style={styles.budgeted_amount}>Add budgeted amount of </Text>{filledIncome}</Text>
                             </View>
@@ -606,8 +623,7 @@ const FillEnvelopes = () => {
                     renderItem={({ item }) => {
 
                       const filledIncome = individualIncomes.find(filled => filled.envelopeId === item.envelopeId)?.filledIncome || 0;
-                      const progress = item.amount > 0 ? filledIncome / item.amount : 0;
-                      console.log(`Progress for envelopeId ${item.envelopeId} is:`, progress);
+                      const amount = item.amount;
 
                       return (
                         <View style={styles.item_view}>
@@ -622,7 +638,7 @@ const FillEnvelopes = () => {
                               <Text style={styles.item_text_name}>{item.envelopeName}</Text>
                               <View style={styles.bar_icon_view}>
                                 <View style={styles.progress_bar_view}>
-                                  <ProgressBar progress={progress} color={colors.brightgreen} />
+                                  <CustomProgressBar filledIncome={filledIncome} amount={amount} />
                                 </View>
                                 <View style={styles.progress_bar_view_icon}>
                                   <VectorIcon name="arrow-drop-down" size={20} color={colors.gray} type="mi" />
@@ -690,7 +706,7 @@ const FillEnvelopes = () => {
 
           {customAmountOption === 'customAmount' && (
             <View style={styles.input_view}>
-              <TextInput
+              {/* <TextInput
                 value={customAmount}
                 onChangeText={setCustomAmount}
                 mode="flat"
@@ -702,7 +718,18 @@ const FillEnvelopes = () => {
                 dense={true}
                 onFocus={() => setFocusedInput('customAmount')}
                 onBlur={() => setFocusedInput(null)}
-              />
+              /> */}
+              <TouchableWithoutFeedback
+                onPressIn={() => setFocusedInput(true)}
+                onPress={() => {
+                  Keyboard.dismiss();
+                  setCalculatorVisible(true);
+                }}
+              >
+                <View style={[styles.input, focusedInput ? styles.focusedInput : styles.unfocused]}>
+                  <Text style={{ color: colors.black }}>{customAmount || 'Amount'}</Text>
+                </View>
+              </TouchableWithoutFeedback>
             </View>
           )}
 
@@ -727,6 +754,13 @@ const FillEnvelopes = () => {
             </Button>
           </View>
         </Modal>
+
+        <Calculator
+          visible={calculatorVisible}
+          textInputValue={customAmount}
+          onValueChange={handleValueChange}
+          onClose={() => setCalculatorVisible(false)}
+        />
 
         <View style={styles.secondView}>
           <View style={styles.left_icon_btn_view}>
@@ -804,9 +838,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: hp('1.5%'),
   },
   title: {
-    fontSize: hp('2.5%'),
+    fontSize: hp('2%'),
     color: colors.gray,
-    marginVertical: hp('1%'),
+    marginTop: hp('1%'),
   },
   selectionView: {
     flexDirection: 'row',
@@ -820,35 +854,55 @@ const styles = StyleSheet.create({
     fontSize: hp('2.5%'),
     color: colors.black,
   },
-  modalContainer: {
+
+  // modal styles for first how to fill modal
+  htf_modalContainer: {
     backgroundColor: 'white',
-    marginHorizontal: hp('4%'),
     paddingVertical: hp('2%'),
-    paddingHorizontal: hp('1%'),
+    paddingHorizontal: hp('2%'),
+    width: '85%',
+    maxWidth: hp('50%'),
+    alignSelf: 'center',
   },
-  modalContent: {
+  htf_modalContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingRight: hp('2%'),
+    flexWrap: 'wrap',
+    width: '100%',
   },
-  modalImage: {
+  htf_image_view: {
     width: hp('5%'),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  htf_modalImage: {
+    width: '90%',
     height: hp('5%'),
     resizeMode: 'contain',
-    marginRight: hp('2%'),
   },
-  modalText: {
-    fontSize: hp('2.5%'),
+  htf_how_to_fill_view: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexShrink: 1,
+  },
+  htf_modalText: {
+    fontSize: hp('2.4%'),
+    fontWeight: 'bold',
+    color: colors.black,
+    textAlign: 'flex-start',
+  },
+  htf_radio_texts: {
+    fontSize: hp('2.4%'),
     color: colors.black,
   },
-  radio_texts: {
-    fontSize: hp('2.5%'),
-    color: colors.black,
-  },
-  radioButton: {
+  htf_radioButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginVertical: hp('1%'),
+    flexWrap: 'wrap',
   },
+
 
   // date view styles
   dueDateInput: {
@@ -947,18 +1001,18 @@ const styles = StyleSheet.create({
     marginBottom: hp('2%'),
   },
   input: {
-    // flex: 1,
-    // width: hp('20%'),
+    height: hp('5%'),
     borderBottomWidth: 1,
-    backgroundColor: 'transparent',
     borderBottomColor: colors.gray,
     paddingHorizontal: 0,
     paddingVertical: 0,
     fontSize: hp('2.5%'),
     color: colors.black,
+    justifyContent: 'center',
+    marginTop: hp('1%'),
   },
   focusedInput: {
-    borderBottomWidth: 1,
+    borderBottomWidth: 2,
     borderBottomColor: colors.brightgreen,
   },
 

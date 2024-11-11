@@ -11,7 +11,7 @@ const initializeDatabase = () => {
 
         // in case any table is not created correct first drop then create when sure about its values and structure
         // tx.executeSql(
-        //     "DROP TABLE IF EXISTS envelopes;",
+        //     "DROP TABLE IF EXISTS Transactions;",
         //     [],
         //     () => console.log('Table dropped'),
         //     (_, error) => console.error('Error dropping income table:', error)
@@ -35,7 +35,7 @@ const initializeDatabase = () => {
                         featureUpdates INTEGER DEFAULT 0
                 );`,
                         [],
-                        // () => console.log("Users table created successfully"),
+                        () => console.log("Users table created successfully"),
                         error => console.error("Error creating Users table:", error)
                     );
                 }
@@ -75,15 +75,27 @@ const initializeDatabase = () => {
         );
 
         // create Income table if not exists
+        // tx.executeSql(
+        //     `CREATE TABLE IF NOT EXISTS Income (
+        //     id INTEGER PRIMARY KEY AUTOINCREMENT,
+        //     amount REAL NOT NULL,
+        //     budgetPeriod TEXT
+        //     );`, [],
+        //     [],
+        //     () => console.log('Income table created successfully'),
+        //     error => console.error('Error creating Income table:', error)
+        // );
+
         tx.executeSql(
             `CREATE TABLE IF NOT EXISTS Income (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            amount REAL NOT NULL,
+            accountName TEXT,
+            budgetAmount REAL NOT NULL,
             budgetPeriod TEXT
-            );`, [],
+        );`,
             [],
             () => console.log('Income table created successfully'),
-            error => console.error('Error creating Income table:', error)
+            error => console.error('Error creating Income table', error)
         );
 
         // create transactions table if not exists
@@ -94,6 +106,7 @@ const initializeDatabase = () => {
             transactionAmount REAL,
             transactionType TEXT,
             envelopeName TEXT,
+            envelopeRemainingIncome REAL,
             accountName TEXT,
             transactionDate TEXT,
             transactionNote TEXT
@@ -293,7 +306,7 @@ const addAmount = (amount, budgetPeriod) => {
 const fetchTotalIncome = (callback) => {
     db.transaction(tx => {
         tx.executeSql(
-            'SELECT SUM(amount) as totalIncome FROM Income',
+            'SELECT SUM(budgetAmount) as totalIncome FROM Income',
             [],
             (_, results) => {
                 const totalIncome = results.rows.item(0).totalIncome || 0;

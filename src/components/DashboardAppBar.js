@@ -197,6 +197,7 @@ const styles = StyleSheet.create({
         marginLeft: hp('0%'),
     },
 
+    // tooltip styles
     tooltipContainer: {
         position: 'absolute',
         top: 4,

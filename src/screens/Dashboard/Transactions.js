@@ -39,8 +39,8 @@ const Transactions = () => {
   };
 
   const handleEditTransaction = (transaction) => {
-    console.log('transactionAmount is: ', transaction.transactionAmount);
-    // console.log('singel transaction details are when try to edit: ', transaction);
+    // console.log('transactionAmount is: ', transaction.transactionAmount);
+    console.log('singel transaction details are when try to edit: ', transaction);
     navigation.navigate('AddEditDeleteTransaction', {
       id: transaction.id, //
       payee: transaction.payee, //
@@ -89,7 +89,7 @@ const Transactions = () => {
                         numberOfLines={1}
                         elellipsizeMode="tail"
                         style={[styles.amt_txt, { color: item.transactionType === 'Credit' ? colors.brightgreen : colors.black }]}>
-                        {item.transactionType === 'Credit' ? `+ ${item.transactionAmount}` : item.transactionAmount}
+                        {item.transactionType === 'Credit' ? `+ ${item.transactionAmount.toFixed(2)}` : item.transactionAmount.toFixed(2)}
                       </Text>
                     </View>
                   </View>

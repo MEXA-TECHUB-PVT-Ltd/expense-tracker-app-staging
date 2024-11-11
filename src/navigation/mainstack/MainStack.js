@@ -15,6 +15,7 @@ import RegisterAccount from '../../screens/Onboarding/RegisterAccount';
 import TermsOfUse from '../../screens/Onboarding/TermsOfUse';
 import AddEditDeleteTransaction from '../../screens/Dashboard/AddEditDeleteTransaction';
 import TopTab from '../topTab/TopTab';
+import SingleEnvelopeDetails from '../../screens/Dashboard/SingleEnvelopeDetails';
 
 import { useSelector, useDispatch } from 'react-redux';
 import { setUser, logout } from '../../redux/slices/userSlice';
@@ -49,6 +50,8 @@ const MainStack = () => {
                     <Stack.Screen name="TopTab" component={TopTab} options={{ headerShown: false }} />
                     <Stack.Screen name="AddEditDeleteTransaction" component={AddEditDeleteTransaction} options={{ headerShown: false }} />
                     <Stack.Screen name="About" component={About} options={{ headerShown: false }} />
+                    <Stack.Screen name="SingleEnvelopeDetails" component={SingleEnvelopeDetails} options={{ headerShown: false }} />
+                    <Stack.Screen name="Help" component={Help} options={{ headerShown: false }} />
                 </>
             ) : (
                 <>

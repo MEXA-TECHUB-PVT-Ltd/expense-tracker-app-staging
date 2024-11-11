@@ -26,12 +26,27 @@ const validationSchema = Yup.object().shape({
     .required('Password is required'),
 });
 
+// Validation schema for forgot password
+const validationSchemaFP = Yup.object().shape({
+  email: Yup.string()
+    .email('Invalid email format')
+    .required('Email is required'),
+});
+
 const Onboarding = () => {
   const dispatch = useDispatch();
   const navigation = useNavigation();
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
   const slideAnim = useRef(new Animated.Value(screenWidth)).current;
   const [centerModalVisible, setCenterModalVisible] = useState(false);
+
+  const [forgotPasswordModal, setForgotPasswordModal] = useState(false);
+  const toggleModal = () => {
+    setForgotPasswordModal(!forgotPasswordModal);
+  };
+
+  const [confirmationModal, setConfirmationModal] = useState(false);
+  const toggleConfirmationModal = () => setConfirmationModal(!confirmationModal);
 
   const [focusedInput, setFocusedInput] = useState(null);
   const [email, setEmail] = useState('');
@@ -79,7 +94,6 @@ const Onboarding = () => {
 
   const handleCancelPress = () => {
     setCenterModalVisible(false);
-    formik.resetForm();
     setEmail('');
     setPassword('');
   };
@@ -87,19 +101,6 @@ const Onboarding = () => {
   const handleCreateNewHousehold = () => {
     navigation.navigate('SetupBudget');
   };
-
-  // Use Formik
-  // const formik = useFormik({
-  //   initialValues: {
-  //     email: '',
-  //     password: '',
-  //   },
-  //   validationSchema: validationSchema,
-  //   onSubmit: (values) => {
-  //     loginUser(values.email, values.password);
-  //     formik.resetForm(); // Reset the form after submission
-  //   },
-  // });
 
   const handleLogin = (values) => {
     loginUser(values.email, values.password);
@@ -217,14 +218,19 @@ const Onboarding = () => {
               validationSchema={validationSchema}
               onSubmit={handleLogin}  // Pass handleLogin as onSubmit
             >
-              {({ handleChange, handleBlur, handleSubmit, values, errors, touched }) => (
+              {({ handleChange, handleBlur, handleSubmit, values, errors, touched, setFieldValue }) => (
                 <View style={styles.login_container}>
                   <Text style={styles.title}>Log In to ExpensePlanner</Text>
                   <Text style={styles.label}>Household Name or Email</Text>
                   <TextInput
                     value={values.email}
-                    onChangeText={handleChange('email')}
-                    onBlur={handleBlur('email')}
+                    // onChangeText={handleChange('email')}
+                    // onBlur={handleBlur('email')}
+                    onChangeText={(text) => setFieldValue('email', text.trim())} // Trims spaces in real-time
+                    onBlur={() => {
+                      setFieldValue('email', values.email.trim()); // Trims any remaining spaces on blur
+                      handleBlur('email'); // Calls handleBlur without extra parentheses
+                    }}
 
                     // value={email}
                     // onChangeText={setEmail}
@@ -244,7 +250,12 @@ const Onboarding = () => {
                   )}
                   <View style={styles.passwordContainer}>
                     <Text style={styles.passwordLabel}>Password</Text>
-                    <Pressable>
+                    <Pressable 
+                      onPress={() => {
+                        toggleModal(); // Call the toggleModal function
+                        setCenterModalVisible(false); // Set center modal visibility to false
+                      }}
+                    >
                       <Text style={styles.forgotText}>FORGOT?</Text>
                     </Pressable>
                   </View>
@@ -303,7 +314,7 @@ const Onboarding = () => {
                 source={Images.expenseplannerimage}
                 style={styles.snack_bar_img}
               />
-              <Text style={styles.snack_bar_text}>Login failed. Please try again.</Text>
+              <Text style={styles.snack_bar_text}>Invalid Credentials. Try again.</Text>
             </View>
           </Snackbar>
 
@@ -354,7 +365,86 @@ const Onboarding = () => {
               <Text style={styles.snack_bar_text}>Login Successful!</Text>
             </View>
           </Snackbar>
+        </Portal>
 
+        <Portal>
+          <Modal
+            visible={forgotPasswordModal}
+            onDismiss={toggleModal}
+            contentContainerStyle={styles.fp_modalContainer}
+          >
+            <Text style={styles.fp_title}>Forgot Your Password?</Text>
+            <Text style={styles.fp_subText}>
+              No worries! I'll send you an email to reset your password.
+            </Text>
+
+            <Formik
+              initialValues={{ email: '' }}
+              validationSchema={validationSchemaFP}
+              onSubmit={(values) => {
+                console.log('Reset password for:', values.email);
+                // Handle password reset logic here
+                toggleModal();
+                toggleConfirmationModal();
+              }}
+            >
+              {({ handleChange, handleBlur, handleSubmit, values, errors, touched, setFieldValue }) => (
+                <View>
+                  <Text style={styles.fp_label}>Email Address</Text>
+                  <TextInput
+                    mode="flat"
+                    placeholder="johnj@email.com"
+                    placeholderTextColor={colors.gray}
+                    onFocus={() => (styles.fp_input.borderBottomColor = colors.androidbluebtn)}
+                    theme={{ colors: { primary: focusedInput ? colors.androidbluebtn : colors.androidbluebtn }}}
+                    textColor={colors.black}
+                    // onBlur={handleBlur('email')}
+                    // onChangeText={handleChange('email')}
+                    onBlur={() => {
+                      setFieldValue('email', values.email.trim()); // Trims any remaining spaces on blur
+                      handleBlur('email'); // Calls Formik’s handleBlur for validation
+                    }}
+                    onChangeText={(text) => setFieldValue('email', text.trim())}
+                    value={values.email}
+                    style={styles.fp_input}
+                    underlineColor="transparent"
+                    dense={true}
+                  />
+
+                  {/* Show validation error if email is incorrect */}
+                  {touched.email && errors.email && (
+                    <Text style={styles.fp_errorText}>{errors.email}</Text>
+                  )}
+
+                  <Pressable 
+                    onPress={() => {
+                      console.log('Button Pressed'); // Debugging log
+                      console.log('Validation Errors:', errors);
+                      handleSubmit(); // Call Formik's handleSubmit
+                    }}
+                  // onPress={handleSubmit}
+                  >
+                    <Text style={styles.fp_resetButton}>RESET PASSWORD</Text>
+                  </Pressable>
+                </View>
+              )}
+            </Formik>
+          </Modal>
+        </Portal>
+
+        <Portal>
+          <Modal
+            visible={confirmationModal}
+            onDismiss={toggleConfirmationModal}
+            contentContainerStyle={styles.c_modalContainer}
+          >
+            <Text style={styles.c_confirmationText}>
+              I just sent you an email with instructions for finishing the reset password process. Check your inbox. I'll see you soon!
+            </Text>
+            <Pressable onPress={toggleConfirmationModal} style={styles.c_okButtonContainer}>
+              <Text style={styles.c_okButtonText}>OK</Text>
+            </Pressable>
+          </Modal>
         </Portal>
 
       </View>
@@ -564,6 +654,70 @@ const styles = StyleSheet.create({
   errorText: {
     color: 'red',
     fontSize: 12,
+  },
+
+  //forgot password modal
+  fp_modalContainer: {
+    backgroundColor: colors.white,
+    padding: hp('2.5%'),
+    margin: hp('5.5%'),
+  },
+  fp_title: {
+    fontSize: hp('2.6%'),
+    fontWeight: 'bold',
+    color: colors.black,
+    marginBottom: hp('1.5%'),
+  },
+  fp_subText: {
+    fontSize: hp('2.3%'),
+    color: 'gray',
+    marginBottom: hp('1.5%'),
+  },
+  fp_label: {
+    fontSize: hp('2.3%'),
+    color: 'gray',
+    marginBottom: hp('1%'),
+  },
+  fp_input: {
+    backgroundColor: 'transparent',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.androidbluebtn,
+    marginBottom: hp('1%'),
+    paddingHorizontal: 0,
+  },
+  fp_errorText: {
+    fontSize: hp('1.8%'),
+    color: 'red',
+  },
+  fp_resetButton: {
+    fontSize: hp('1.8%'),
+    fontWeight: 'bold',
+    color: colors.androidbluebtn,
+    textAlign: 'right',
+    marginVertical: hp('1.5%'),
+    marginRight: hp('1.8%'),
+  },
+
+  // confirmation modal styles
+  c_modalContainer: {
+    backgroundColor: colors.white,
+    padding: hp('3.2%'),
+    margin: hp('7%'),
+  }, 
+  c_confirmationText: {
+    fontSize: hp('2.3%'),
+    marginBottom: hp('1.5%'),
+    color: 'gray',
+  },
+  c_okButtonContainer: {
+    alignSelf: 'flex-end',
+    marginRight: hp('1.5%'),
+  },
+  c_okButtonText: {
+    fontSize: hp('2.3%'),
+    color: colors.androidbluebtn,
+    textAlign: 'right',
+    fontWeight: 'bold',
   },
 
 })

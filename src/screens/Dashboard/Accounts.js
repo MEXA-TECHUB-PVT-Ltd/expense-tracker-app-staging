@@ -2,21 +2,13 @@ import { StyleSheet, Text, View, StatusBar } from 'react-native'
 import React, {useState, useEffect, useCallback} from 'react'
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import colors from '../../constants/colors'
-import { db, fetchTotalIncome, fetchTotalEnvelopesAmount} from '../../database/database';
+import { fetchTotalEnvelopesAmount} from '../../database/database';
 import { useFocusEffect } from '@react-navigation/native';
 
 const Accounts = () => {
-  // for showing total monthly budget of default My Account
-  const [accountBudget, setAccountBudget] = useState(0);
-  // useFocusEffect(
-  //   React.useCallback(() => {
-  //     fetchTotalIncome(setTotalIncome);
-  //   }, [])
-  // );
-
-  // for showing total sum of all envelopes incomes single sumup of all
   const [totalIncome, setTotalIncome] = useState(0);
-  useEffect(
+
+  useFocusEffect(
     useCallback(() => {
       fetchTotalEnvelopesAmount(setTotalIncome);
     }, [])
@@ -26,15 +18,15 @@ const Accounts = () => {
     <View style={styles.container}>
       <StatusBar backgroundColor={colors.munsellgreen} />
       <View style={styles.all_accounts_txt_amt}>
-        <Text style={styles.aa_amt_txt}>All Accounts : {totalIncome}.00</Text>
+        <Text style={styles.aa_amt_txt}>All Accounts : {totalIncome.toFixed(2)}</Text>
       </View>
       <View style={styles.account_amt_view}>
         <Text style={styles.account_amt_txt}>My Account</Text>
-        <Text style={styles.account_amt_txt}>{totalIncome}.00</Text>
+        <Text style={styles.account_amt_txt}>{totalIncome.toFixed(2)}</Text>
       </View>
       <View style={styles.subtotal_amt_view}>
         <Text style={styles.subtotal_txt}>Subtotal:</Text>
-        <Text style={styles.subtotal_amt_txt}>{totalIncome}.00</Text>
+        <Text style={styles.subtotal_amt_txt}>{totalIncome.toFixed(2)}</Text>
       </View>
     </View>
   )

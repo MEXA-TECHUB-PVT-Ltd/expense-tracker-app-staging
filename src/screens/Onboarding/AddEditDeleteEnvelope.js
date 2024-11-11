@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, Animated, Pressable, Image, TouchableOpacity } from 'react-native'
+import { StyleSheet, Text, View, Animated, Pressable, Image, TouchableOpacity, Keyboard, TouchableWithoutFeedback } from 'react-native'
 import React, { useState, useRef, useMemo, useEffect } from 'react'
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import { Appbar, TextInput, Menu, Button, Snackbar } from 'react-native-paper';
@@ -27,8 +27,15 @@ const AddEditDeleteEnvelope = () => {
     const [budgetPeriod, setBudgetPeriod] = useState('Monthly');
     const [dueDate, setDueDate] = useState(new Date());
     const [showDatePicker, setShowDatePicker] = useState(false);
-
     const [snackbarVisible, setSnackbarVisible] = useState(false);
+
+    // code for calculator
+    const [calculatorVisible, setCalculatorVisible] = useState(false);
+    const handleValueChange = (amount) => {
+        setAmount(amount);
+        setCalculatorVisible(false);
+    };
+
 
     const envelopeId = route.params?.envelopeId;
     useEffect(() => {
@@ -114,7 +121,12 @@ const AddEditDeleteEnvelope = () => {
     );
 
     return (
-        <Pressable style={{ flex: 1 }} onPress={handleOutsidePress}>
+        <Pressable style={{ flex: 1 }} 
+            onPress={() => {
+                setBudgetAmountFocused(false);
+                handleOutsidePress();
+            }}
+        >
             <Appbar.Header style={styles.appBar}>
                 <Appbar.BackAction onPress={handleLeftIconPress} size={24} color={colors.white} />
                 <Appbar.Content 
@@ -145,9 +157,14 @@ const AddEditDeleteEnvelope = () => {
                 </View>
                 <View style={styles.amount_view}>
                     <Text style={styles.label}>Budget Amount</Text>
-                    <TextInput
-                        mode="flat"
-                        dense={true}
+                    {/* <TextInput
+                        // onPress={() => setCalculatorVisible(true)} //
+                        // editable={false} 
+                        onPressIn={() => {
+                            Keyboard.dismiss(); // Dismiss the keyboard when the TextInput is pressed
+                            setCalculatorVisible(true); // Show the calculator
+                        }} 
+                      
                         value={amount}
                         onChangeText={(text) => setAmount(text)}
                         textColor={colors.black}
@@ -157,8 +174,21 @@ const AddEditDeleteEnvelope = () => {
                         onFocus={() => setBudgetAmountFocused(true)}
                         onBlur={() => setBudgetAmountFocused(false)}
                         theme={{ colors: { text: 'black', primary: colors.brightgreen } }}
-                        keyboardType='numeric'
-                    />
+                        mode="flat"
+                        dense={true}
+                    /> */}
+                    <TouchableWithoutFeedback
+                        onPressIn={() => {
+                            setBudgetAmountFocused(true);
+                        }}
+                        onPress={() => {
+                            Keyboard.dismiss();
+                            setCalculatorVisible(true);
+                        }}>
+                        <View style={[styles.touchable_input, budgetAmountFocused ? styles.touchable_focused : styles.unfocused]}>
+                            <Text style={{ color: colors.black }}>{amount || '0.00'}</Text>
+                        </View>
+                    </TouchableWithoutFeedback>
                 </View>
             </View>
 
@@ -286,6 +316,13 @@ const AddEditDeleteEnvelope = () => {
                 </View>
             </Snackbar>
 
+            <Calculator
+                visible={calculatorVisible}
+                textInputValue={amount}
+                onValueChange={handleValueChange}
+                onClose={() => setCalculatorVisible(false)}
+            />
+
         </Pressable>
     )
 }
@@ -345,8 +382,22 @@ const styles = StyleSheet.create({
         paddingHorizontal: 0,
         marginVertical: 10,
     },
+    touchable_input: {
+        height: hp('4%'),
+        backgroundColor: 'transparent',
+        borderBottomWidth: 1,
+        fontSize: 16,
+        fontWeight: '500',
+        paddingHorizontal: 0,
+        marginVertical: 10,
+    },
+    touchable_focused: {
+        borderBottomWidth: 2.5,
+        borderBottomColor: colors.brightgreen,
+    },
     focused: {
         borderBottomWidth: 1,
+        borderBottomColor: colors.brightgreen,
     },
     unfocused: {
         borderBottomColor: 'gray',

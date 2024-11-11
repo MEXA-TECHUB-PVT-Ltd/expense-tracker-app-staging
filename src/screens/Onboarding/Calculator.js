@@ -27,18 +27,46 @@ const Calculator = ({ visible, textInputValue, onValueChange, onClose }) => {
         }
     };
 
+    // const handleOperation = (op) => {
+    //     if (display === '0') return;
+    //     setPreviousValue(display);
+    //     setOperation(op);
+    //     setDisplay('0');
+    // };
     const handleOperation = (op) => {
+        if (op === '-' && display === '0') {
+            // Set display to '-' for negative input
+            setDisplay('-');
+            setIsResult(false);
+            return;
+        }
+        // Standard operation handling
         if (display === '0') return;
         setPreviousValue(display);
         setOperation(op);
         setDisplay('0');
     };
-
     const calculate = () => {
         const currentValue = parseFloat(display);
         const previous = parseFloat(previousValue);
 
-        if (!operation || isNaN(currentValue) || isNaN(previous)) return;
+        // If no operation is set
+        if (!operation) {
+            // Check if the user has entered a new value after pressing "C" or clearing
+            if (display === '0') {
+                // If the display is '0', set the TextInput value to '0'
+                setDisplay('0');
+                onValueChange('0'); // Update TextInput with '0'
+            } else {
+                // Update TextInput with whatever is currently displayed
+                onValueChange(display); // Update with the current display value
+            }
+            onClose(); // Close the calculator
+            return;
+        }
+
+        // If an operation is set, perform the calculation
+        if (isNaN(currentValue) || isNaN(previous)) return;
 
         let result;
         switch (operation) {
@@ -58,11 +86,14 @@ const Calculator = ({ visible, textInputValue, onValueChange, onClose }) => {
                 return;
         }
 
+        // Update display and value after calculation
         setDisplay(String(result));
-        onValueChange(String(result)); // Pass the result back to the parent
+        onValueChange(String(result)); // Update the TextInput with the result
         setOperation(null);
         setPreviousValue(null);
         setIsResult(true);
+
+        // Close the calculator after calculation
         onClose();
     };
 
