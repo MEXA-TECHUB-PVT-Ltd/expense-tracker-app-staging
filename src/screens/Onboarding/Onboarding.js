@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, StatusBar, Animated, BackHandler, TouchableOpacity, Image, Pressable, TouchableWithoutFeedback } from 'react-native'
+import { StyleSheet, Text, View, StatusBar, Animated, Alert, BackHandler, TouchableOpacity, Image, Pressable, TouchableWithoutFeedback } from 'react-native'
 import React, { useState, useRef } from 'react'
 import colors from '../../constants/colors';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
@@ -14,10 +14,11 @@ import { saveUserData } from '../../utils/authUtils';
 import bcrypt from 'react-native-bcrypt';
 import { useFormik, Formik } from 'formik';
 import * as Yup from 'yup';
+import axios from 'axios';
 
 const { width: screenWidth } = dimensions;
 
-// Validation schema for the form
+// Validation schema for login modal
 const validationSchema = Yup.object().shape({
   email: Yup.string()
     .email('Invalid email')
@@ -31,6 +32,27 @@ const validationSchemaFP = Yup.object().shape({
   email: Yup.string()
     .email('Invalid email format')
     .required('Email is required'),
+});
+
+// validation schema for otp
+const validationSchemaOTP = Yup.object({
+  otp: Yup.string()
+    .length(4, 'OTP must be exactly 4 digits')
+    .matches(/^\d{4}$/, 'OTP must be a valid 4-digit number')
+    .required('OTP is required'),
+});
+
+// validation schema for reset password modal
+const validationSchemaRP = Yup.object().shape({
+  rPassword: Yup.string()
+    .required('Password is required')
+    .min(8, 'Password must be at least 8 characters')
+    .matches(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .matches(/\d/, 'Password must contain at least one number')
+    .matches(/[@$!%*?&#]/, 'Password must contain at least one special character'),
+  rConfirmPassword: Yup.string()
+    .required('Confirm Password is required')
+    .oneOf([Yup.ref('rPassword')], 'Passwords do not match'),
 });
 
 const Onboarding = () => {
@@ -89,7 +111,7 @@ const Onboarding = () => {
 
   const handleTooltipPress = () => {
     toggleTooltip();
-    navigation.navigate('About');
+    navigation.navigate('Help', { from_onboarding: true });
   };
 
   const handleCancelPress = () => {
@@ -99,7 +121,8 @@ const Onboarding = () => {
   };
 
   const handleCreateNewHousehold = () => {
-    navigation.navigate('SetupBudget');
+    // navigation.navigate('SetupBudget');
+    navigation.navigate('SetupBudget', { fromOnboarding: true });
   };
 
   const handleLogin = (values) => {
@@ -108,38 +131,40 @@ const Onboarding = () => {
     setPassword('');
   };
 
-  // transaction to login user
+
   const loginUser = (email, password) => {
     db.transaction(tx => {
       tx.executeSql(
-        'SELECT password FROM Users WHERE email = ?',
+        'SELECT id, password FROM Users WHERE email = ?',
         [email],
         (tx, results) => {
           if (results.rows.length > 0) {
-            const { password: hashedPassword } = results.rows.item(0);
+            const { id: user_id, password: hashedPassword } = results.rows.item(0);
 
             // Compare the hashed password with the entered password
             const isPasswordValid = bcrypt.compareSync(password, hashedPassword);
 
             if (isPasswordValid) {
               setCenterModalVisible(false);
-              // Dispatch the user details to Redux
-              dispatch(setUser({ email }));
-              console.log('Login successful');
-              // setSnackbarLoginVisible(true);
 
-              saveUserData({ email, isAuthenticated: true })
+              // Dispatch the user details and user_id to Redux
+              dispatch(setUser({ email, user_id }));
+
+              console.log('Login successful');
+
+              // Save the user data to Async Storage
+              saveUserData({ email, user_id, isAuthenticated: true })
                 .then(() => console.log('User data saved to Async Storage'))
                 .catch(error => console.error('Error saving user data to Async Storage:', error));
 
+              // Navigate to the TopTab screen
               navigation.navigate('TopTab');
 
             } else {
               console.log('Invalid password');
               setSnackbarVisiblePassword(true);
             }
-          } 
-          else {
+          } else {
             console.log('Login failed. Please try again.');
             setSnackbarVisible(true);
           }
@@ -148,6 +173,148 @@ const Onboarding = () => {
       );
     });
   };
+
+
+  // code that will call our forgot password api
+
+  const [newPassword, setNewPassword] = useState('');
+  const [savedEmail, setSavedEmail] = useState('');
+
+  console.log('saved eamil against which we will update password:', savedEmail);
+
+  const handleResetPassword = async (values) => {
+    console.log('email at which we want to send otp is: ', values);
+    await sendResetEmail(values.email);
+    setSavedEmail(values.email);
+  };
+
+  const sendResetEmail = async (email) => {
+    console.log('email at which we want to send otp is: ', email);
+    try {
+      const response = await axios.post(
+        'https://expense-planner-be.caprover-demo.mtechub.com/forgot-password',
+        { email }
+      );
+
+      if (response.data.success) {
+        console.log('OTP sent to your email.');
+        setForgotPasswordModal(false);
+        setConfirmationModal(true);
+      } else {
+        console.log(response.data.message || 'Failed to send OTP.');
+      }
+    } catch (error) {
+      console.error('Network Error:', error.response || error.message || error);
+      console.log('Something went wrong while sending OTP.');
+    }
+  };
+
+
+
+  // second api call it on verify otp button after inpputing otp sent in email, if otp verified then show modal reset password...
+
+  // function to show otp modal
+  const [isOtpModalVisible, setIsOtpModalVisible] = useState(false);
+  const [snackbarVisibleInvalidPassword, setSnackbarVisibleInvalidPassword] = useState(false);
+  const [otp, setOtp] = useState(['', '', '', '']);
+  const refs = useRef([]); // Initialize refs array for inputs
+
+  const handleOkPress = () => {
+    toggleConfirmationModal();
+    setIsOtpModalVisible(true);
+  };
+
+  // function to call verify otp api
+  const handleVerifyOTP = async (otp) => {
+    try {
+      const response = await axios.post('https://expense-planner-be.caprover-demo.mtechub.com/verify-otp', { otp });
+      console.log(response.data);
+      if (response.data.success) {
+        setIsOtpModalVisible(false);
+        resetOtpValues();
+        setResetModalVisible(true);
+      } else {
+        console.log('Invalid OTP:', response.data.message);
+        setSnackbarVisibleInvalidPassword(true);
+      }
+    } catch (error) {
+      console.error('Error verifying OTP:', error);
+      console.log('Failed to verify OTP.');
+    }
+  };
+
+  const resetOtpValues = () => {
+    setOtp(['', '', '', '']); // Reset OTP state to an empty array for all 4 digits
+  };
+
+  const handleOTPCancelPress = () => {
+    setIsOtpModalVisible(false);
+  };
+
+
+  // after otp is verified show modal to reset password then after entering new password and confirm new password on update password button call this transaction
+  // remember to convert plain text password into hash password then update in users table against this email
+
+  const [resetModalVisible, setResetModalVisible] = useState(false);
+  const [snackbarUpdatePassword, setSnackbarUpdatePassword] = useState(false);
+
+  const updatePassword = async (newPassword) => {
+    try {
+      // Log the email and plain newPassword
+      console.log('Updating password for email:', savedEmail);
+      console.log('New password (plain):', newPassword);
+
+      // Generate a salt and hash the password using bcrypt (3 rounds here)
+      const salt = bcrypt.genSaltSync(3); // Generate salt with 3 rounds
+      const hashedPassword = bcrypt.hashSync(newPassword, salt); // Hash the password
+
+      // Log the hashed password (for debugging purposes)
+      console.log('Hashed password:', hashedPassword);
+
+      db.transaction((tx) => {
+        tx.executeSql(
+          'SELECT * FROM Users WHERE email = ?',
+          [savedEmail],
+          (tx, results) => {
+            if (results.rows.length > 0) {
+              console.log('Email found in database:', savedEmail);
+            } else {
+              console.log('Email not found in database:', savedEmail);
+            }
+          },
+          (error) => {
+            console.error('Error selecting email:', error);
+          }
+        );
+      });
+
+      // Now update the password in the database
+      db.transaction((tx) => {
+        tx.executeSql(
+          `UPDATE Users SET password = ? WHERE email = ?`, // Update query
+          [hashedPassword, savedEmail], // Pass the hashed password to update query
+          (tx, results) => {
+            if (results.rowsAffected > 0) {
+              setResetModalVisible(false);
+              setSnackbarUpdatePassword(true);
+            } else {
+              Alert.alert('Error', 'Failed to update password in the database.');
+            }
+          },
+          (error) => {
+            console.error(error);
+            Alert.alert('Error', 'Database error.');
+          }
+        );
+      });
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Error', 'Something went wrong while updating the password.');
+    }
+  };
+
+  
+
 
   return (
     <Pressable style={{ flex: 1 }} onPress={handleOutsidePress}>
@@ -252,7 +419,7 @@ const Onboarding = () => {
                   )}
                   <View style={styles.passwordContainer}>
                     <Text style={styles.passwordLabel}>Password</Text>
-                    <Pressable 
+                    <Pressable
                       onPress={() => {
                         toggleModal(); // Call the toggleModal function
                         setCenterModalVisible(false); // Set center modal visibility to false
@@ -281,15 +448,26 @@ const Onboarding = () => {
                     <Text style={styles.errorText}>{errors.password}</Text>
                   )}
                   <View style={styles.buttonContainer}>
-                    <Pressable onPress={handleCancelPress}>
-                      <Text style={styles.cancelText}>CANCEL</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={handleSubmit}
-                    // onPress={handleLogin}
+                    <Button
+                      mode="text"
+                      onPress={handleCancelPress}
+                      style={styles.button}
+                      labelStyle={styles.buttonText}
+                      contentStyle={styles.buttonContent}
+                      rippleColor={colors.gray}
                     >
-                      <Text style={styles.loginText}>LOG IN</Text>
-                    </Pressable>
+                      CANCEL
+                    </Button>
+                    <Button
+                      mode="text"
+                      onPress={handleSubmit}
+                      style={styles.button}
+                      labelStyle={styles.buttonText}
+                      contentStyle={styles.buttonContent}
+                      rippleColor={colors.gray}
+                    >
+                      LOG IN
+                    </Button>
                   </View>
                 </View>
               )}
@@ -384,10 +562,7 @@ const Onboarding = () => {
               initialValues={{ email: '' }}
               validationSchema={validationSchemaFP}
               onSubmit={(values) => {
-                console.log('Reset password for:', values.email);
-                // Handle password reset logic here
-                toggleModal();
-                toggleConfirmationModal();
+                handleResetPassword(values);
               }}
             >
               {({ handleChange, handleBlur, handleSubmit, values, errors, touched, setFieldValue }) => (
@@ -398,7 +573,7 @@ const Onboarding = () => {
                     placeholder="johnj@email.com"
                     placeholderTextColor={colors.gray}
                     onFocus={() => (styles.fp_input.borderBottomColor = colors.androidbluebtn)}
-                    theme={{ colors: { primary: focusedInput ? colors.androidbluebtn : colors.androidbluebtn }}}
+                    theme={{ colors: { primary: focusedInput ? colors.androidbluebtn : colors.androidbluebtn } }}
                     textColor={colors.black}
                     // onBlur={handleBlur('email')}
                     // onChangeText={handleChange('email')}
@@ -418,16 +593,15 @@ const Onboarding = () => {
                     <Text style={styles.fp_errorText}>{errors.email}</Text>
                   )}
 
-                  <Pressable 
-                    onPress={() => {
-                      console.log('Button Pressed'); // Debugging log
-                      console.log('Validation Errors:', errors);
-                      handleSubmit(); // Call Formik's handleSubmit
-                    }}
-                  // onPress={handleSubmit}
+                  <Button
+                    mode="text"
+                    onPress={handleSubmit}
+                    style={styles.fp_resetButton}
+                    textColor={colors.androidbluebtn}
+                    rippleColor={colors.gray}
                   >
-                    <Text style={styles.fp_resetButton}>RESET PASSWORD</Text>
-                  </Pressable>
+                    RESET PASSWORD
+                  </Button>
                 </View>
               )}
             </Formik>
@@ -437,17 +611,250 @@ const Onboarding = () => {
         <Portal>
           <Modal
             visible={confirmationModal}
-            onDismiss={toggleConfirmationModal}
+            // onDismiss={toggleConfirmationModal}
             contentContainerStyle={styles.c_modalContainer}
           >
             <Text style={styles.c_confirmationText}>
-              I just sent you an email with instructions for finishing the reset password process. Check your inbox. I'll see you soon!
+              I just sent you an email with an otp. Please enter that otp in next form. After verifying otp you can reset your password.
             </Text>
-            <Pressable onPress={toggleConfirmationModal} style={styles.c_okButtonContainer}>
-              <Text style={styles.c_okButtonText}>OK</Text>
-            </Pressable>
+
+            <Button
+              mode="text"
+              onPress={handleOkPress}
+              style={styles.c_okButtonText}
+              textColor={colors.androidbluebtn}
+              rippleColor={colors.gray}
+            >
+              OK
+            </Button>
           </Modal>
         </Portal>
+
+
+        {/* code of modal for otp */}
+
+        <Portal>
+          <Modal
+            visible={isOtpModalVisible}
+            contentContainerStyle={styles.otp_modalContainer}
+          >
+            <Text style={styles.fp_title}>Enter OTP</Text>
+            <Text style={styles.fp_subText}>Enter 4 digit OTP you received on your email</Text>
+
+            <Formik
+              initialValues={{ otp: otp.join('') }} // Bind initial value as a string
+              validationSchema={validationSchemaOTP}
+              onSubmit={(values) => {
+                handleVerifyOTP(values.otp);
+               
+              }}
+            >
+              {({ handleBlur, handleSubmit, errors, touched, setFieldValue }) => (
+                <View>
+                  <View style={styles.otpInputsContainer}>
+                    {otp.map((digit, index) => (
+                      <TextInput
+                        key={index}
+                        style={[
+                          styles.otp_input,
+                          {
+                            borderColor:
+                              touched.otp && !digit ? colors.danger : colors.gray,
+                          },
+                        ]}
+                        mode="flat"
+                        keyboardType="numeric"
+                        underlineColor='transparent'
+                        cursorColor={colors.brightgreen}
+                        maxLength={1}
+                        value={digit}
+                        onChangeText={(text) => {
+                          const newOtp = [...otp];
+                          newOtp[index] = text.trim();
+
+                          setFieldValue('otp', newOtp.join(''));
+
+                          if (text.trim() && index < otp.length - 1) {
+                            refs[index + 1].focus();
+                          }
+
+                          setOtp(newOtp);
+                        }}
+                        onKeyPress={({ nativeEvent }) => {
+                          if (nativeEvent.key === 'Backspace' && !otp[index]) {
+                            if (index > 0) {
+                              refs[index - 1].focus();
+                            }
+                          }
+                        }}
+                        onBlur={handleBlur('otp')}
+                        ref={(input) => (refs[index] = input)}
+                        autoFocus={index === 0}
+                        textColor={colors.brightgreen}
+                        activeUnderlineColor={colors.brightgreen}
+                      />
+                    ))}
+                  </View>
+
+                  {/* Validation error for OTP */}
+                  {touched.otp && errors.otp && (
+                    <Text style={styles.fp_errorText}>{errors.otp}</Text>
+                  )}
+
+                  <View style={styles.otp_btns_Container}>
+                    <Button
+                      mode="text"
+                      onPress={handleOTPCancelPress}
+                      style={styles.fp_resetButton}
+                      textColor={colors.androidbluebtn}
+                      rippleColor={colors.gray}
+                    >
+                      CANCEL
+                    </Button>
+                    <Button
+                      mode="text"
+                      onPress={handleSubmit}
+                      style={styles.fp_resetButton}
+                      textColor={colors.androidbluebtn}
+                      rippleColor={colors.gray}
+                    >
+                      VERIFY
+                    </Button>
+                  </View>
+                </View>
+              )}
+            </Formik>
+          </Modal>
+          {/* snackbar for invalid password */}
+          <Snackbar
+            visible={snackbarVisibleInvalidPassword}
+            onDismiss={() => setSnackbarVisibleInvalidPassword(false)}
+            duration={1000}
+            style={[
+              styles.snack_bar,
+              {
+                position: 'absolute',
+                bottom: 20,
+                left: 20,
+                right: 20,
+                zIndex: 1000,
+              }
+            ]}
+          >
+            <View style={styles.img_txt_view}>
+              <Image
+                source={Images.expenseplannerimage}
+                style={styles.snack_bar_img}
+              />
+              <Text style={styles.snack_bar_text}>Entered otp is incorrect!</Text>
+            </View>
+          </Snackbar>
+        </Portal>
+
+
+
+        {/* modal for reset password or update password */}
+        <Portal>
+          <Modal
+            visible={resetModalVisible}
+          >
+            <Formik
+              initialValues={{ rPassword: '', rConfirmPassword: '' }}
+              validationSchema={validationSchemaRP}
+              onSubmit={({ rPassword }) => {
+                updatePassword(rPassword);
+              }}
+            >
+              {({ handleChange, handleBlur, handleSubmit, values, errors, touched }) => (
+                <View style={styles.rp_modalContainer}>
+                  <Text style={styles.title}>Reset Password</Text>
+
+                  <TextInput
+                    value={values.rPassword}
+                    onChangeText={handleChange('rPassword')}
+                    onBlur={handleBlur('rPassword')}
+                    mode="flat"
+                    style={styles.input}
+                    theme={{ colors: { primary: focusedInput === 'rPassword' ? colors.androidbluebtn : colors.androidbluebtn } }}
+                    textColor="black"
+                    secureTextEntry={true}
+                    dense={true}
+                    placeholder="New Password"
+                    onFocus={() => setFocusedInput('rPassword')}
+                  />
+                  {touched.rPassword && errors.rPassword && (
+                    <Text style={styles.rp_errorText}>{errors.rPassword}</Text>
+                  )}
+
+                  <TextInput
+                    value={values.rConfirmPassword}
+                    onChangeText={handleChange('rConfirmPassword')}
+                    onBlur={handleBlur('rConfirmPassword')}
+                    mode="flat"
+                    style={styles.input}
+                    theme={{ colors: { primary: focusedInput === 'rConfirmPassword' ? colors.androidbluebtn : colors.androidbluebtn } }}
+                    textColor="black"
+                    secureTextEntry={true}
+                    dense={true}
+                    placeholder="Confirm Password"
+                    onFocus={() => setFocusedInput('rConfirmPassword')}
+                  />
+                  {touched.rConfirmPassword && errors.rConfirmPassword && (
+                    <Text style={styles.rp_errorText}>{errors.rConfirmPassword}</Text>
+                  )}
+
+                  <View style={styles.buttonContainer}>
+                    <Button
+                      mode="text"
+                      onPress={() => setResetModalVisible(false)}
+                      style={styles.button}
+                      labelStyle={styles.buttonText}
+                      contentStyle={styles.buttonContent}
+                      rippleColor="gray"
+                    >
+                      CANCEL
+                    </Button>
+                    <Button
+                      mode="text"
+                      onPress={handleSubmit}
+                      style={styles.button}
+                      labelStyle={styles.buttonText}
+                      contentStyle={styles.buttonContent}
+                      rippleColor="gray"
+                    >
+                      RESET
+                    </Button>
+                  </View>
+                </View>
+              )}
+            </Formik>
+          </Modal>
+        </Portal>
+
+
+        <Snackbar
+          visible={snackbarUpdatePassword}
+          onDismiss={() => setSnackbarUpdatePassword(false)}
+          duration={1000}
+          style={[
+            styles.snack_bar,
+            {
+              position: 'absolute',
+              bottom: 20,
+              left: 20,
+              right: 20,
+              zIndex: 1000,
+            }
+          ]}
+        >
+          <View style={styles.img_txt_view}>
+            <Image
+              source={Images.expenseplannerimage}
+              style={styles.snack_bar_img}
+            />
+            <Text style={styles.snack_bar_text}>Password updated successfully.</Text>
+          </View>
+        </Snackbar>
 
       </View>
     </Pressable >
@@ -615,22 +1022,22 @@ const styles = StyleSheet.create({
     fontSize: hp('2.2%'),
     color: colors.gray,
   },
+  // button styles from paper
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    marginTop: 14,
   },
-  cancelText: {
+  button: {
+    backgroundColor: 'transparent',
+    borderRadius: 50,
+  },
+  buttonText: {
     fontSize: hp('2%'),
     color: colors.androidbluebtn,
     fontWeight: '500',
   },
-  loginText: {
-    fontSize: hp('2%'),
-    color: colors.androidbluebtn,
-    fontWeight: '500',
-    marginRight: wp('5%'),
-    marginLeft: wp('10%'),
+  buttonContent: {
+    // paddingVertical: 10, // Adjust the padding inside the button
   },
 
   // snackbar styles
@@ -694,10 +1101,9 @@ const styles = StyleSheet.create({
   fp_resetButton: {
     fontSize: hp('1.8%'),
     fontWeight: 'bold',
-    color: colors.androidbluebtn,
     textAlign: 'right',
-    marginVertical: hp('1.5%'),
-    marginRight: hp('1.8%'),
+    marginVertical: hp('1%'),
+    alignSelf: 'flex-end',
   },
 
   // confirmation modal styles
@@ -705,7 +1111,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     padding: hp('3.2%'),
     margin: hp('7%'),
-  }, 
+  },
   c_confirmationText: {
     fontSize: hp('2.3%'),
     marginBottom: hp('1.5%'),
@@ -716,10 +1122,84 @@ const styles = StyleSheet.create({
     marginRight: hp('1.5%'),
   },
   c_okButtonText: {
-    fontSize: hp('2.3%'),
-    color: colors.androidbluebtn,
-    textAlign: 'right',
+    alignSelf: 'flex-end',
+    
+  },
+
+  // styles for otp modal could be some same u can remove same
+
+  otp_modalContainer: {
+    padding: hp('2.5%'),
+    backgroundColor: 'white',
+    borderRadius: 2,
+    marginHorizontal: hp('5.2%'),
+    overflow: 'hidden',
+  },
+  otpInputsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: hp('2%'),
+    overflow: 'hidden',
+    padding: hp('1%'),
+  },
+  otp_input: {
+    width: hp('7%'),
+    height: hp('7%'),
+    textAlign: 'center',
+    justifyContent: 'center',
+    alignItems: 'center',
+    fontSize: hp('3%'),
     fontWeight: 'bold',
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    marginHorizontal: hp('0.7%'),
+    backgroundColor: 'lightgray',
+  },
+  otp_btns_Container: {
+   flexDirection: 'row',
+   justifyContent: 'flex-end',
+   alignItems: 'center',
+   marginTop: hp('1%'),
+ },
+
+// styles for update password modal
+  rp_modalContainer: {
+    padding: hp('2.5%'),
+    backgroundColor: 'white',
+    borderRadius: 2,
+    marginHorizontal: hp('5.2%'),
+    overflow: 'hidden',
+  },
+  rp_title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  rp_input: {
+    marginBottom: 10,
+    backgroundColor: 'white',
+  },
+  rp_errorText: {
+    color: 'red',
+    fontSize: 12,
+    marginBottom: 10,
+  },
+  rp_buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+  },
+  rp_button: {
+    flex: 1,
+    marginHorizontal: 5,
+  },
+  rp_buttonText: {
+    fontSize: 14,
+  },
+  rp_buttonContent: {
+    paddingVertical: 8,
   },
 
 })

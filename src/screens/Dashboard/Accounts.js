@@ -4,13 +4,31 @@ import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-nat
 import colors from '../../constants/colors'
 import { fetchTotalEnvelopesAmount} from '../../database/database';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSelector } from 'react-redux';
+
 
 const Accounts = () => {
   const [totalIncome, setTotalIncome] = useState(0);
 
+  const isAuthenticated = useSelector((state) => state.user.isAuthenticated);
+
+  const user_id = useSelector(state => state.user.user_id);
+  const temp_user_id = useSelector(state => state.user.temp_user_id);
+  const [tempUserId, setTempUserId] = useState(user_id);
+  console.log('value of tempUserId in state inside Accounts is : ', tempUserId);
   useFocusEffect(
     useCallback(() => {
-      fetchTotalEnvelopesAmount(setTotalIncome);
+      if (isAuthenticated) {
+        setTempUserId(user_id);
+      } else {
+        setTempUserId(temp_user_id);
+      }
+    }, [isAuthenticated, user_id, temp_user_id])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchTotalEnvelopesAmount(setTotalIncome, tempUserId);
     }, [])
   );
 
@@ -18,15 +36,15 @@ const Accounts = () => {
     <View style={styles.container}>
       <StatusBar backgroundColor={colors.munsellgreen} />
       <View style={styles.all_accounts_txt_amt}>
-        <Text style={styles.aa_amt_txt}>All Accounts : {totalIncome}</Text>
+        <Text style={styles.aa_amt_txt}>All Accounts : {totalIncome}.00</Text>
       </View>
       <View style={styles.account_amt_view}>
         <Text style={styles.account_amt_txt}>My Account</Text>
-        <Text style={styles.account_amt_txt}>{totalIncome}</Text>
+        <Text style={styles.account_amt_txt}>{totalIncome}.00</Text>
       </View>
       <View style={styles.subtotal_amt_view}>
         <Text style={styles.subtotal_txt}>Subtotal:</Text>
-        <Text style={styles.subtotal_amt_txt}>{totalIncome}</Text>
+        <Text style={styles.subtotal_amt_txt}>{totalIncome}.00</Text>
       </View>
     </View>
   )

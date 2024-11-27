@@ -9,6 +9,8 @@ const db = SQLite.openDatabase(
 const initializeDatabase = () => {
     db.transaction(tx => {
 
+        tx.executeSql('PRAGMA foreign_keys = ON');
+
         // in case any table is not created correct first drop then create when sure about its values and structure
         // tx.executeSql(
         //     "DROP TABLE IF EXISTS envelopes;",
@@ -50,7 +52,9 @@ const initializeDatabase = () => {
             budgetPeriod TEXT, 
             filledIncome REAL, 
             fillDate TEXT, 
-            orderIndex INTEGER DEFAULT 0
+            orderIndex INTEGER DEFAULT 0,
+            user_id INTEGER,
+            FOREIGN KEY (user_id) REFERENCES Users(id) ON DELETE CASCADE
             )`,
             [],
             () => console.log('Envelopes Table created successfully'),
@@ -61,13 +65,14 @@ const initializeDatabase = () => {
         );
 
         // create Income table if not exists
-
         tx.executeSql(
             `CREATE TABLE IF NOT EXISTS Income (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             accountName TEXT,
             budgetAmount REAL NOT NULL,
-            budgetPeriod TEXT
+            budgetPeriod TEXT,
+            user_id INTEGER,
+            FOREIGN KEY (user_id) REFERENCES Users(id) ON DELETE CASCADE
         );`,
             [],
             () => console.log('Income table created successfully'),
@@ -85,7 +90,9 @@ const initializeDatabase = () => {
             envelopeRemainingIncome REAL,
             accountName TEXT,
             transactionDate TEXT,
-            transactionNote TEXT
+            transactionNote TEXT,
+            user_id INTEGER,
+            FOREIGN KEY (user_id) REFERENCES Users(id) ON DELETE CASCADE 
             );`,
             [],
             () => {
@@ -95,6 +102,35 @@ const initializeDatabase = () => {
                 console.error('Error creating Transactions table', error);
             }
         );
+
+        const DEFAULT_PAYEES = ["A&I", "BB&T", "CSK Auto", "Abc", "A&E Stores", "Amazon", "A.C. Moore Arts & Crafts", "ACE Hardware", "Apple", "AT&T", "Water", "Electricity", "Internet", "Gas", "Rent"];
+
+        db.transaction(tx => {
+            // Create the table if it doesn't exist
+            tx.executeSql(
+                `CREATE TABLE IF NOT EXISTS Payees (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            isDefault INTEGER DEFAULT 0
+        );`,
+                [],
+                () => {
+                    console.log("Payees table created successfully");
+                    // Insert default payees
+                    DEFAULT_PAYEES.forEach(payee => {
+                        tx.executeSql(
+                            `INSERT OR IGNORE INTO Payees (name, isDefault) VALUES (?, 1);`,
+                            [payee],
+                            () => console.log(`Default payee "${payee}" added`),
+                            (tx, error) => console.error(`Error adding default payee "${payee}"`, error)
+                        );
+                    });
+                },
+                (tx, error) => console.error("Error creating Payees table:", error)
+            );
+        });
+
+        
 
         // create FilledIncome table if not exists
         tx.executeSql(
@@ -145,7 +181,22 @@ const fetchUsers = () => {
     });
 };
 
-const addEnvelope = (envelopeName, amount, budgetPeriod) => {
+// Function to format date to 'YYYY-MM-DD'
+const formatDateToYYYYMMDD = (date) => {
+    // If the input date is not a Date object, convert it
+    if (!(date instanceof Date)) {
+        date = new Date(date); // This will convert string or other types to Date
+    }
+
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // months are 0-indexed
+    const day = String(date.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+};
+
+const addEnvelope = (envelopeName, amount, budgetPeriod, tempUserId, formattedFromDate) => {
+    // const formattedDueDate = formatDateToYYYYMMDD(dueDate);
     db.transaction(tx => {
         // Step 1: Increment the orderIndex of existing envelopes
         tx.executeSql(
@@ -154,16 +205,16 @@ const addEnvelope = (envelopeName, amount, budgetPeriod) => {
             (_, result) => {
                 // Step 2: Insert the new envelope with orderIndex set to 0
                 tx.executeSql(
-                    'INSERT INTO envelopes (envelopeName, amount, budgetPeriod, orderIndex) VALUES (?, ?, ?, ?)',
-                    [envelopeName, amount, budgetPeriod, 0],
+                    'INSERT INTO envelopes (envelopeName, amount, budgetPeriod, user_id, fillDate ,orderIndex ) VALUES (?, ?, ?, ?, ?, ?)',
+                    [envelopeName, amount, budgetPeriod, tempUserId, formattedFromDate,0],
                     (_, result) => {
                         // Step 3: Fetch all envelopes to reflect the change
-                        // getAllEnvelopes(); // Update the state after addition
+                        getAllEnvelopes(); // Update the state after addition
                     },
                     (_, error) => {
                         console.error('Error adding envelope:', error.message || error);
                         console.log('Failed SQL command:', 'INSERT INTO envelopes (envelopeName, amount, budgetPeriod, orderIndex) VALUES (?, ?, ?, ?)',
-                            [envelopeName, amount, budgetPeriod, 0]);
+                            [envelopeName, amount, budgetPeriod, formattedFromDate,0]);
                     }
                 );
             },
@@ -180,32 +231,6 @@ const addEnvelope = (envelopeName, amount, budgetPeriod) => {
             console.log('Transaction completed successfully');
         });
 };
-
-// Function to add an envelope
-// const addEnvelope = (envelopeName, amount, budgetPeriod) => {
-//     // console.log('Adding envelope with:', { envelopeName, amount, budgetPeriod });
-//     db.transaction(tx => {
-//         tx.executeSql(
-//             'INSERT INTO envelopes (envelopeName, amount, budgetPeriod) VALUES (?, ?, ?)',
-//             [envelopeName, amount, budgetPeriod],
-//             (_, result) => {
-//                 // getAllEnvelopes(); // Log all envelopes after addition
-//             },
-//             (_, error) => {
-//                 console.error('Error adding envelope:', error.message || error);
-//                 // Log additional info about the SQL command that failed
-//                 console.log('Failed SQL command:', 'INSERT INTO envelopes (envelopeName, amount, budgetPeriod) VALUES (?, ?, ?)',
-//                     [envelopeName, amount, budgetPeriod]);
-//             }
-//         );
-//     },
-//         (error) => {
-//             // console.error('Transaction Error:', error); // Log transaction error if occurs
-//         },
-//         () => {
-//             console.log('Transaction completed successfully');
-//         });
-// };
 
 // Function to get all envelopes here just to log all after inserting a new envelope
 const getAllEnvelopes = () => {
@@ -228,19 +253,27 @@ const getAllEnvelopes = () => {
 };
 
 // Function to edit an envelope
-const editEnvelope = (envelopeId, envelopeName, amount, budgetPeriod) => {
+const editEnvelope = (envelopeId, envelopeName, amount, budgetPeriod, tempUserId) => {
     db.transaction(tx => {
         tx.executeSql(
-            'UPDATE envelopes SET envelopeName = ?, amount = ?, budgetPeriod = ? WHERE envelopeId = ?',
-            [envelopeName, amount, budgetPeriod, envelopeId],
-            (_, result) => console.log('Envelope updated:', result),
+            'UPDATE envelopes SET envelopeName = ?, amount = ?, budgetPeriod = ?, user_id = ? WHERE envelopeId = ?',
+            [envelopeName, amount, budgetPeriod, tempUserId, envelopeId],
+            (_, result) => {
+                console.log('Envelope updated successfully');
+                console.log('Rows affected:', result.rowsAffected);
+            },
             (_, error) => {
-                console.log('Error updating envelope:', error);
+                console.error('Error updating envelope:', error.message);
                 return true;
             }
         );
+    }, (transactionError) => {
+        console.error('Transaction error:', transactionError.message);
+    }, () => {
+        console.log('Transaction completed successfully');
     });
 };
+
 
 // Function to delete an envelope
 const deleteEnvelope = (envelopeId) => {
@@ -279,11 +312,11 @@ const addAmount = (amount, budgetPeriod) => {
 };
 
 // Function to fetch total income
-const fetchTotalIncome = (callback) => {
+const fetchTotalIncome = (callback, tempUserId) => {
     db.transaction(tx => {
         tx.executeSql(
-            'SELECT SUM(budgetAmount) as totalIncome FROM Income',
-            [],
+            'SELECT SUM(budgetAmount) as totalIncome FROM Income  WHERE user_id = ?',
+            [tempUserId],
             (_, results) => {
                 const totalIncome = results.rows.item(0).totalIncome || 0;
                 callback(totalIncome);
@@ -336,13 +369,12 @@ const fetchAllIncomes = (callback) => {
 };
 
 //for filled envelopes screen fill all or individual
-
 // for total sum of all envelopes amount as single sumup amount
-const fetchTotalEnvelopesAmount = (callback) => {
+const fetchTotalEnvelopesAmount = (callback, tempUserId) => {
     db.transaction(tx => {
         tx.executeSql(
-            'SELECT SUM(filledIncome) AS totalAmount FROM envelopes',
-            [],
+            'SELECT SUM(filledIncome) AS totalAmount FROM envelopes WHERE user_id = ?;',
+            [tempUserId],
             (_, results) => {
                 const totalAmount = results.rows.item(0).totalAmount || 0;
                 callback(totalAmount);

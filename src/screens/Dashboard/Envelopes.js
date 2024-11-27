@@ -5,18 +5,35 @@ import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-nat
 import colors from '../../constants/colors';
 import { VectorIcon } from '../../constants/vectoricons';
 import { useNavigation } from '@react-navigation/native'
-import { db, fetchTotalEnvelopesAmount, envelopes, } from '../../database/database'
+import { db, fetchTotalEnvelopesAmount } from '../../database/database'
 import CustomProgressBar from '../../components/CustomProgressBar';
+import { useSelector } from 'react-redux';
+import { getUserData } from '../../utils/authUtils';
 
 const Envelopes = () => {
   const navigation = useNavigation();
+
+  const isAuthenticated = useSelector((state) => state.user.isAuthenticated);
+  const user_id = useSelector(state => state.user.user_id);
+  const temp_user_id = useSelector(state => state.user.temp_user_id);
+  const [tempUserId, setTempUserId] = useState(user_id);
+  console.log('value of tempUserId in state inside envelopes', tempUserId);
+  useFocusEffect(
+    useCallback(() => {
+      if (isAuthenticated) {
+        setTempUserId(user_id);
+      } else {
+        setTempUserId(temp_user_id);
+      }
+    }, [isAuthenticated, user_id, temp_user_id])
+  );
 
   // for showing total sum of all envelopes incomes single sumup of all
   const [totalIncome, setTotalIncome] = useState(0);
   useEffect(
     useCallback(() => {
-      fetchTotalEnvelopesAmount(setTotalIncome);
-    }, [])
+      fetchTotalEnvelopesAmount(setTotalIncome, tempUserId);
+    }, [tempUserId])
   );
 
   // for flatlist
@@ -25,9 +42,9 @@ const Envelopes = () => {
   const [envelopes, setEnvelopes] = useState([]);
 
   const fetchEnvelopes = useCallback(() => {
-    getAllEnvelopes(setEnvelopes);
-    fetchAndLogFilledIncomes();
-  }, []);
+    getAllEnvelopes(setEnvelopes, tempUserId);
+    fetchAndLogFilledIncomes(tempUserId);
+  }, [tempUserId]);
 
   // Use useFocusEffect to call the function when the screen comes into focus
   useFocusEffect(
@@ -37,12 +54,12 @@ const Envelopes = () => {
   );
 
   // function to get all envelopes their rows
-  const getAllEnvelopes = (callback) => {
+  const getAllEnvelopes = (callback, tempUserId) => {
     db.transaction(tx => {
-      const sqlQuery = 'SELECT * FROM envelopes ORDER BY orderIndex';
+      const sqlQuery = 'SELECT * FROM envelopes WHERE user_id = ? ORDER BY orderIndex';
       tx.executeSql(
         sqlQuery,
-        [],
+        [tempUserId],
         (_, results) => {
           if (results.rows && results.rows.length > 0) {
             let envelopesArray = [];
@@ -66,17 +83,19 @@ const Envelopes = () => {
     });
   };
 
-  const fetchAndLogFilledIncomes = () => {
+  const fetchAndLogFilledIncomes = (tempUserId) => {
+    console.log('fetchAndLogFilledIncomes called with tempUserId:', tempUserId);
     db.transaction(tx => {
       tx.executeSql(
-        `SELECT envelopeId, envelopeName, amount, budgetPeriod, filledIncome, fillDate FROM envelopes;`,
-        [],
+        `SELECT envelopeId, envelopeName, amount, budgetPeriod, filledIncome, fillDate, user_id FROM envelopes WHERE user_id = ?;`,
+        [tempUserId],
         (tx, results) => {
           const rows = results.rows;
           let records = [];
 
           for (let i = 0; i < rows.length; i++) {
             const item = rows.item(i);
+            console.log(`Row ${i} item:`, item);
             records.push({
               envelopeId: item.envelopeId,
               envelopeName: item.envelopeName,
@@ -84,10 +103,11 @@ const Envelopes = () => {
               budgetPeriod: item.budgetPeriod,
               filledIncome: item.filledIncome,
               fillDate: item.fillDate,
+              user_id: item.user_id,
             });
           }
           setFilledIncomes(records)
-          // console.log('Filled Incomes record is:', records);
+          console.log('Filled Incomes record in Envelopes file is:', records);
         },
         (tx, error) => {
           console.error('Error fetching filled incomes:', error);
@@ -102,7 +122,7 @@ const Envelopes = () => {
       <StatusBar backgroundColor={colors.munsellgreen} />
       <View style={styles.budget_period_view}>
         <Text style={styles.monthly_txt}>Monthly</Text>
-        <Text style={styles.monthly_txt}>{totalIncome}</Text>
+        <Text style={styles.monthly_txt}>{totalIncome}.00</Text>
       </View>
 
       <FlatList
@@ -120,14 +140,14 @@ const Envelopes = () => {
               >
                 <View style={styles.name_filledIncome_view}>
                   <Text style={styles.item_text_name}>{item.envelopeName}</Text>
-                  <Text style={styles.item_text_filledIncome}>{item.filledIncome || 0}</Text>
+                  <Text style={styles.item_text_filledIncome}>{item.filledIncome || 0}.00</Text>
                 </View>
                 <View style={styles.bar_icon_view}>
                   <View style={styles.progress_bar_view}>
                     <CustomProgressBar filledIncome={item.filledIncome} amount={item.amount} />
                   </View>
                   <View style={styles.progress_bar_view_icon}>
-                    <Text style={styles.item_text_amount}>{item.amount}</Text>
+                    <Text style={styles.item_text_amount}>{item.amount}.00</Text>
                   </View>
                 </View>
               </TouchableOpacity>

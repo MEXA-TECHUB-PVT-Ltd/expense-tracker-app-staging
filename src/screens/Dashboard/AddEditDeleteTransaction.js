@@ -11,12 +11,29 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import dimensions from '../../constants/dimensions';
 import { db, fetchTotalIncome } from '../../database/database';
 import Calculator from '../Onboarding/Calculator';
+import { useSelector } from 'react-redux';
+import { formatDateSql } from '../../utils/DateFormatter';
 
 const { width: screenWidth } = dimensions;
 
 const AddEditDeleteTransaction = () => {
   const navigation = useNavigation();
   const route = useRoute();
+
+  const isAuthenticated = useSelector((state) => state.user.isAuthenticated);
+  const user_id = useSelector(state => state.user.user_id);
+  const temp_user_id = useSelector(state => state.user.temp_user_id);
+  const [tempUserId, setTempUserId] = useState(user_id);
+  console.log('value of tempUserId in state inside AddEditDeleteTransaction', tempUserId);
+  useFocusEffect(
+    useCallback(() => {
+      if (isAuthenticated) {
+        setTempUserId(user_id);
+      } else {
+        setTempUserId(temp_user_id);
+      }
+    }, [isAuthenticated, user_id, temp_user_id])
+  );
 
   const [calculatorVisible, setCalculatorVisible] = useState(false);
   const handleValueChange = (amount) => {
@@ -28,6 +45,7 @@ const AddEditDeleteTransaction = () => {
   const [focusedInputAmount, setFocusedInputAmount] = useState(false);
 
   const [payee, setPayee] = useState(null);
+  console.log('value of payee name in addeditdelete transaction is:', payee);
   const [transactionAmount, setTransactionAmount] = useState(0);
   // console.log('after edit prop set transactionAmount', transactionAmount);
   const handleTransactionAmountChange = (value) => {
@@ -61,7 +79,9 @@ const AddEditDeleteTransaction = () => {
 
   // code for date 
   const [transactionDate, setTransactionDate] = useState(new Date());
-  // console.log('todays date is: ', transactionDate);
+  const formattedFromDate = formatDateSql(transactionDate);
+  console.log('value of state transaction date is: ', formattedFromDate);
+
   const [show, setShow] = useState(false);
   const onChange = (event, selectedDate) => {
     const currentDate = selectedDate || transactionDate;
@@ -111,22 +131,22 @@ const AddEditDeleteTransaction = () => {
   };
   const handleTooltipPress = () => {
     toggleTooltip();
-    navigation.navigate('About');
+    navigation.navigate('Help', { from_addeditdelete_transaction: true });
   };
 
   // code for getting all envelopes from envelopes table
   const [envelopes, setEnvelopes] = useState([]);
   useFocusEffect(
     useCallback(() => {
-      getAllEnvelopes(setEnvelopes);
-    }, [])
+      getAllEnvelopes(setEnvelopes, tempUserId);
+    }, [tempUserId])
   );
   const getAllEnvelopes = (callback) => {
     db.transaction(tx => {
-      const sqlQuery = 'SELECT * FROM envelopes ORDER BY orderIndex';
+      const sqlQuery = 'SELECT * FROM envelopes WHERE user_id = ? ORDER BY orderIndex';
       tx.executeSql(
         sqlQuery,
-        [],
+        [tempUserId],
         (_, results) => {
           if (results.rows && results.rows.length > 0) {
             let envelopesArray = [];
@@ -153,11 +173,11 @@ const AddEditDeleteTransaction = () => {
   // code for getting total income from income table which is default account for now
   const incomes = [{ accountName: "My Account" },]; // later on when adding multiple accounts replace it with accounts table
   const [accountName, setAccountName] = useState('My Account'); // for now you can use totalIncome to be filled in accountName
-  const [budgetAmount, setBudgetAmount] = useState(0); 
+  const [budgetAmount, setBudgetAmount] = useState(0);
   useFocusEffect(
     useCallback(() => {
-      fetchTotalIncome(setBudgetAmount);
-    }, [])
+      fetchTotalIncome(setBudgetAmount, tempUserId);
+    }, [tempUserId])
   );
 
   // data being passed as props from transaction screen to add/edit transaction
@@ -177,6 +197,7 @@ const AddEditDeleteTransaction = () => {
       }
       setSelectedAccount(route.params.accountName);
       setNote(route.params.transactionNote);
+      setTempUserId(route.params.user_id);
     }
   }, [id, route.params]);
 
@@ -184,25 +205,26 @@ const AddEditDeleteTransaction = () => {
   const handleAddTransaction = () => {
     const transaction = {
       payee: payee,
-      transactionAmount: transactionAmount, 
+      transactionAmount: transactionAmount,
       transactionType: transactionType,
       envelopeName: selectedEnvelope,
       envelopeRemainingIncome: envelopeRemainingIncome, // now added
       accountName: accountName,
-      transactionDate: transactionDate, 
+      transactionDate: formattedFromDate,
       transactionNote: note,
+      user_id: tempUserId,
     };
     console.log('Transaction values to be added:', transaction);
     insertTransaction(transaction);
   };
-  
+
   // code for adding transaction, updating envelope, updating Income table or monthly budget
   const insertTransaction = (transaction) => {
     db.transaction((tx) => {
       // Insert the transaction into the Transactions table
       tx.executeSql(
-        `INSERT INTO Transactions (payee, transactionAmount, transactionType, envelopeName, envelopeRemainingIncome, accountName, transactionDate, transactionNote) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+        `INSERT INTO Transactions (payee, transactionAmount, transactionType, envelopeName, envelopeRemainingIncome, accountName, transactionDate, transactionNote, user_id) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
         [
           transaction.payee,
           transaction.transactionAmount,
@@ -212,9 +234,11 @@ const AddEditDeleteTransaction = () => {
           transaction.accountName,
           transaction.transactionDate,
           transaction.transactionNote,
+          transaction.user_id,
         ],
         (_, result) => {
           console.log('Transaction inserted successfully:', result);
+          addPayee(payee);
 
           // Now update the corresponding envelope based on the transactionType
           const amount = transaction.transactionAmount;
@@ -425,7 +449,8 @@ const AddEditDeleteTransaction = () => {
                 selectedEnvelope,
                 envelopeRemainingIncome,
                 selectedAccount,
-                transactionDate.toISOString(),
+                // transactionDate.toISOString(),
+
                 note,
                 transactionId,
               ],
@@ -445,6 +470,82 @@ const AddEditDeleteTransaction = () => {
     });
   };
 
+
+  // code for adding a payee names in Payees table
+  const [payees, setPayees] = useState([]);
+  const [payeesMenuVisible, setPayeesMenuVisible] = useState(false);
+
+  const addPayee = (payeeName) => {
+    if (payeeName.trim().length < 2) {
+      console.log("Payee name must be at least two characters long");
+      return;
+    }
+
+    db.transaction(tx => {
+      tx.executeSql(
+        `SELECT id FROM Payees WHERE name = ?;`,
+        [payeeName],
+        (_, results) => {
+          if (results.rows.length === 0) {
+            tx.executeSql(
+              `INSERT INTO Payees (name, isDefault) VALUES (?, 0);`,
+              [payeeName],
+              () => console.log(`Payee "${payeeName}" added successfully`),
+              (tx, error) => console.error(`Error adding payee "${payeeName}"`, error)
+            );
+          } else {
+            console.log(`Payee "${payeeName}" already exists`);
+          }
+        },
+        (tx, error) => console.error("Error checking payee existence:", error)
+      );
+    });
+  };
+
+
+  // code for searching payees or getAllPayees
+  const searchPayees = (query, callback) => {
+    db.transaction((tx) => {
+      tx.executeSql(
+        `SELECT name 
+       FROM Payees 
+       WHERE name LIKE ? OR name LIKE ? 
+       ORDER BY 
+         CASE 
+           WHEN name LIKE ? THEN 1 -- Exact matches first
+           ELSE 2 
+         END, 
+         name ASC;`, // Alphabetical order
+        [`${query}%`, `%${query}%`, `${query}%`],
+        (_, results) => {
+          const payees = [];
+          for (let i = 0; i < results.rows.length; i++) {
+            payees.push(results.rows.item(i).name);
+          }
+          callback(payees); // Send the result to the callback
+        },
+        (tx, error) => console.error("Error searching payees:", error)
+      );
+    });
+  };
+
+  // function to search payees
+  const handleSearch = (text) => {
+    if (text.trim().length >= 1) {
+      searchPayees(text, (matchingPayees) => {
+        setPayees(matchingPayees); // Update with matching payees
+        setShowMenu(matchingPayees.length > 0); // Show menu if matches exist
+      });
+    } else {
+      setPayees([]); // Clear payee list
+      setShowMenu(false); // Hide menu if input is empty
+    }
+  };
+
+
+  // const [selectedPayee, setSelectedPayee] = useState([]);
+
+
   return (
     <Pressable style={{ flex: 1 }} onPress={handleOutsidePress}>
       <StatusBar backgroundColor={colors.munsellgreen} />
@@ -459,7 +560,7 @@ const AddEditDeleteTransaction = () => {
             onPress={edit_transaction ? handleUpdateTransaction : handleAddTransaction}
             icon="check"
             color={colors.white}
-          />   
+          />
           {edit_transaction && (
             <Appbar.Action onPress={handleDeleteTransaction} icon="delete" color={colors.white} />
           )}
@@ -482,9 +583,32 @@ const AddEditDeleteTransaction = () => {
             <View style={styles.input_view}>
               <TextInput
                 value={payee}
-                onChangeText={setPayee}
+                onChangeText={(text) => {
+                  setPayee(text); // Update the input value
+                  if (text.trim().length >= 1) {
+                    // Perform search and update menu
+                    searchPayees(text, (matchingPayees) => {
+                      setPayees(matchingPayees); // Update payees list
+                      setPayeesMenuVisible(matchingPayees.length > 0); // Show menu if matches exist
+                    });
+                  } else {
+                    // Clear payees list and hide menu if input is empty
+                    setPayees([]);
+                    setPayeesMenuVisible(false);
+                  }
+                }}
+                onBlur={() => {
+                  setFocusedInput(null);
+                  if (!payeesMenuVisible) setPayee(payee); // Set the typed value if menu is not open
+                }}
+                onFocus={() => 
+                {
+                  setFocusedInput('payee');
+                  setPayeesMenuVisible(payees.length > 0);
+                }
+                } // Show menu when focused if matches exist
                 mode="flat"
-                placeholder='Whom did you pay?'
+                placeholder="Whom did you pay?"
                 style={[
                   styles.input,
                   focusedInput === 'payee' ? styles.focusedInput : {}
@@ -492,34 +616,50 @@ const AddEditDeleteTransaction = () => {
                 theme={{ colors: { primary: focusedInput ? colors.brightgreen : colors.gray } }}
                 textColor={colors.black}
                 dense={true}
-                onFocus={() => setFocusedInput('payee')}
-                onBlur={() => setFocusedInput(null)}
               />
             </View>
           </View>
         </View>
+
+
+        <Menu
+          visible={payeesMenuVisible}
+          onDismiss={() => setPayeesMenuVisible(false)}
+          anchor={
+            <TouchableOpacity
+              style={styles.payees_txt_icon_view}
+              onPress={() => setPayeesMenuVisible(!payeesMenuVisible)}
+            >
+              {/* <Text style={styles.payees_selectionText}>{selectedPayee}</Text> */}
+            </TouchableOpacity>
+          }
+          contentStyle={[styles.payeesMenuContentStyle, { maxHeight: 285 }]}
+        >
+          <FlatList
+            data={payees}
+            keyExtractor={(item, index) => `${item}-${index}`}
+            showsVerticalScrollIndicator={true}
+            renderItem={({ item }) => (
+              <Menu.Item
+                onPress={() => {
+                  setPayee(item); // Update TextInput with selected payee
+                  // setSelectedPayee(item); // Set selected payee
+                  setPayeesMenuVisible(false); // Hide menu
+                }}
+                title={item}
+                titleStyle={{ color: colors.black }}
+              />
+            )}
+          />
+        </Menu>
+        {/* end of menu for default payees */}
+
         {/* transaction amount and type */}
         <View style={styles.amt_type_view}>
           <View style={styles.amt_view}>
             <Text style={styles.payee_title}>Amount</Text>
             <View style={styles.name_input_view}>
               <View style={styles.input_view}>
-                {/* <TextInput
-                  value={transactionAmount}
-                  onChangeText={handleTransactionAmountChange}
-                  mode="flat"
-                  placeholder='0.00'
-                  style={[
-                    styles.input,
-                    focusedInput === 'payee' ? styles.focusedInput : {}
-                  ]}
-                  theme={{ colors: { primary: focusedInput ? colors.brightgreen : colors.gray } }}
-                  textColor={colors.black}
-                  dense={true}
-                  keyboardType='numeric'
-                  onFocus={() => setFocusedInput('transactionAmount')}
-                  onBlur={() => setFocusedInput(null)}
-                /> */}
                 <TouchableWithoutFeedback
                   onPressIn={() => {
                     setFocusedInputAmount(true);
@@ -817,6 +957,29 @@ const styles = StyleSheet.create({
   },
   envelop_menu_title_txt: {
     fontSize: hp('2%'),
+    color: colors.black,
+  },
+
+  // for default payees menu
+  payeesMenuContentStyle: {
+    width: hp('48%'),
+    height: 'auto',
+    backgroundColor: colors.white,
+    borderRadius: 1,
+    paddingVertical: 0,
+    color: colors.black,
+  },
+
+  payees_txt_icon_view: {
+    width: 1,
+    height: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    // backgroundColor: 'green',
+  },
+
+  payees_selectionText: {
+    // fontSize: hp('2.5%'),
     color: colors.black,
   },
 

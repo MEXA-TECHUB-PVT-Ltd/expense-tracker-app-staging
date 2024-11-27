@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View, Animated, Pressable, Image, TouchableOpacity, Keyboard, TouchableWithoutFeedback } from 'react-native'
 import React, { useState, useRef, useMemo, useEffect } from 'react'
+import { useFocusEffect } from '@react-navigation/native';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import { Appbar, TextInput, Menu, Button, Snackbar } from 'react-native-paper';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -11,6 +12,8 @@ import { VectorIcon } from '../../constants/vectoricons';
 import { debounce } from 'lodash';
 import Calculator from './Calculator';
 import { db, addEnvelope, editEnvelope, deleteEnvelope } from '../../database/database';
+import { useSelector } from 'react-redux';
+import { formatDateSql } from '../../utils/DateFormatter';
 
 const { width: screenWidth } = dimensions;
 
@@ -28,8 +31,38 @@ const AddEditDeleteEnvelope = () => {
     const [menuVisible, setMenuVisible] = useState(false);
     const [budgetPeriod, setBudgetPeriod] = useState('Monthly');
     const [dueDate, setDueDate] = useState(new Date());
+
+    const formattedFromDate = formatDateSql(dueDate);
+
+    console.log('Formatted Due Date:', formattedFromDate);
+    useFocusEffect(
+        React.useCallback(() => {
+            const currentDate = new Date();
+            const isoDate = currentDate.toISOString();
+
+            setDueDate(isoDate);
+        }, [])
+    );
+
+    // console.log('value of dueDate in addeditdeleteenvelope', dueDate);
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [snackbarVisible, setSnackbarVisible] = useState(false);
+
+    const isAuthenticated = useSelector((state) => state.user.isAuthenticated);
+    const user_id = useSelector(state => state.user.user_id);
+    console.log('vlaue fo user_id in SetupBudget', user_id);
+    const temp_user_id = useSelector(state => state.user.temp_user_id);
+    console.log('value of temp_user_id in SetupBudget', temp_user_id);
+    const [tempUserId, setTempUserId] = useState(temp_user_id);
+    // const temporayUserId = tempUserId.toString();
+    // console.log('value of tempUserId in SetupBudget', tempUserId);
+    useEffect(() => {
+        if (isAuthenticated) {
+            setTempUserId(user_id);
+        } else {
+            setTempUserId(-1);
+        }
+    }, [isAuthenticated, user_id]); // Re-run the effect if either isAuthenticated or userId changes
 
     // code for calculator
     const [calculatorVisible, setCalculatorVisible] = useState(false);
@@ -37,7 +70,6 @@ const AddEditDeleteEnvelope = () => {
         setAmount(amount);
         setCalculatorVisible(false);
     };
-
 
     const envelopeId = route.params?.envelopeId;
     useEffect(() => {
@@ -61,13 +93,13 @@ const AddEditDeleteEnvelope = () => {
 
     const handleSave = () => {
         if (envelopeId) {
-            editEnvelope(envelopeId, envelopeName, parseFloat(amount), budgetPeriod);
+            editEnvelope(envelopeId, envelopeName, parseFloat(amount), budgetPeriod, tempUserId);
         } else {
-            if (!envelopeName || !amount || !budgetPeriod) {
+            if (!envelopeName || !amount || !budgetPeriod || !tempUserId) {
                 setSnackbarVisible(true);
                 return;
             } else {
-                addEnvelope(envelopeName, parseFloat(amount), budgetPeriod);
+                addEnvelope(envelopeName, parseFloat(amount), budgetPeriod, tempUserId, formattedFromDate);
             }
         }
         if (envelope_prop) {
@@ -110,7 +142,7 @@ const AddEditDeleteEnvelope = () => {
 
     const handleTooltipPress = () => {
         toggleTooltip();
-        navigation.navigate('About');
+        navigation.navigate('Help', {from_addeditdelete_envelope: true});
     };
 
     const handleDateChange = (event, selectedDate) => {

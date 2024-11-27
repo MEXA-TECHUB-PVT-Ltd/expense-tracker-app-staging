@@ -17,13 +17,52 @@ const { width: screenWidth } = dimensions;
 
 const SetupBudget = () => {
     const route = useRoute();
-    // const { edit_envelope } = route.params;
     const edit_envelope = route.params?.edit_envelope;
     const envelope_prop = route.params?.envelope_prop;
     const navigation = useNavigation();
 
-    // to conditionally navigate user based on isAuthenticated state from redux
     const isAuthenticated = useSelector((state) => state.user.isAuthenticated);
+    const user_id = useSelector(state => state.user.user_id);
+    const temp_user_id = useSelector(state => state.user.temp_user_id);
+    const [tempUserId, setTempUserId] = useState(temp_user_id);
+    useEffect(() => {
+        if (isAuthenticated) {
+            setTempUserId(user_id);
+        } else {
+            setTempUserId(temp_user_id);
+        }
+    }, [isAuthenticated, user_id]);
+
+    // Function to drop rows with user_id -1 in Envelopes and Income tables
+    const dropEnvelopesAndIncome = () => {
+        db.transaction(tx => {
+            // Delete rows from Envelopes table
+            tx.executeSql(
+                `DELETE FROM envelopes WHERE user_id = -1`,
+                [],
+                (_, result) => console.log('Deleted envelopes with user_id -1'),
+                (_, error) => console.log('Error deleting envelopes:', error)
+            );
+
+            // Delete rows from Income table
+            tx.executeSql(
+                `DELETE FROM Income WHERE user_id = -1`,
+                [],
+                (_, result) => console.log('Deleted income with user_id -1'),
+                (_, error) => console.log('Error deleting income:', error)
+            );
+        });
+    };
+    // Use useFocusEffect to run dropEnvelopesAndIncome only when coming from Onboarding
+    useFocusEffect(
+        useCallback(() => {
+            if (route.params?.fromOnboarding) {
+                dropEnvelopesAndIncome();
+            }
+        }, [route.params])
+    );
+
+    // to conditionally navigate user based on isAuthenticated state from redux
     // Hardware back button handler
     // useFocusEffect(
     //     useCallback(() => {
@@ -83,15 +122,15 @@ const SetupBudget = () => {
    
     useFocusEffect(
         useCallback(() => {
-            getAllEnvelopes(setEnvelopes);
-        }, [])
+            getAllEnvelopes(tempUserId, setEnvelopes);
+        }, [tempUserId])
     );
-    const getAllEnvelopes = (callback) => {
+    const getAllEnvelopes = (tempUserId, callback) => {       
         db.transaction(tx => {
-            const sqlQuery = 'SELECT * FROM envelopes ORDER BY orderIndex';
+            const sqlQuery = 'SELECT * FROM envelopes WHERE user_id = ? ORDER BY orderIndex';
             tx.executeSql(
                 sqlQuery,
-                [],
+                [tempUserId],
                 (_, results) => {
                     if (results.rows && results.rows.length > 0) {
                         let envelopesArray = [];
@@ -138,6 +177,7 @@ const SetupBudget = () => {
     };
 
     const handleEditEnvelope = (envelope) => {
+        // console.log('value of usr_id is: ', envelope.user_id);
         // Check if envelope_prop exists
         if (envelope_prop) {
             navigation.navigate('AddEditDeleteEnvelope', {
@@ -147,6 +187,7 @@ const SetupBudget = () => {
                 budgetPeriod: envelope.budgetPeriod,
                 dueDate: envelope.dueDate,
                 edit_Envelope: true,
+                user_id: envelope.user_id,
                 envelope_prop: envelope_prop, // Pass envelope_prop if it exists
             });
         } else {
@@ -158,12 +199,14 @@ const SetupBudget = () => {
                 budgetPeriod: envelope.budgetPeriod,
                 dueDate: envelope.dueDate,
                 edit_Envelope: true,
+                user_id: envelope.user_id,
+                
             });
         }
     };
 
     useFocusEffect(() => {
-        fetchTotalIncome(setTotalIncome);
+        fetchTotalIncome(setTotalIncome, tempUserId);
     });
 
     const calculateRemainingAmount = (totalIncome, envelopes) => {
@@ -229,7 +272,7 @@ const SetupBudget = () => {
 
     const handleTooltipPress = () => {
         toggleTooltip();
-        navigation.navigate('About');
+        navigation.navigate('Help', { from_setupbudget: true });
     };
 
     const handleAddEnvelope = () => {

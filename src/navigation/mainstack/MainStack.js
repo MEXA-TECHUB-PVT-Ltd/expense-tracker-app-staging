@@ -18,6 +18,12 @@ import TopTab from '../topTab/TopTab';
 import TransactionsSearch from '../../screens/Dashboard/TransactionSearch';
 import SingleEnvelopeDetails from '../../screens/Dashboard/SingleEnvelopeDetails';
 import Settings from '../../screens/Dashboard/Settings';
+import SpendingByEnvelope from '../../screens/Dashboard/SpendingByEnvelope';
+import IncomeVsSpending from '../../screens/Dashboard/IncomeVsSpending';
+import EnvelopeTransfer from '../../screens/Dashboard/EnvelopeTransfer';
+import PrivacyPolicy from '../../screens/Dashboard/PrivacyPolicy';
+import TermsAndConditions from '../../screens/Dashboard/TermsAndConditions';
+import { useNavigation } from '@react-navigation/native';
 
 import { useSelector, useDispatch } from 'react-redux';
 import { setUser, logout } from '../../redux/slices/userSlice';
@@ -26,6 +32,7 @@ import { getUserData } from '../../utils/authUtils';
 const Stack = createStackNavigator();
 
 const MainStack = () => {
+    const navigation = useNavigation();
     const isAuthenticated = useSelector((state) => state.user.isAuthenticated);
     const dispatch = useDispatch();
 
@@ -37,13 +44,20 @@ const MainStack = () => {
             } else {
                 dispatch(logout());
             }
-            // setIsLoading(false);
         };
 
         initializeUser();
     }, [dispatch]);
 
-    // if (isLoading) return null;
+    useEffect(() => {
+        if (isAuthenticated) {
+            // Reset the stack and navigate directly to the authenticated stack with TopTab
+            navigation.reset({
+                index: 0,
+                routes: [{ name: 'TopTab' }],
+            });
+        }
+    }, [isAuthenticated, navigation]);
 
     return (
         <Stack.Navigator>
@@ -60,6 +74,12 @@ const MainStack = () => {
                     <Stack.Screen name="FillEnvelopes" component={FillEnvelopes} options={{ headerShown: false }} />
                     <Stack.Screen name="Settings" component={Settings} options={{ headerShown: false }} />
                     <Stack.Screen name="TransactionsSearch" component={TransactionsSearch} options={{ headerShown: false }} />
+                    <Stack.Screen name="SpendingByEnvelope" component={SpendingByEnvelope} options={{ headerShown: false }} />
+                    <Stack.Screen name="IncomeVsSpending" component={IncomeVsSpending} options={{ headerShown: false }} />
+                    <Stack.Screen name="EnvelopeTransfer" component={EnvelopeTransfer} options={{ headerShown: false }} />
+                    <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicy} options={{ headerShown: false }} />
+                    <Stack.Screen name="TermsAndConditions" component={TermsAndConditions} options={{ headerShown: false }} />
+
 
                 </>
             ) : (

@@ -9,17 +9,34 @@ import Images from '../../constants/images';
 import { db } from '../../database/database';
 import dimensions from '../../constants/dimensions';
 import CustomProgressBar from '../../components/CustomProgressBar';
+import { useSelector } from 'react-redux';
 
 const { width: screenWidth } = dimensions;
 
 const SingleEnvelopeDetails = ({ route }) => {
   const navigation = useNavigation();
   const { envelope } = route.params;
+  console.log('value of envelope in singel envelope screen: ', envelope);
   const envelopeName = envelope.envelopeName;
   const handleLeftIconPress = () => {
     navigation.goBack();
     setIsSearched(false);
   };
+
+  const isAuthenticated = useSelector((state) => state.user.isAuthenticated);
+  const user_id = useSelector(state => state.user.user_id);
+  const temp_user_id = useSelector(state => state.user.temp_user_id);
+  const [tempUserId, setTempUserId] = useState(user_id);
+  console.log('value of tempUserId in state inside single envelope: ', tempUserId);
+  useFocusEffect(
+    useCallback(() => {
+      if (isAuthenticated) {
+        setTempUserId(user_id);
+      } else {
+        setTempUserId(temp_user_id);
+      }
+    }, [isAuthenticated, user_id, temp_user_id])
+  );
 
   // code for tooltip
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
@@ -57,7 +74,7 @@ const SingleEnvelopeDetails = ({ route }) => {
   const handleTooltipPress = () => {
     toggleTooltip();
     // console.log('tooltip pressed');
-    navigation.navigate('Help')
+    navigation.navigate('Help', {from_singleenvelopedetails: true});
   };
   // code for tooltip end here
 
@@ -66,14 +83,14 @@ const SingleEnvelopeDetails = ({ route }) => {
   const [envelopeTransactions, setEnvelopeTransactions] = useState([]);
   useFocusEffect(
     useCallback(() => {
-      getTransactionsByEnvelope(envelopeName);
-    }, [])
+      getTransactionsByEnvelope(envelopeName, tempUserId);
+    }, [envelopeName, tempUserId])
   );
-  const getTransactionsByEnvelope = (envelopeName) => {
+  const getTransactionsByEnvelope = (envelopeName, tempUserId) => {
     db.transaction((tx) => {
       tx.executeSql(
-        `SELECT * FROM Transactions WHERE envelopeName = ? ORDER BY id DESC;`,
-        [envelopeName], // Pass envelopeName as a parameter to the query
+        `SELECT * FROM Transactions WHERE envelopeName = ? AND user_id = ? ORDER BY id DESC;`,
+        [envelopeName, tempUserId], // Pass envelopeName as a parameter to the query
         (_, results) => {
           const rows = results.rows;
           let allTransactions = [];
@@ -102,6 +119,7 @@ const SingleEnvelopeDetails = ({ route }) => {
       accountName: transaction.accountName, //
       transactionDate: transaction.transactionDate, //
       transactionNote: transaction.transactionNote, //
+      user_id: transaction.user_id,
       edit_transaction: true,
     });
   };

@@ -6,39 +6,59 @@ import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-nat
 import colors from '../../constants/colors';
 import { db } from '../../database/database';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { useSelector } from 'react-redux';
 
 
 const Transactions = ({ isSearched, setIsSearched, searchModalVisible, setSearchModalVisible }) => {
   // console.log('value of isSearched:', isSearched);
   const navigation = useNavigation();
 
+  const isAuthenticated = useSelector((state) => state.user.isAuthenticated);
+  const user_id = useSelector(state => state.user.user_id);
+  const temp_user_id = useSelector(state => state.user.temp_user_id);
+  const [tempUserId, setTempUserId] = useState(user_id);
+  console.log('value of tempUserId in state inside Transactions is :', tempUserId);
+  useFocusEffect(
+    useCallback(() => {
+      if (isAuthenticated) {
+        setTempUserId(user_id);
+      } else {
+        setTempUserId(temp_user_id);
+      }
+    }, [isAuthenticated, user_id, temp_user_id])
+  );
+
   // code to get all transactions in Transaction table 
   const [transactions, setTransactions] = useState([]);
   useFocusEffect(
     useCallback(() => {
-      getAllTransactions();
-    }, [])
+      console.log('Running getAllTransactions with tempUserId:', tempUserId);
+      getAllTransactions(tempUserId);
+    }, [tempUserId])
   );
-  const getAllTransactions = () => {
+
+  const getAllTransactions = (tempUserId) => {
     db.transaction((tx) => {
       tx.executeSql(
-        `SELECT * FROM Transactions ORDER BY id DESC;`,
-        [],
+        `SELECT * FROM Transactions WHERE user_id = ? ORDER BY id DESC;`,
+        [tempUserId],
         (_, results) => {
+          console.log("results : ", results);
           const rows = results.rows;
           let allTransactions = [];
           for (let i = 0; i < rows.length; i++) {
             allTransactions.push(rows.item(i));
           }
           setTransactions(allTransactions);
-          // console.log('All Transactions in transactions screen are :', allTransactions);
+          console.log('All Transactions in transactions screen are :', allTransactions);
         },
         (error) => {
-          console.error('Error fetching transactions', error);
+          console.error('Error fetching transactions', error); // Capture any error
         }
       );
     });
   };
+
 
   const handleEditTransaction = (transaction) => {
     // console.log('transactionAmount is: ', transaction.transactionAmount);
@@ -110,7 +130,7 @@ const Transactions = ({ isSearched, setIsSearched, searchModalVisible, setSearch
                         numberOfLines={1}
                         elellipsizeMode="tail"
                         style={[styles.amt_txt, { color: item.transactionType === 'Credit' ? colors.brightgreen : colors.black }]}>
-                        {item.transactionType === 'Credit' ? `+ ${item.transactionAmount}` : item.transactionAmount}
+                        {item.transactionType === 'Credit' ? `+ ${item.transactionAmount}` : item.transactionAmount}.00
                       </Text>
                     </View>
                   </View>
