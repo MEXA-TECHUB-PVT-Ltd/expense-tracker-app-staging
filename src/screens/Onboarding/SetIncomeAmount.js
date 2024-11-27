@@ -8,7 +8,7 @@ import dimensions from '../../constants/dimensions';
 import { VectorIcon } from '../../constants/vectoricons';
 const { width: screenWidth } = dimensions;
 import Calculator from './Calculator';
-
+import { useSelector } from 'react-redux';
 import { db } from '../../database/database';
 
 const IncomeInput = ({ item, index, selectedIncomeIndex, setSelectedIncomeIndex, onDelete, onShowCalculator }) => {
@@ -29,16 +29,6 @@ const IncomeInput = ({ item, index, selectedIncomeIndex, setSelectedIncomeIndex,
     return (
         <View style={styles.incomeInputContainer}>
             <Text style={styles.indexText}>{index + 1}.</Text>
-            {/* <TextInput
-                value={amount}
-                onChangeText={handleAmountChange}
-                mode="flat"
-                style={styles.textInput}
-                theme={{ colors: { primary: selectedIndex === index ? colors.brightgreen : 'lightgray', underlineColor: 'green' } }}
-                // onFocus={() => setSelectedIndex(index)}
-                keyboardType='numeric'
-                textColor={colors.black}
-            /> */}
             <TouchableWithoutFeedback
                 onPressIn={() => setSelectedIncomeIndex(index)}
                 onPress={handleAmountPress}>
@@ -77,6 +67,21 @@ const SetIncomeAmount = () => {
     const envelope_prop = route.params?.envelope_prop;
 
 
+    const user_id = useSelector(state => state.user.user_id);
+    const temp_user_id = useSelector(state => state.user.temp_user_id);
+    const [tempUserId, setTempUserId] = useState(user_id || temp_user_id);
+
+    useEffect(() => {
+        // Only update tempUserId if user_id changes or if user_id is null
+        if (user_id) {
+            setTempUserId(user_id);
+        } else if (!tempUserId) {
+            setTempUserId(temp_user_id);
+        }
+    }, [user_id, temp_user_id]);
+
+    console.log('value of tempUserId in SetupBudget', tempUserId);
+
     const [isTooltipVisible, setIsTooltipVisible] = useState(false);
     const slideAnim = useRef(new Animated.Value(screenWidth)).current;
     const handleLeftIconPress = () => {
@@ -108,10 +113,10 @@ const SetIncomeAmount = () => {
     };
     const handleTooltipPress = () => {
         toggleTooltip();
-        navigation.navigate('About');
+        navigation.navigate('Help', {from_setincomeamount: true});
     };
 
-    const [incomes, setIncomes] = useState([{ id: null, accountName: 'My Account', budgetAmount: '', budgetPeriod: 'Monthly' }]);
+    const [incomes, setIncomes] = useState([{ id: null, accountName: 'My Account', budgetAmount: '', budgetPeriod: 'Monthly', user_id: tempUserId }]);
     console.log('all data in income table is: ', incomes);
     const [selectedIncomeIndex, setSelectedIncomeIndex] = useState(null);
     const [calculatorAmount, setCalculatorAmount] = useState('');
@@ -135,12 +140,12 @@ const SetIncomeAmount = () => {
 
     const fetchAllIncome = () => {
         db.transaction((tx) => {
-            tx.executeSql('SELECT * FROM Income', [], (tx, results) => {
+            tx.executeSql('SELECT * FROM Income WHERE user_id = ?', [tempUserId], (tx, results) => {
                 let data = [];
                 for (let i = 0; i < results.rows.length; i++) {
                     data.push(results.rows.item(i));
                 }
-                setIncomes([...data, { id: null, accountName: 'My Account', budgetAmount: '', budgetPeriod: 'Monthly' }]);
+                setIncomes([...data, { id: null, accountName: 'My Account', budgetAmount: '', budgetPeriod: 'Monthly', user_id: tempUserId }]);
             });
         });
     };
@@ -151,21 +156,21 @@ const SetIncomeAmount = () => {
                 if (income.accountName &&income.budgetAmount && income.budgetPeriod) {
                     if (income.id) {
                         tx.executeSql(
-                            'UPDATE Income SET accountName = ?, budgetPeriod = ?, budgetAmount = ? WHERE id = ?',
-                            [income.id, income.accountName, income.budgetAmount, income.budgetPeriod,],
+                            'UPDATE Income SET accountName = ?, budgetPeriod = ?, budgetAmount = ?, user_id = ? WHERE id = ?',
+                            [income.accountName, income.budgetPeriod, income.budgetAmount, tempUserId, income.id,],
                             (tx, results) => {
-                                console.log('Updated: ', { id: income.id, accountName: income.accountName, budgetAmount: income.budgetAmount, budgetPeriod: income.budgetPeriod });
+                                console.log('Updated income values are: ', { id: income.id, accountName: income.accountName, budgetAmount: income.budgetAmount, budgetPeriod: income.budgetPeriod, user_id: tempUserId });
                             },
                             error => console.error('Error updating income:', error)
                         );
                     } else {
                         tx.executeSql(
-                            'INSERT INTO Income (accountName, budgetAmount, budgetPeriod) VALUES (?, ?, ?)',
-                            [income.accountName, income.budgetAmount, income.budgetPeriod],
+                            'INSERT INTO Income (accountName, budgetAmount, budgetPeriod, user_id) VALUES (?, ?, ?, ?)',
+                            [income.accountName, income.budgetAmount, income.budgetPeriod, tempUserId],
                             (tx, results) => {
                                 if (results.insertId) {
                                     income.id = results.insertId;
-                                    console.log('Inserted: ', { id: results.insertId, accountName: income.accountName, budgetAmount: income.budgetAmount, budgetPeriod: income.budgetPeriod });
+                                    console.log('Inserted: ', { id: results.insertId, accountName: income.accountName, budgetAmount: income.budgetAmount, budgetPeriod: income.budgetPeriod, user_id: tempUserId });
                                 }
                             },
                             error => console.error('Error inserting income:', error)

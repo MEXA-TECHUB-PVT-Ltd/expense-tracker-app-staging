@@ -13,6 +13,7 @@ import Images from '../../constants/images';
 import Calculator from './Calculator';
 import CustomProgressBar from '../../components/CustomProgressBar';
 import { useSelector } from 'react-redux';
+import { formatDateSql } from '../../utils/DateFormatter';
 
 const { width: screenWidth } = dimensions;
 
@@ -23,8 +24,21 @@ const FillEnvelopes = () => {
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
   const slideAnim = useRef(new Animated.Value(screenWidth)).current;
 
-  // to conditionally navigate user based on isAuthenticated state from redux
   const isAuthenticated = useSelector((state) => state.user.isAuthenticated);
+
+  const user_id = useSelector(state => state.user.user_id);
+  const temp_user_id = useSelector(state => state.user.temp_user_id);
+  const [tempUserId, setTempUserId] = useState(temp_user_id);
+  console.log('value of tempUserId in state', tempUserId);
+  useEffect(() => {
+    if (isAuthenticated) {
+      setTempUserId(user_id);
+    } else {
+      setTempUserId(temp_user_id);
+    }
+  }, [isAuthenticated, user_id]);
+
+  // to conditionally navigate user based on isAuthenticated state from redux
   // Hardware back button handler
   // useFocusEffect(
   //   useCallback(() => {
@@ -77,7 +91,7 @@ const FillEnvelopes = () => {
 
   const [totalBudgetAmount, setTotalBudgetAmount] = useState(0);
   useFocusEffect(() => {
-    fetchTotalIncome(setTotalBudgetAmount);
+    fetchTotalIncome(setTotalBudgetAmount, tempUserId);
   });
 
   const [calculatorVisible, setCalculatorVisible] = useState(false);
@@ -89,14 +103,6 @@ const FillEnvelopes = () => {
   const [visible, setVisible] = React.useState(false);
   const [checked, setChecked] = React.useState(true);
   const toggleMenu = () => setVisible(!visible);
-
-  // const handleLeftIconPress = () => {
-  //   if (isAuthenticated) {
-  //     navigation.navigate('TopTab');
-  //   } else {
-  //     navigation.goBack();
-  //   }
-  // };
 
 
   const handleRightIconPress = () => {
@@ -128,7 +134,7 @@ const FillEnvelopes = () => {
 
   const handleTooltipPress = () => {
     toggleTooltip();
-    navigation.navigate('About');
+    navigation.navigate('Help', { from_fillenvelopes: true});
   };
 
   // code related to account selection
@@ -155,7 +161,8 @@ const FillEnvelopes = () => {
 
   // code for date 
   const [date, setDate] = useState(new Date());
-  // console.log('todays date is: ', date);
+  const formattedToDate = formatDateSql(date);
+  console.log('todays date in fill envelopes: ', formattedToDate);
   const [show, setShow] = useState(false);
 
   const onChange = (event, selectedDate) => {
@@ -164,6 +171,7 @@ const FillEnvelopes = () => {
     setDate(currentDate);
   };
 
+  // formate date like this 11/21/2024 just to show on Date field
   const formatDate = (date) => {
     const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
     return date.toLocaleDateString('en-US', options);
@@ -174,8 +182,8 @@ const FillEnvelopes = () => {
   // console.log('envelopes', envelopes);
 
   const fetchEnvelopes = useCallback(() => {
-    getAllEnvelopes(setEnvelopes);
-  }, []);
+    getAllEnvelopes(setEnvelopes, tempUserId);
+  }, [tempUserId]);
 
   // Use useEffect to call the function on component mount
   useEffect(() => {
@@ -184,12 +192,12 @@ const FillEnvelopes = () => {
 
 
   // function to get all envelopes their rows
-  const getAllEnvelopes = (callback) => {
+  const getAllEnvelopes = (callback, tempUserId) => {
     db.transaction(tx => {
-      const sqlQuery = 'SELECT * FROM envelopes ORDER BY orderIndex';
+      const sqlQuery = 'SELECT * FROM envelopes WHERE user_id = ? ORDER BY orderIndex ';
       tx.executeSql(
         sqlQuery,
-        [],
+        [tempUserId],
         (_, results) => {
           if (results.rows && results.rows.length > 0) {
             let envelopesArray = [];
@@ -217,12 +225,13 @@ const FillEnvelopes = () => {
   const [totalIncome, setTotalIncome] = useState(0);
   useEffect(
     useCallback(() => {
-      fetchTotalEnvelopesAmount(setTotalIncome);
-    }, [])
+      fetchTotalEnvelopesAmount(setTotalIncome, tempUserId);
+    }, [tempUserId])
   );
 
   // Automatically fill all envelopes when selectedOption changes to 'fillAll'
   const [filledIncomes, setFilledIncomes] = useState([]);
+  // console.log('values inside filledIncomes', filledIncomes);
 
   useEffect(() => {
     if (selectedOption === 'Fill ALL Envelopes' && date) {
@@ -237,7 +246,8 @@ const FillEnvelopes = () => {
       budgetPeriod: envelope.budgetPeriod,
       envelopeName: envelope.envelopeName,
       filledIncome: envelope.amount,
-      fillDate: date,
+      fillDate: formattedToDate,
+      user_id: tempUserId,
     }));
     fillAllEnvelopes(incomeRecords, fetchAndLogFilledIncomes);
   };
@@ -247,22 +257,22 @@ const FillEnvelopes = () => {
 
     db.transaction(tx => {
       incomeRecords.forEach(record => {
-        const { envelopeId, amount, budgetPeriod, envelopeName, filledIncome, fillDate } = record;
+        const { envelopeId, amount, budgetPeriod, envelopeName, filledIncome, fillDate, user_id } = record;
         console.log('record data to be filled', record);
 
         // Check if the record exists first
         tx.executeSql(
-          `SELECT * FROM envelopes WHERE envelopeId = ?;`,
-          [envelopeId],
+          `SELECT * FROM envelopes WHERE envelopeId = ? AND user_id = ?;`,
+          [envelopeId, user_id],
           (tx, results) => {
             if (results.rows.length > 0) {
               // If the record exists, update it
               console.log(`Updating existing record for envelopeId: ${envelopeId}`);
               tx.executeSql(
-                `UPDATE envelopes SET envelopeName = ?, amount = ?, budgetPeriod = ?, filledIncome = ?, fillDate = ? WHERE envelopeId = ?;`,
-                [envelopeName, amount, budgetPeriod, filledIncome, fillDate, envelopeId],
+                `UPDATE envelopes SET envelopeName = ?, amount = ?, budgetPeriod = ?, filledIncome = ?, fillDate = ? WHERE envelopeId = ? AND user_id = ?;`,
+                [envelopeName, amount, budgetPeriod, filledIncome, fillDate, envelopeId, user_id],
                 (tx, results) => {
-                  console.log(`Record updated for envelopeId: ${envelopeId}`);
+                  console.log(`Record updated for envelopeId: ${envelopeId} and user_id: ${user_id}`);
                 },
                 (tx, error) => {
                   console.error('Error updating record:', error);
@@ -272,10 +282,10 @@ const FillEnvelopes = () => {
               // If the record does not exist, insert a new one
               console.log(`Inserting new record for envelopeId: ${envelopeId}`);
               tx.executeSql(
-                `INSERT INTO envelopes (envelopeId, envelopeName, amount, budgetPeriod, filledIncome, fillDate) VALUES (?, ?, ?, ?, ?, ?);`,
-                [envelopeId, envelopeName, amount, budgetPeriod, filledIncome, fillDate],
+                `INSERT INTO envelopes (envelopeId, envelopeName, amount, budgetPeriod, filledIncome, fillDate, user_id) VALUES (?, ?, ?, ?, ?, ?, ?);`,
+                [envelopeId, envelopeName, amount, budgetPeriod, filledIncome, fillDate, user_id],
                 (tx, results) => {
-                  console.log(`New record inserted for envelopeId: ${envelopeId}`);
+                  console.log(`New record inserted for envelopeId: ${envelopeId} and user_id: ${user_id}`);
                 },
                 (tx, error) => {
                   console.error('Error inserting new record:', error);
@@ -294,15 +304,15 @@ const FillEnvelopes = () => {
       },
       () => {
         console.log('success : insert/update');
-        if (callback) callback();
+        if (callback) callback(tempUserId); // extra check necessary
       });
   };
 
-  const fetchAndLogFilledIncomes = () => {
+  const fetchAndLogFilledIncomes = (tempUserId) => {
     db.transaction(tx => {
       tx.executeSql(
-        `SELECT envelopeId, envelopeName, amount, budgetPeriod, filledIncome, fillDate FROM envelopes;`,
-        [],
+        `SELECT envelopeId, envelopeName, amount, budgetPeriod, filledIncome, fillDate, user_id FROM envelopes WHERE user_id = ?;`,
+        [tempUserId],
         (tx, results) => {
           const rows = results.rows;
           let records = [];
@@ -316,10 +326,11 @@ const FillEnvelopes = () => {
               budgetPeriod: item.budgetPeriod,
               filledIncome: item.filledIncome,
               fillDate: item.fillDate,
+              user_id: item.user_id,
             });
           }
           setFilledIncomes(records)
-          // console.log('Filled Incomes record is:', records);
+          console.log('Filled Incomes record in FillEnvelopes is:', records);
         },
         (tx, error) => {
           console.error('Error fetching filled incomes:', error);
@@ -327,6 +338,7 @@ const FillEnvelopes = () => {
       );
     });
   };
+  // fill all end here
 
 
   // for individually filling
@@ -355,6 +367,7 @@ const FillEnvelopes = () => {
     const envelopeName = selectedEnvelope.envelopeName;
     const amount = selectedEnvelope.amount;
     const budgetPeriod = selectedEnvelope.budgetPeriod;
+    console.log('value of tempUserId in handledone when it is called is: ', tempUserId);
     let filledIncome;
     if (customAmountOption === 'noChange') {
       closeModal();
@@ -366,34 +379,35 @@ const FillEnvelopes = () => {
       filledIncome = parseFloat(customAmount);
     }
     if (filledIncome !== undefined) {
-      handleFillIndividual(envelopeId, envelopeName, amount, budgetPeriod, filledIncome, date);
-      fetchAndLogIndividualIncomes();
+      handleFillIndividual(envelopeId, envelopeName, amount, budgetPeriod, filledIncome, formattedToDate, tempUserId);
+      fetchAndLogIndividualIncomes(tempUserId);
     }
     closeModal();
   };
 
-  const handleFillIndividual = (envelopeId, envelopeName, amount, budgetPeriod, filledIncome, date) => {
-    // console.log('input values for individual fill of envelope:', envelopeId, envelopeName, amount, budgetPeriod, filledIncome, date);
-    fillIndividualEnvelope(envelopeId, envelopeName, amount, budgetPeriod, filledIncome, date);
+  const handleFillIndividual = (envelopeId, envelopeName, amount, budgetPeriod, filledIncome, formattedToDate, tempUserId) => {
+    console.log('input values for individual fill of envelope:', envelopeId, envelopeName, amount, budgetPeriod, filledIncome, formattedToDate, tempUserId);
+    fillIndividualEnvelope(envelopeId, envelopeName, amount, budgetPeriod, filledIncome, formattedToDate, tempUserId);
   };
 
 
-  const fillIndividualEnvelope = (envelopeId, envelopeName, amount, budgetPeriod, filledIncome, date, callback) => {
+  const fillIndividualEnvelope = (envelopeId, envelopeName, amount, budgetPeriod, filledIncome, formattedToDate, tempUserId, callback) => {
+    console.log('value of tempUserId inside fillIndividualEnvelope: ', tempUserId);
     db.transaction(
       (tx) => {
         // Check if the record exists first
         tx.executeSql(
-          `SELECT * FROM envelopes WHERE envelopeId = ?;`,
-          [envelopeId],
+          `SELECT * FROM envelopes WHERE envelopeId = ? AND user_id = ?;`,
+          [envelopeId, tempUserId],
           (tx, results) => {
             if (results.rows.length > 0) {
               // If the record exists, update it
               console.log(`Updating existing record for envelopeId: ${envelopeId}`);
               tx.executeSql(
                 `UPDATE envelopes 
-               SET envelopeName = ?, amount = ?, budgetPeriod = ?, filledIncome = ?, fillDate = ? 
-               WHERE envelopeId = ?;`,
-                [envelopeName, amount, budgetPeriod, filledIncome, date, envelopeId],
+                SET envelopeName = ?, amount = ?, budgetPeriod = ?, filledIncome = ?, fillDate = ?, user_id = ? 
+                WHERE envelopeId = ?;`,
+                [envelopeName, amount, budgetPeriod, filledIncome, formattedToDate, tempUserId, envelopeId],
                 (tx, results) => {
                   console.log(`Record updated for envelopeId and record: ${envelopeId}`);
                 },
@@ -405,9 +419,9 @@ const FillEnvelopes = () => {
               // If the record does not exist, insert a new one
               console.log(`Inserting new record for envelopeId: ${envelopeId}`);
               tx.executeSql(
-                `INSERT INTO envelopes (envelopeId, envelopeName, amount, budgetPeriod, filledIncome, fillDate) 
-               VALUES (?, ?, ?, ?, ?, ?);`,
-                [envelopeId, envelopeName, amount, budgetPeriod, filledIncome, date],
+                `INSERT INTO envelopes (envelopeId, envelopeName, amount, budgetPeriod, filledIncome, fillDate, user_id) 
+               VALUES (?, ?, ?, ?, ?, ?, ?);`,
+                [envelopeId, envelopeName, amount, budgetPeriod, filledIncome, formattedToDate, tempUserId],
                 (tx, results) => {
                   console.log(`New record inserted for envelopeId: ${envelopeId}`);
                 },
@@ -426,18 +440,19 @@ const FillEnvelopes = () => {
         console.error('Transaction error:', error);
       },
       () => {
-        console.log('Success: Insert/Update');
-        if (callback) callback();
+        console.log('Success: Insert/Update individually');
+        if (callback) callback(tempUserId); // extra check same like for above we do but necessary
       }
     );
   };
 
 
-  const fetchAndLogIndividualIncomes = () => {
+  const fetchAndLogIndividualIncomes = (tempUserId) => {
+    console.log('value of tempUserId inside fetchAndLogIndividualIncomes: ', tempUserId);
     db.transaction(tx => {
       tx.executeSql(
-        `SELECT envelopeId, envelopeName, amount, budgetPeriod, filledIncome, fillDate FROM envelopes;`,
-        [],
+        `SELECT envelopeId, envelopeName, amount, budgetPeriod, filledIncome, fillDate, user_id FROM envelopes WHERE user_id = ?;`, // Add `user_id` here
+        [tempUserId],
         (tx, results) => {
           const rows = results.rows;
           let records = [];
@@ -451,10 +466,11 @@ const FillEnvelopes = () => {
               budgetPeriod: item.budgetPeriod,
               filledIncome: item.filledIncome,
               fillDate: item.fillDate,
+              user_id: item.user_id,
             });
           }
           setIndividualIncomes(records)
-          // console.log('individual filled record is:', records);
+          console.log('individual filled record is:', records);
         },
         (tx, error) => {
           console.error('Error fetching filled incomes:', error);
@@ -470,11 +486,11 @@ const FillEnvelopes = () => {
         // Execute the SQL query to clear filledIncome and fillDate
         db.transaction(tx => {
           tx.executeSql(
-            'UPDATE envelopes SET filledIncome = 0, fillDate = NULL',
-            [],
+            'UPDATE envelopes SET filledIncome = 0, fillDate = NULL WHERE user_id = ?;',
+            [tempUserId],
             // () => console.log('All filledIncome and fillDate values cleared successfully'),
             // console.log('after running fetcha and log individual in clear effect'),
-            fetchAndLogIndividualIncomes(),
+            fetchAndLogIndividualIncomes(tempUserId),
             (_, error) => {
               console.log('Error clearing filledIncome and fillDate values:', error);
               return true;
@@ -482,8 +498,10 @@ const FillEnvelopes = () => {
           );
         });
       }
-    }, [selectedOption]) // Dependency array ensures effect runs when selectedOption changes
+    }, [selectedOption, tempUserId]) // Dependency array ensures effect runs when selectedOption changes
   );
+
+  
 
   return (
     <TouchableWithoutFeedback style={{ flex: 1 }} onPress={isTooltipVisible ? handleOutsidePress : null}>
@@ -522,7 +540,7 @@ const FillEnvelopes = () => {
                 <RadioButton.Group onValueChange={handleSelectOption} value={selectedOption}>
                   <View style={styles.htf_radioButton}>
                     <RadioButton color={colors.brightgreen} value="Fill ALL Envelopes" />
-                    <Text style={styles.htf_radio_texts}>Fill ALL Envelopes</Text>
+                    <Text style={styles.htf_radio_texts}>Fill All Envelopes</Text>
                   </View>
                   <View style={styles.htf_radioButton}>
                     <RadioButton color={colors.brightgreen} value="Fill Individually" />

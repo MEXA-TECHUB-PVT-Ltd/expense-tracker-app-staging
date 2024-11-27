@@ -8,8 +8,6 @@ import colors from '../constants/colors';
 import { useNavigation } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
 import { useDispatch } from 'react-redux';
-import { logout } from '../redux/slices/userSlice';
-import { removeUserData } from '../utils/authUtils';
 import dimensions from '../constants/dimensions';
 
 const { width: screenWidth } = dimensions;
@@ -18,48 +16,10 @@ const DashboardAppBar = ({ selectedTab, setIsSearched, setSearchModalVisible }) 
     const navigation = useNavigation();
     const dispatch = useDispatch();
 
-    const handleLogout = async () => {
-        await removeUserData();
-        dispatch(logout());
-        navigation.navigate('Onboarding');  // later on check actual navigation on basis of redux and async
-    };
-
-    // code for tooltip
-    const [isTooltipVisible, setIsTooltipVisible] = useState(false);
-    const slideAnim = useRef(new Animated.Value(screenWidth)).current;
-
-    // const handleRightIconPress = () => {
-    //     toggleTooltip();
-    // };
-
-    const toggleTooltip = () => {
-        if (isTooltipVisible) {
-            Animated.timing(slideAnim, {
-                toValue: screenWidth,
-                duration: 200,
-                useNativeDriver: true,
-            }).start(() => setIsTooltipVisible(false));
-        } else {
-            setIsTooltipVisible(true);
-            Animated.timing(slideAnim, {
-                toValue: screenWidth * 0.5,
-                duration: 200,
-                useNativeDriver: true,
-            }).start();
-        }
-    };
-
-    const handleOutsidePress = () => {
-        if (isTooltipVisible) {
-            toggleTooltip(); // Hide if open
-        }
-    };
-
-    const handleTooltipPress = () => {
-        toggleTooltip();
-        handleLogout();
-    };
-    // code for tooltip end here
+    const handleEnvelopeTransfer = () => {
+        navigation.navigate('EnvelopeTransfer');
+        closeMenu();
+    }
 
     const user = useSelector((state) => state.user.user);
     const email = user?.email;
@@ -105,7 +65,26 @@ const DashboardAppBar = ({ selectedTab, setIsSearched, setSearchModalVisible }) 
     const handleMenuOptionPress = (screen) => {
         closeMenu();
         closeMenuTr();
-        navigation.navigate(screen);
+
+        // Define the source prop based on the selected tab
+        let tabSource = {};
+        if (screen === 'Help') {
+            switch (selectedTab) {
+                case 'Transactions':
+                    tabSource = { from_transactions: true };
+                    break;
+                case 'Accounts':
+                    tabSource = { from_accounts: true };
+                    break;
+                case 'Reports':
+                    tabSource = { from_reports: true };
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        navigation.navigate(screen, tabSource);
     };
 
     const renderDynamicIcons = () => {
@@ -158,7 +137,9 @@ const DashboardAppBar = ({ selectedTab, setIsSearched, setSearchModalVisible }) 
     };
 
     return (
-        <Pressable onPress={handleOutsidePress}>
+        <Pressable 
+        // onPress={handleOutsidePress}
+        >
             <View style={styles.container}>
                 <View style={styles.leftContainer}>
                     <Image source={Images.expenseplannerimage} style={styles.profileImage} />
@@ -171,11 +152,11 @@ const DashboardAppBar = ({ selectedTab, setIsSearched, setSearchModalVisible }) 
                     <VectorIcon name="dots-vertical" size={24} color="white" type="mci" />
                 </TouchableOpacity>
             </View>
-            <Animated.View style={[styles.tooltipContainer, { transform: [{ translateX: slideAnim }] }]}>
+            {/* <Animated.View style={[styles.tooltipContainer, { transform: [{ translateX: slideAnim }] }]}>
                 <TouchableOpacity onPress={handleTooltipPress}>
                     <Text style={styles.tooltipText}>Logout</Text>
                 </TouchableOpacity>
-            </Animated.View>
+            </Animated.View> */}
 
             {/* Full-Screen Overlay with Menu Options */}
             <Portal>
@@ -207,19 +188,25 @@ const DashboardAppBar = ({ selectedTab, setIsSearched, setSearchModalVisible }) 
                                 <Text style={styles.menuText}>Edit Envelopes</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
-                                onPress={handleLogout}
+                                onPress={handleEnvelopeTransfer}
                                 style={styles.menuOption}
                             >
-                                <Text style={styles.menuText}>Logout</Text>
+                                <Text style={styles.menuText}>Envelope Transfer</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
-                                onPress={() => handleMenuOptionPress('Help')}
+                                onPress={() => {
+                                    closeMenu();
+                                    navigation.navigate('Help', { from_envelopes: true });
+                                }}
                                 style={styles.menuOption}
                             >
                                 <Text style={styles.menuText}>Help</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
-                                onPress={() => handleMenuOptionPress('Settings')}
+                                onPress={() => {
+                                    closeMenu();
+                                    navigation.navigate('Settings', { from_envelopes: true });
+                                }}
                                 style={styles.menuOption}
                             >
                                 <Text style={styles.menuText}>Settings</Text>

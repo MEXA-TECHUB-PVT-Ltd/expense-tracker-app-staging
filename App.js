@@ -12,7 +12,7 @@ import bcrypt from 'react-native-bcrypt';
 const App = () => {
 
   useEffect(() => {
-    initializeDatabase();  // Initializes the database on app load
+    initializeDatabase();
   }, []);
   
   return (

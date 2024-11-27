@@ -89,12 +89,13 @@ const RegisterAccount = () => {
 
     const handleTooltipPress = () => {
         toggleTooltip();
-        navigation.navigate('About');
+        navigation.navigate('Help', {from_registeraccount: true});
     };
 
     // transaction for register user
     const registerUser = async (email, password, featureUpdates) => {
         console.log('Registering user with values:', { email, password, featureUpdates });
+
         // Generate a salt and hash the password
         const salt = bcrypt.genSaltSync(3); // Generate salt with 3 rounds strengthening it
         const hashedPassword = bcrypt.hashSync(password, salt); // convert plain text password to hashed
@@ -103,18 +104,32 @@ const RegisterAccount = () => {
             tx.executeSql(
                 'INSERT INTO Users (email, password, featureUpdates) VALUES (?, ?, ?)',
                 [email, hashedPassword, featureUpdates ? 1 : 0],
-                async () => {
+                async (_, result) => {
                     console.log('User registered successfully');
                     console.log('Registered user values:', { email, hashedPassword, featureUpdates });
                     setSnackbarVisible(true);
 
-                    // Dispatch the user details to Redux
-                    dispatch(setUser({ email }));
-                    // navigation.navigate('TopTab');
+                    // Get the user_id (the last inserted ID)
+                    const user_id = result.insertId;
+                    console.log('User ID from database:', user_id);
+
+                    // Dispatch the user details to Redux with the actual user_id
+                    dispatch(setUser({ email, user_id }));
+
+                    // Now update all relevant tables with the user_id
+                    updateUserTables(user_id, tx);
+
                     try {
                         await saveUserData({ email, isAuthenticated: true });
                         console.log('User data saved to Async Storage');
-                        navigation.navigate('TopTab'); // Navigate to Dashboard or TopTab if needed check logic again
+
+                        // Directly navigate to 'TopTab' after successful registration
+                        navigation.reset({
+                            index: 0,
+                            routes: [{ name: 'TopTab' }],
+                        });
+
+                        // navigation.navigate('TopTab'); // Navigate to Dashboard or TopTab if needed check logic again
                     } catch (error) {
                         console.error('Error saving user data to Async Storage:', error);
                     }
@@ -123,6 +138,48 @@ const RegisterAccount = () => {
             );
         });
     };
+
+    // Function to update tables with the user_id
+    const updateUserTables = (user_id, tx) => {
+        // Update the envelopes table with the user_id
+        tx.executeSql(
+            'UPDATE envelopes SET user_id = ? WHERE user_id = -1',
+            [user_id],
+            (_, result) => {
+                console.log(`Envelopes table updated where user_id is -1 with user_id: ${user_id}`);
+            },
+            (error) => {
+                console.error('Error updating envelopes table:', error);
+            }
+        );
+
+        // Update the Income table with the user_id
+        tx.executeSql(
+            'UPDATE Income SET user_id = ? WHERE user_id = -1',
+            [user_id],
+            (_, result) => {
+                console.log(`Income table updated where user_id is -1 with user_id: ${user_id}`);
+            },
+            (error) => {
+                console.error('Error updating Income table:', error);
+            }
+        );
+
+
+        // Update the Transactions table with the user_id
+        tx.executeSql(
+            'UPDATE Transactions SET user_id = ? WHERE user_id = -1',
+            [user_id],
+            (_, result) => {
+                console.log(`Transactions table updated where user_id is -1 with user_id: ${user_id}`);
+            },
+            (error) => {
+                console.error('Error updating Transactions table:', error);
+            }
+        );
+
+    };
+
 
     const handleFinishPress = async (values, { setFieldError, validateForm }) => {
 
@@ -234,7 +291,7 @@ const RegisterAccount = () => {
 
 
     return (
-        <Pressable style={{ flex: 1, backgroundColor: colors.white }} onPress={handleOutsidePress}>
+        <Pressable style={{ flex: 1}} onPress={handleOutsidePress}>
             <Formik
                 initialValues={{ email: '', password: '', repeatPassword: '' }}
                 validationSchema={validationSchema}

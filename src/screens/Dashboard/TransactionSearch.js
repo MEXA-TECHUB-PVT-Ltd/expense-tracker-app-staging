@@ -1,15 +1,34 @@
-import { StyleSheet, Text, View, FlatList, TouchableOpacity } from 'react-native'
-import React, {useState, useEffect, useCallback} from 'react'
+import { StyleSheet, Text, View, FlatList, TouchableOpacity, Animated, Pressable } from 'react-native'
+import React, {useState, useRef, useEffect, useCallback} from 'react'
 import colors from '../../constants/colors';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Appbar, Modal, Portal, TextInput, Button} from 'react-native-paper';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import { db } from '../../database/database';
+import { useSelector } from 'react-redux';
+import dimensions from '../../constants/dimensions';
+
+const { width: screenWidth } = dimensions;
 
 const TransactionsSearch = () => {
     const navigation = useNavigation();
     const route = useRoute();
+
+    const isAuthenticated = useSelector((state) => state.user.isAuthenticated);
+    const user_id = useSelector(state => state.user.user_id);
+    const temp_user_id = useSelector(state => state.user.temp_user_id);
+    const [tempUserId, setTempUserId] = useState(user_id);
+    console.log('value of tempUserId in state inside TransactionSearch', tempUserId);
+    useFocusEffect(
+        useCallback(() => {
+            if (isAuthenticated) {
+                setTempUserId(user_id);
+            } else {
+                setTempUserId(temp_user_id);
+            }
+        }, [isAuthenticated, user_id, temp_user_id])
+    );
 
     // Fetch `searchEnvelopeName` from route params if available
     const propSearchEnvelopeName = route.params?.searchEnvelopeName;
@@ -26,16 +45,16 @@ const TransactionsSearch = () => {
             searchTransactionsInDB(propSearchEnvelopeName);
         } else {
             // Otherwise, fetch all transactions
-            getAllTransactions();
+            getAllTransactions(tempUserId);
         }
-    }, [propSearchEnvelopeName]);
+    }, [propSearchEnvelopeName, tempUserId]);
 
     // Function to get all transactions if no search term is provided
-    const getAllTransactions = () => {
+    const getAllTransactions = (tempUserId) => {
         db.transaction((tx) => {
             tx.executeSql(
-                `SELECT * FROM Transactions ORDER BY id DESC;`,
-                [],
+                `SELECT * FROM Transactions WHERE user_id = ? ORDER BY id DESC;`,
+                [tempUserId],
                 (_, results) => {
                     const rows = results.rows;
                     let allTransactions = [];
@@ -43,6 +62,7 @@ const TransactionsSearch = () => {
                         allTransactions.push(rows.item(i));
                     }
                     setSearchedTransactions(allTransactions); // Show all transactions initially
+                    console.log('all searched transactions inside transaction search results', allTransactions);
                 },
                 (error) => {
                     console.error('Error fetching all transactions', error);
@@ -55,15 +75,15 @@ const TransactionsSearch = () => {
     const searchTransactionsInDB = (searchTerm) => {
         db.transaction((tx) => {
             tx.executeSql(
-                `SELECT * FROM Transactions WHERE payee LIKE ? ORDER BY id DESC;`,
-                [`%${searchTerm}%`],
+                `SELECT * FROM Transactions WHERE user_id = ? AND payee LIKE ? ORDER BY id DESC;`,  // Searching based on user_id and payee
+                [tempUserId, `%${searchTerm}%`],  // Add tempUserId to filter based on user_id
                 (_, results) => {
                     const rows = results.rows;
                     let matchingTransactions = [];
                     for (let i = 0; i < rows.length; i++) {
                         matchingTransactions.push(rows.item(i));
                     }
-                    setSearchedTransactions(matchingTransactions);
+                    setSearchedTransactions(matchingTransactions);  // Set filtered transactions based on payee
                 },
                 (error) => {
                     console.error('Error fetching filtered transactions', error);
@@ -77,18 +97,11 @@ const TransactionsSearch = () => {
         if (searchEnvelopeName.trim()) {
             searchTransactionsInDB(searchEnvelopeName);
         } else {
-            getAllTransactions();
+            getAllTransactions(tempUserId);
         }
         setSearchModalVisible(false);
         setSearchEnvelopeName('');
     };
-
-    // Refetch transactions when screen comes into focus
-    // useFocusEffect(
-    //     useCallback(() => {
-    //         getAllTransactions(); // Refresh transactions when screen is focused
-    //     }, [])
-    // );
 
     const handleEditTransaction = (transaction) => {
         // console.log('transactionAmount is: ', transaction.transactionAmount);
@@ -102,6 +115,7 @@ const TransactionsSearch = () => {
             accountName: transaction.accountName, //
             transactionDate: transaction.transactionDate, //
             transactionNote: transaction.transactionNote, //
+            user_id: transaction.user_id, 
             edit_transaction: true,
         });
     };
@@ -117,6 +131,38 @@ const TransactionsSearch = () => {
         navigation.goBack();
     };
 
+
+    const [isTooltipVisible, setIsTooltipVisible] = useState(false);
+    const slideAnim = useRef(new Animated.Value(screenWidth)).current;
+    const handleRightIconPress = () => {
+        toggleTooltip();
+    };
+    const toggleTooltip = () => {
+        if (isTooltipVisible) {
+            Animated.timing(slideAnim, {
+                toValue: screenWidth,
+                duration: 200,
+                useNativeDriver: true,
+            }).start(() => setIsTooltipVisible(false));
+        } else {
+            setIsTooltipVisible(true);
+            Animated.timing(slideAnim, {
+                toValue: screenWidth * 0.5,
+                duration: 200,
+                useNativeDriver: true,
+            }).start();
+        }
+    };
+    const handleOutsidePress = () => {
+        if (isTooltipVisible) {
+            toggleTooltip();
+        }
+    };
+    const handleTooltipPress = () => {
+        toggleTooltip();
+        navigation.navigate('Help', { from_transactionsearch: true });
+    };
+
     const formatDate = (dateString) => {
         const date = new Date(dateString);
         const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -125,13 +171,23 @@ const TransactionsSearch = () => {
     };
     
     return (
+        <Pressable style={{ flex: 1 }}
+            onPress={() => {
+                handleOutsidePress();
+            }}
+        >
         <View style={styles.container}>
             <Appbar.Header style={styles.appBar}>
                 <Appbar.BackAction onPress={handleLeftIconPress} size={24} color={colors.white} />
                 <Appbar.Content title="Transaction Search" titleStyle={styles.appbar_title} />
                 <Appbar.Action onPress={handleMagnifyIconPress} icon="magnify" color={colors.white} />
-                <Appbar.Action icon="dots-vertical" color={colors.white} />
+                <Appbar.Action onPress={handleRightIconPress} icon="dots-vertical" color={colors.white} />
             </Appbar.Header>
+                <Animated.View style={[styles.tooltipContainer, { transform: [{ translateX: slideAnim }] }]}>
+                    <TouchableOpacity onPress={handleTooltipPress}>
+                        <Text style={styles.tooltipText}>Help</Text>
+                    </TouchableOpacity>
+                </Animated.View>
 
             <View style={styles.searched_view}>
                 <Text style={styles.searched_for_text}>Searched for: <Text style={styles.searched_text}>{searchEnvelopeName || '<any>'}</Text></Text>
@@ -224,6 +280,7 @@ const TransactionsSearch = () => {
             </Modal>
             </Portal>
         </View>
+        </Pressable>
     )
 }
 
@@ -241,6 +298,23 @@ const styles = StyleSheet.create({
         color: colors.white,
         fontSize: hp('2.5%'),
         fontWeight: 'bold',
+    },
+
+    tooltipContainer: {
+        position: 'absolute',
+        top: 4,
+        right: 180,
+        width: '50%',
+        backgroundColor: colors.white,
+        padding: 13,
+        borderTopLeftRadius: 2,
+        borderBottomLeftRadius: 2,
+        zIndex: 10,
+    },
+    tooltipText: {
+        color: colors.black,
+        fontSize: hp('2.3%'),
+        fontWeight: '400',
     },
 
     searched_view: {
