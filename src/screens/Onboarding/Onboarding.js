@@ -321,7 +321,7 @@ const Onboarding = () => {
       <View style={styles.container}>
         <StatusBar backgroundColor={colors.munsellgreen} />
         <Appbar.Header style={styles.appBar}>
-          <Appbar.BackAction onPress={handleLeftIconPress} color={colors.black} />
+          {/* <Appbar.BackAction onPress={handleLeftIconPress} color={colors.black} /> */}
           <Appbar.Content title="ExpensePlanner" titleStyle={styles.appbar_title} />
           <Appbar.Action icon="dots-vertical" onPress={handleRightIconPress} color={colors.white} />
         </Appbar.Header>
@@ -419,14 +419,26 @@ const Onboarding = () => {
                   )}
                   <View style={styles.passwordContainer}>
                     <Text style={styles.passwordLabel}>Password</Text>
-                    <Pressable
+                    <Button
+                      mode="text"
+                      compact={true}
+                      onPress={() => {
+                        toggleModal();
+                        setCenterModalVisible(false);
+                      }}
+                      style={styles.forgotButton}
+                      rippleColor={colors.gray}
+                    >
+                      <Text style={styles.forgotText}>FORGOT?</Text>
+                    </Button>
+                    {/* <Pressable
                       onPress={() => {
                         toggleModal(); // Call the toggleModal function
                         setCenterModalVisible(false); // Set center modal visibility to false
                       }}
                     >
                       <Text style={styles.forgotText}>FORGOT?</Text>
-                    </Pressable>
+                    </Pressable> */}
                   </View>
                   <TextInput
                     value={values.password}
@@ -1015,12 +1027,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   passwordLabel: {
-    fontSize: hp('2.2%'),
+    fontSize: hp('2.3%'),
     color: colors.gray,
+    fontWeight: 'bold',
+    marginTop: 5,
+    marginLeft: 6,
+  },
+  forgotButton: {
   },
   forgotText: {
-    fontSize: hp('2.2%'),
+    fontSize: hp('2.1%'),
     color: colors.gray,
+    fontWeight: 'bold',
   },
   // button styles from paper
   buttonContainer: {
