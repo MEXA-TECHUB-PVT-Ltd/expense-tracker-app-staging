@@ -15,9 +15,10 @@ const Envelopes = () => {
 
   const isAuthenticated = useSelector((state) => state.user.isAuthenticated);
   const user_id = useSelector(state => state.user.user_id);
+  // console.log('value of user_id in state inside envelopes', user_id);
   const temp_user_id = useSelector(state => state.user.temp_user_id);
   const [tempUserId, setTempUserId] = useState(user_id);
-  console.log('value of tempUserId in state inside envelopes', tempUserId);
+  // console.log('value of tempUserId in state inside envelopes', tempUserId);
   useFocusEffect(
     useCallback(() => {
       if (isAuthenticated) {

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { StyleSheet, Text, View, Pressable, Animated, TouchableOpacity, StatusBar, FlatList, ScrollView, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { StyleSheet, Text, View, Pressable, Animated, TouchableOpacity, StatusBar, Image, FlatList, ScrollView, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
-import { Appbar, Button, Checkbox, TextInput, RadioButton, Modal, Portal, Provider, Menu, Divider, Card, ProgressBar } from 'react-native-paper';
+import { Appbar, Button, Checkbox, TextInput, RadioButton, Modal, Portal, Provider, Menu, Divider, Card, ProgressBar, Snackbar } from 'react-native-paper';
 import { debounce } from 'lodash';
+import Images from '../../constants/images';
 import { useFocusEffect } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import colors from '../../constants/colors';
@@ -20,11 +21,17 @@ const AddEditDeleteTransaction = () => {
   const navigation = useNavigation();
   const route = useRoute();
 
+  const [snackbarVisible, setSnackbarVisible] = useState(false);
+
   const isAuthenticated = useSelector((state) => state.user.isAuthenticated);
+  // console.log('value of isAuthenticated : ', isAuthenticated);
   const user_id = useSelector(state => state.user.user_id);
+  // console.log('value of user_id : ', user_id);
   const temp_user_id = useSelector(state => state.user.temp_user_id);
+  // console.log('value of temp_user_id : ', temp_user_id);
   const [tempUserId, setTempUserId] = useState(user_id);
-  console.log('value of tempUserId in state inside AddEditDeleteTransaction', tempUserId);
+  // console.log('tempUserId state: ', tempUserId);
+
   useFocusEffect(
     useCallback(() => {
       if (isAuthenticated) {
@@ -52,6 +59,33 @@ const AddEditDeleteTransaction = () => {
     setTransactionAmount(value);
   };
 
+  useEffect(() => {
+    console.log('Route params:', route.params);
+  }, [route.params]);
+
+  // data being passed as props from transaction screen to add/edit transaction
+  const [transactionId, setTransactionId] = useState(null);
+  const edit_transaction = route.params;
+  const id = route.params?.id;
+
+  useFocusEffect(
+    useCallback(() => {
+      if (id) {
+        setTransactionId(id);
+        setPayee(route.params.payee);
+        setTransactionAmount(route.params.transactionAmount.toString());
+        setTransactionType(route.params.transactionType);
+        setSelectedEnvelope(route.params.envelopeName);
+        if (route.params.transactionDate) {
+          const date = new Date(route.params.transactionDate);
+          setTransactionDate(date); // Set as Date object
+        }
+        setSelectedAccount(route.params.accountName);
+        setNote(route.params.transactionNote);
+      }
+    }, [id, route.params])
+  );
+
   // code for type menu
   const [transactionType, setTransactionType] = useState('Expense');
   const [typeMenuVisible, setTypeMenuVisible] = useState(false);
@@ -71,7 +105,7 @@ const AddEditDeleteTransaction = () => {
 
   // code for account menu
   const [accountMenuVisible, setAccountMenuVisible] = useState(false);
-  const [selectedAccount, setSelectedAccount] = useState(false);
+  const [selectedAccount, setSelectedAccount] = useState('My Account');
   const handleAccountMenuToggle = useMemo(
     () => debounce(() => setAccountMenuVisible(prev => !prev), 10),
     []
@@ -136,6 +170,12 @@ const AddEditDeleteTransaction = () => {
 
   // code for getting all envelopes from envelopes table
   const [envelopes, setEnvelopes] = useState([]);
+  if (edit_transaction) {
+    console.log('Editing transaction, envelopes state: ', envelopes);
+  } else {
+    console.log('Adding transaction, envelopes state: ', envelopes);
+  }
+
   useFocusEffect(
     useCallback(() => {
       getAllEnvelopes(setEnvelopes, tempUserId);
@@ -180,29 +220,21 @@ const AddEditDeleteTransaction = () => {
     }, [tempUserId])
   );
 
-  // data being passed as props from transaction screen to add/edit transaction
-  const [transactionId, setTransactionId] = useState(null);
-  const edit_transaction = route.params;
-  const id = route.params?.id;
-  useEffect(() => {
-    if (id) {
-      setTransactionId(id);
-      setPayee(route.params.payee);
-      setTransactionAmount(route.params.transactionAmount.toString());
-      setTransactionType(route.params.transactionType);
-      setSelectedEnvelope(route.params.envelopeName);
-      if (route.params.transactionDate) {
-        const date = new Date(route.params.transactionDate);
-        setTransactionDate(date); // Set as Date object
-      }
-      setSelectedAccount(route.params.accountName);
-      setNote(route.params.transactionNote);
-      setTempUserId(route.params.user_id);
-    }
-  }, [id, route.params]);
-
   // code for setting data in a single object for adding transaction
   const handleAddTransaction = () => {
+    if (
+      !payee ||
+      !transactionAmount ||
+      !transactionType ||
+      !selectedEnvelope ||
+      !accountName ||
+      !formattedFromDate
+    ) {
+      // Show snackbar if a required field is missing
+      setSnackbarVisible(true);
+      return;
+    }
+    
     const transaction = {
       payee: payee,
       transactionAmount: transactionAmount,
@@ -449,8 +481,7 @@ const AddEditDeleteTransaction = () => {
                 selectedEnvelope,
                 envelopeRemainingIncome,
                 selectedAccount,
-                // transactionDate.toISOString(),
-
+                formattedFromDate,
                 note,
                 transactionId,
               ],
@@ -599,6 +630,7 @@ const AddEditDeleteTransaction = () => {
                 }}
                 onBlur={() => {
                   setFocusedInput(null);
+                  setFocusedInputAmount(false);
                   if (!payeesMenuVisible) setPayee(payee); // Set the typed value if menu is not open
                 }}
                 onFocus={() => 
@@ -728,8 +760,8 @@ const AddEditDeleteTransaction = () => {
             </Menu>
           </View>
         </View>
-        {/* account */}
 
+        {/* account */}
         <View style={styles.how_to_fill_view}>
           <Text style={styles.title}>Account</Text>
           <View style={styles.envelope_type_view}>
@@ -740,7 +772,7 @@ const AddEditDeleteTransaction = () => {
                 <TouchableOpacity style={styles.envelope_txt_icon_view} onPress={handleAccountMenuToggle}>
                   <Text style={styles.selectionText}>
                     {selectedAccount
-                      ? `[${selectedAccount}] ${budgetAmount}`
+                      ? `${selectedAccount} [${budgetAmount}]`
                       : '-Select Account-'}
                   </Text>
                   {/* <Text style={styles.selectionText}>{selectedAccount  || '-Select Account-'}</Text> */}
@@ -838,6 +870,31 @@ const AddEditDeleteTransaction = () => {
           onValueChange={handleValueChange}
           onClose={() => setCalculatorVisible(false)}
         />
+
+        <Snackbar
+          visible={snackbarVisible}
+          onDismiss={() => setSnackbarVisible(false)}
+          duration={1000}
+          style={[
+            styles.snack_bar,
+            {
+              position: 'absolute',
+              bottom: 20,
+              left: 20,
+              right: 20,
+              zIndex: 1000,
+            }
+          ]}
+        >
+          <View style={styles.img_txt_view}>
+            <Image
+              source={Images.expenseplannerimage}
+              style={styles.snack_bar_img}
+            />
+            <Text style={styles.snack_bar_text}>All fields are required!</Text>
+          </View>
+        </Snackbar>
+
       </ScrollView>
     </Pressable>
   );
@@ -1079,6 +1136,27 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: hp('1.5%'),
     paddingBottom: hp('36%'),
+  },
+
+  // snackbar styles
+  snack_bar: {
+    backgroundColor: colors.gray,
+    borderRadius: 50,
+    zIndex: 1000,
+  },
+  img_txt_view: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  snack_bar_img: {
+    width: wp('10%'),
+    height: hp('3%'),
+    marginRight: 10,
+    resizeMode: 'contain',
+  },
+  snack_bar_text: {
+    color: colors.white,
+    fontSize: hp('2%'),
   },
 
 });

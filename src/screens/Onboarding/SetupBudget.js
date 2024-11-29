@@ -119,6 +119,7 @@ const SetupBudget = () => {
     // console.log('after rearrange envelopes state is: ', envelopes);
     const [totalIncome, setTotalIncome] = useState(0);
     const [remainingAmount, setRemainingAmount] = useState(0);
+    console.log('value of remainingAmount: ', remainingAmount);
    
     useFocusEffect(
         useCallback(() => {
@@ -526,7 +527,7 @@ const SetupBudget = () => {
                         <Text style={styles.modalTitle}>
                             {totalIncome === 0
                                 ? 'Total Budgeted'
-                                : remainingAmount >= 0 && remainingAmount < totalIncome
+                                : remainingAmount >= 0 && remainingAmount <= totalIncome
                                     ? `You have ${remainingAmount} left`
                                     : remainingAmount < totalIncome
                                         ? 'Hmmm...'
@@ -536,7 +537,7 @@ const SetupBudget = () => {
                     <Text style={styles.modalMessage}>
                         {totalIncome === 0
                             ? `You plan to spend a total of ${totalSumOfEnvelopes} every month in all your budgeting Envelopes.`
-                            : remainingAmount >= 0 && remainingAmount < totalIncome
+                            : remainingAmount >= 0 && remainingAmount <= totalIncome
                                 ? `You have ${remainingAmount} left over from your income every month. Tap 'Add Envelope' to budget more.`
                                 : remainingAmount < totalIncome
                                     ? "It looks like you plan to spend more than you earn. Tap 'Income' or an Envelope to edit."

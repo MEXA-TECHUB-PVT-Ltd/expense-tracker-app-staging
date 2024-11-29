@@ -598,18 +598,18 @@ const SpendingByEnvelope = () => {
 
   // for bar graph dynamically extract the months and their corresponding income and spending
 
-
-  // Define bar colors
   const barsColors = {
     brightgreen: colors.brightgreen,
     danger: colors.danger,
   };
 
-  // Create labels
-  const labels = monthlyData.flatMap((item, index) => ["", item.month, ""]);
+  // Create labels for months
+  const labels = monthlyData.flatMap((item) => ["", item.month, ""]);
+  console.log('labels are : ', labels);
 
   // Create bar values (income and spending)
-  const barValues = monthlyData.flatMap(item => [item.income, null, item.spending]);
+  const barValues = monthlyData.flatMap(item => [item.income, 0, item.spending]);
+  console.log('barValues are : ', barValues);
 
   // Create bar colors
   const barColors = monthlyData.flatMap(() => [
@@ -618,23 +618,27 @@ const SpendingByEnvelope = () => {
     (opacity = 1) => barsColors.danger,
   ]);
 
-  // Set Y-axis scale with fixed intervals of 1000
-  const maxYLabel = 6000; // Fixed maximum value for Y-axis
-  const yInterval = 1000; // Fixed interval of 1000
+  // Calculate the maximum value from the data (this will scale the bars dynamically)
+  const maxDataValue = Math.max(...barValues);
+  console.log('maxDataValue: ', maxDataValue);
+
+  // Calculate the Y-axis labels based on the max value in the data
+  const yInterval = Math.ceil(maxDataValue / 5); // Divide the max value into 5 intervals
+  const yLabels = Array.from({ length: 6 }, (_, index) => index * yInterval);
+  console.log('Y-axis Labels: ', yLabels);
 
   // Dynamically adjust bar width based on the total number of bars
   const totalBars = barValues.length;
+  console.log('totalBars = ' + totalBars);
   const barPercentage = Math.max(0.1, 1.4 - (totalBars - 0.1) * (1.5 / 24));
-
-  // Scale bar values relative to maxYLabel
-  const scaledBarValues = barValues.map(value => (value !== null ? (value / maxYLabel) * maxYLabel : null));
+  console.log('barPercentage = ' + barPercentage);
 
   // Prepare chart data
   const data = {
     labels: labels,
     datasets: [
       {
-        data: scaledBarValues, // Scaled values for bar heights
+        data: barValues, // Use original values (no scaling)
         colors: barColors, // Alternate colors for income and spending
       },
     ],
@@ -657,16 +661,16 @@ const SpendingByEnvelope = () => {
     propsForVerticalLabels: {
       fontSize: 12,
     },
-    formatYLabel: (yValue) => {
-      console.log('y value', yValue);
-      // Format Y-axis labels in "0k, 1k, 2k..."
-      return `${yValue / 1000}k`;
-    },
+    formatYLabel: (yValue) => yValue, // Show Y-axis labels normally without formatting
   };
 
   // Output useful values
-  console.log('maxYLabel: ', maxYLabel);
-  console.log('yInterval: ', yInterval);
+  console.log('maxDataValue: ', maxDataValue);
+  console.log('yLabels: ', yLabels);
+
+
+
+
 
 
 

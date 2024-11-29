@@ -65,7 +65,7 @@ const About = () => {
 
     const handleLogoutOkPress = async () => {
         await removeUserData();
-        dropTables(); // drop all tables if needed
+        // dropTables(); // drop all tables if needed
         dispatch(logout());
         navigation.navigate('Onboarding');  // later on check actual navigation on basis of redux and async
         setLogoutModalVisible(false);

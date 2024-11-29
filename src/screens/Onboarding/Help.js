@@ -133,7 +133,7 @@ const Help = () => {
                             About ExpenseTracker
                         </Text>
                         <Text style={styles.summary_text}>
-                            Goodbudget is an online envelope budgeting system. Cash for the month is taken and divided into virtual "Envelopes". Along the way, take money out of an Envelope to spend. Goodbudget keeps track so you never overspend.
+                            ExpenseTracker is a personal envelope budgeting system designed to help you manage your finances. It allows you to track and categorize your spending while staying in full control of your budget. With ExpenseTracker, your data is stored locally on your device, ensuring privacy and security.
                         </Text>
                     </View>
                     <View style={styles.features_view}>
@@ -141,9 +141,25 @@ const Help = () => {
                             ExpenseTracker features:
                         </Text>
                         <Text style={styles.feature_summary_text}>
-                            Safe and secure: We don't collect any account numbers.
+                            <Text style={styles.sub_Heading}>Safe and secure: </Text>Your data is stored locally on your device, with no need for online services or cloud storage.
+                        </Text>
+                        <Text style={styles.feature_summary_text}>
+                            <Text style={styles.sub_Heading}>Offline accessibility: </Text>Access and manage your finances anytime, even without an internet connection.
+                        </Text>
+                        <Text style={styles.feature_summary_text}>
+                            <Text style={styles.sub_Heading}>Customizable envelopes: </Text>Create and manage custom categories for your income and expenses, and allocate funds to different envelopes.
+                        </Text>
+                        <Text style={styles.feature_summary_text}>
+                            <Text style={styles.sub_Heading}>Easy-to-use interface: </Text>Intuitive design that makes tracking your spending simple and straightforward.
+                        </Text>
+                        <Text style={styles.feature_summary_text}>
+                            <Text style={styles.sub_Heading}>Detailed expense tracking: </Text>View detailed reports of your spending habits and make informed decisions about your budget.
+                        </Text>
+                        <Text style={styles.feature_summary_text}>
+                            <Text style={styles.sub_Heading}>No subscriptions or sign-ups:</Text> ExpenseTracker is a completely offline app, so you don't need to worry about signing up or subscribing to any services.
                         </Text>
                     </View>
+
                 </>
             )}
 
@@ -306,8 +322,8 @@ const styles = StyleSheet.create({
         marginVertical: hp('2%'),
     },
     feature_text: {
-        fontSize: hp('2%'),
-        fontWeight: '400',
+        fontSize: hp('2.1%'),
+        fontWeight: 'bold',
         color: colors.black,
     },
     feature_summary_text: {
@@ -315,6 +331,12 @@ const styles = StyleSheet.create({
         color: colors.black,
         fontWeight: '400',
         marginTop: hp('1%'),
-        marginLeft: hp('3%'),
+        marginLeft: hp('1%'),
+    },
+    sub_Heading: {
+        fontSize: hp('2%'),
+        fontWeight: '600',
+        color: colors.black,
+        marginTop: hp('2%'),
     },
 })

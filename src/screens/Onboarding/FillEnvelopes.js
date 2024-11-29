@@ -134,7 +134,7 @@ const FillEnvelopes = () => {
 
   const handleTooltipPress = () => {
     toggleTooltip();
-    navigation.navigate('Help', { from_fillenvelopes: true});
+    navigation.navigate('Help', { from_fillenvelopes: true });
   };
 
   // code related to account selection
@@ -150,7 +150,7 @@ const FillEnvelopes = () => {
   };
 
   const [accountModalVisible, setAccountModalVisible] = useState(false);
-  const [selectedAccount, setSelectedAccount] = useState('');
+  const [selectedAccount, setSelectedAccount] = useState('My Account');
 
   const showAccountModal = () => setAccountModalVisible(true);
   const hideAccountModal = () => setAccountModalVisible(false);
@@ -179,6 +179,7 @@ const FillEnvelopes = () => {
 
   // for flatlist
   const [envelopes, setEnvelopes] = useState([]);
+  const [updatedEnvelopes, setUpdatedEnvelopes] = useState([]); // to track updated envelopes using fill individually for authenticated users
   // console.log('envelopes', envelopes);
 
   const fetchEnvelopes = useCallback(() => {
@@ -378,10 +379,23 @@ const FillEnvelopes = () => {
     } else if (customAmountOption === 'customAmount' && customAmount) {
       filledIncome = parseFloat(customAmount);
     }
+
+    // if (filledIncome !== undefined) {
+    //   handleFillIndividual(envelopeId, envelopeName, amount, budgetPeriod, filledIncome, formattedToDate, tempUserId);
+    //   fetchAndLogIndividualIncomes(tempUserId);
+    // }
+
     if (filledIncome !== undefined) {
+      // Update the selected envelope's filledIncome here
+      const updatedEnvelope = {
+        ...selectedEnvelope,
+        filledIncome,
+      };
+      setUpdatedEnvelopes(prev => [...prev, updatedEnvelope]); // Track updated envelope
       handleFillIndividual(envelopeId, envelopeName, amount, budgetPeriod, filledIncome, formattedToDate, tempUserId);
       fetchAndLogIndividualIncomes(tempUserId);
     }
+    
     closeModal();
   };
 
@@ -481,6 +495,10 @@ const FillEnvelopes = () => {
 
   useFocusEffect(
     React.useCallback(() => {
+      // Do nothing if the user is authenticated
+      if (isAuthenticated) {
+        return; // Exit early if the condition is met
+      }
       // Check if selectedOption is "Fill Individually"
       if (selectedOption === "Fill Individually") {
         // Execute the SQL query to clear filledIncome and fillDate
@@ -501,7 +519,7 @@ const FillEnvelopes = () => {
     }, [selectedOption, tempUserId]) // Dependency array ensures effect runs when selectedOption changes
   );
 
-  
+
 
   return (
     <TouchableWithoutFeedback style={{ flex: 1 }} onPress={isTooltipVisible ? handleOutsidePress : null}>
@@ -538,14 +556,25 @@ const FillEnvelopes = () => {
                   </View>
                 </View>
                 <RadioButton.Group onValueChange={handleSelectOption} value={selectedOption}>
-                  <View style={styles.htf_radioButton}>
+
+                  <TouchableOpacity onPress={() => handleSelectOption("Fill ALL Envelopes")} style={styles.htf_radioButton}>
+                    <RadioButton color={colors.brightgreen} value="Fill ALL Envelopes" />
+                    <Text style={styles.htf_radio_texts}>Fill All Envelopes</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => handleSelectOption("Fill Individually")} style={styles.htf_radioButton}>
+                    <RadioButton color={colors.brightgreen} value="Fill Individually" />
+                    <Text style={styles.htf_radio_texts}>Fill Individually</Text>
+                  </TouchableOpacity>
+
+                  {/* <View style={styles.htf_radioButton}>
                     <RadioButton color={colors.brightgreen} value="Fill ALL Envelopes" />
                     <Text style={styles.htf_radio_texts}>Fill All Envelopes</Text>
                   </View>
                   <View style={styles.htf_radioButton}>
                     <RadioButton color={colors.brightgreen} value="Fill Individually" />
                     <Text style={styles.htf_radio_texts}>Fill Individually</Text>
-                  </View>
+                  </View> */}
+
                 </RadioButton.Group>
               </Modal>
             </Portal>
@@ -574,10 +603,20 @@ const FillEnvelopes = () => {
                       <Text style={styles.htf_modalText}>Account</Text>
                     </View>
                     <RadioButton.Group onValueChange={handleSelectAccount} value={selectedAccount}>
-                      <View style={styles.htf_radioButton}>
+                      <TouchableOpacity onPress={() => handleSelectAccount("My Account")} style={styles.htf_radioButton}>
                         <RadioButton color={colors.brightgreen} value="My Account" />
                         <Text style={styles.htf_radio_texts}>My Account</Text>
-                      </View>
+                      </TouchableOpacity>
+                      {/* <View style={styles.htf_radioButton}>
+                        <RadioButton color={colors.brightgreen} value="My Account" />
+                        <Text style={styles.htf_radio_texts}>My Account</Text>
+                      </View> */}
+
+                      {/* <TouchableOpacity onPress={() => handleSelectAccount("Debit Account")} style={styles.htf_radioButton}>
+                        <RadioButton color={colors.brightgreen} value="Debit Account" />
+                        <Text style={styles.htf_radio_texts}>Debit Account</Text>
+                      </TouchableOpacity> */}
+
                       {/* <View style={styles.htf_radioButton}>
                         <RadioButton color={colors.brightgreen} value="Debit Account" />
                         <Text style={styles.htf_radio_texts}>Debit Account</Text>
@@ -634,7 +673,7 @@ const FillEnvelopes = () => {
                               <View style={styles.progress_bar_view}>
                                 <CustomProgressBar filledIncome={filledIncome} amount={amount} />
                               </View>
-                              <Text style={styles.item_text_amount}><Text style={styles.budgeted_amount}>Add budgeted amount of </Text>{filledIncome}</Text>
+                              <Text style={styles.item_text_amount}><Text style={styles.budgeted_amount}>Add budgeted amount of {filledIncome}.00 </Text></Text>
                             </View>
                           </TouchableOpacity>
                         </View>
@@ -654,7 +693,11 @@ const FillEnvelopes = () => {
                     keyExtractor={(item) => item.id}
                     renderItem={({ item }) => {
 
-                      const filledIncome = individualIncomes.find(filled => filled.envelopeId === item.envelopeId)?.filledIncome || 0;
+                      // const filledIncome = individualIncomes.find(filled => filled.envelopeId === item.envelopeId)?.filledIncome || 0;
+                      // const amount = item.amount;
+
+                      const updatedEnvelope = updatedEnvelopes.find(envelope => envelope.envelopeId === item.envelopeId);
+                      const filledIncome = updatedEnvelope ? updatedEnvelope.filledIncome : 0; // Show updated filledIncome, else 0
                       const amount = item.amount;
 
                       return (
@@ -679,8 +722,8 @@ const FillEnvelopes = () => {
                               <Text style={styles.item_text_amount}>
                                 {filledIncome ? (
                                   <>
-                                    <Text style={styles.budgeted_amount}>Add budgeted amount of </Text>
-                                    {filledIncome}
+                                    <Text style={styles.budgeted_amount}>Add budgeted amount of {filledIncome}.00 </Text>
+                                    
                                   </>
                                 ) : (
                                   <Text style={styles.budgeted_amount}>No Change</Text>
@@ -795,34 +838,34 @@ const FillEnvelopes = () => {
         />
 
         {!fill_envelope && (
-        <View style={styles.secondView}>
-          <View style={styles.left_icon_btn_view}>
-            <VectorIcon name="chevron-back" size={20} color={colors.androidbluebtn} type="ii" />
-            <Button
-              mode="text"
-              onPress={() => navigation.goBack()}
-              // onPress={() => console.log('later press')}
-              style={styles.backButton}
-              labelStyle={styles.backText}
-              rippleColor={colors.gray}
-            >
-              BACK
-            </Button>
+          <View style={styles.secondView}>
+            <View style={styles.left_icon_btn_view}>
+              <VectorIcon name="chevron-back" size={20} color={colors.androidbluebtn} type="ii" />
+              <Button
+                mode="text"
+                onPress={() => navigation.goBack()}
+                // onPress={() => console.log('later press')}
+                style={styles.backButton}
+                labelStyle={styles.backText}
+                rippleColor={colors.gray}
+              >
+                BACK
+              </Button>
+            </View>
+            <View style={styles.right_icon_btn_view}>
+              <Button
+                mode="text" // Use 'contained' for a filled button
+                onPress={() => navigation.navigate('RegisterAccount')}
+                // onPress={() => console.log('later press')}
+                style={styles.nextButton}
+                labelStyle={styles.nextText}
+                rippleColor={colors.gray}
+              >
+                NEXT
+              </Button>
+              <VectorIcon name="chevron-forward" size={20} color={colors.androidbluebtn} type="ii" />
+            </View>
           </View>
-          <View style={styles.right_icon_btn_view}>
-            <Button
-              mode="text" // Use 'contained' for a filled button
-              onPress={() => navigation.navigate('RegisterAccount')}
-              // onPress={() => console.log('later press')}
-              style={styles.nextButton}
-              labelStyle={styles.nextText}
-              rippleColor={colors.gray}
-            >
-              NEXT
-            </Button>
-            <VectorIcon name="chevron-forward" size={20} color={colors.androidbluebtn} type="ii" />
-          </View>
-        </View>
         )}
       </View>
     </TouchableWithoutFeedback>
@@ -1007,6 +1050,10 @@ const styles = StyleSheet.create({
   item_text_amount: {
     color: colors.black,
     marginRight: hp('1%'),
+  },
+  budgeted_amount: {
+    color: colors.gray,
+    fontWeight: '500',
   },
 
   modalContainer_ca: {
