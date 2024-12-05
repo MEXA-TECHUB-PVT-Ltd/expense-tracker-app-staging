@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, FlatList, TouchableOpacity, StatusBar } from 'react-native'
+import { StyleSheet, Text, View, FlatList, TouchableOpacity, StatusBar, Image, } from 'react-native'
 import React, { useState, useEffect, useCallback } from 'react'
 import { useFocusEffect } from '@react-navigation/native';
 import { TextInput, Modal, Button } from 'react-native-paper';
@@ -7,6 +7,7 @@ import colors from '../../constants/colors';
 import { db } from '../../database/database';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
+import Images from '../../constants/images';
 
 
 const Transactions = ({ isSearched, setIsSearched, searchModalVisible, setSearchModalVisible }) => {
@@ -17,7 +18,7 @@ const Transactions = ({ isSearched, setIsSearched, searchModalVisible, setSearch
   const user_id = useSelector(state => state.user.user_id);
   const temp_user_id = useSelector(state => state.user.temp_user_id);
   const [tempUserId, setTempUserId] = useState(user_id);
-  console.log('value of tempUserId in state inside Transactions is :', tempUserId);
+  // console.log('value of tempUserId in state inside Transactions is :', tempUserId);
   useFocusEffect(
     useCallback(() => {
       if (isAuthenticated) {
@@ -32,7 +33,7 @@ const Transactions = ({ isSearched, setIsSearched, searchModalVisible, setSearch
   const [transactions, setTransactions] = useState([]);
   useFocusEffect(
     useCallback(() => {
-      console.log('Running getAllTransactions with tempUserId:', tempUserId);
+      // console.log('Running getAllTransactions with tempUserId:', tempUserId);
       getAllTransactions(tempUserId);
     }, [tempUserId])
   );
@@ -43,14 +44,14 @@ const Transactions = ({ isSearched, setIsSearched, searchModalVisible, setSearch
         `SELECT * FROM Transactions WHERE user_id = ? ORDER BY id DESC;`,
         [tempUserId],
         (_, results) => {
-          console.log("results : ", results);
+          // console.log("results : ", results);
           const rows = results.rows;
           let allTransactions = [];
           for (let i = 0; i < rows.length; i++) {
             allTransactions.push(rows.item(i));
           }
           setTransactions(allTransactions);
-          console.log('All Transactions in transactions screen are :', allTransactions);
+          // console.log('All Transactions in transactions screen are :', allTransactions);
         },
         (error) => {
           console.error('Error fetching transactions', error); // Capture any error
@@ -62,13 +63,14 @@ const Transactions = ({ isSearched, setIsSearched, searchModalVisible, setSearch
 
   const handleEditTransaction = (transaction) => {
     // console.log('transactionAmount is: ', transaction.transactionAmount);
-    console.log('singel transaction details are when try to edit: ', transaction);
+    // console.log('singel transaction details are when try to edit: ', transaction);
     navigation.navigate('AddEditDeleteTransaction', {
       id: transaction.id, //
       payee: transaction.payee, //
       transactionAmount: transaction.transactionAmount,
       transactionType: transaction.transactionType, // 
       envelopeName: transaction.envelopeName, // 
+      envelopeId: transaction.envelopeId,
       accountName: transaction.accountName, //
       transactionDate: transaction.transactionDate, //
       transactionNote: transaction.transactionNote, //
@@ -107,43 +109,58 @@ const Transactions = ({ isSearched, setIsSearched, searchModalVisible, setSearch
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor={colors.munsellgreen} />
-      <FlatList
-        data={transactions}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => {
-          return (
-            <View style={styles.item_view}>
-              <TouchableOpacity onPress={() => handleEditTransaction(item)} style={styles.touchable_view}>
-                <View style={styles.date_view}>
-                  <Text style={styles.date_txt}>{formatDate(item.transactionDate)}</Text>
-                </View>
-                <View style={styles.name_payee_amt_view}>
-                  <View style={styles.payee_amt_view}>
-                    <View style={styles.payee_text_view}>
-                      <Text
-                        numberOfLines={1}
-                        elellipsizeMode="tail"
-                        style={styles.payee_txt}>{item.payee}</Text>
-                    </View>
-                    <View style={styles.amount_text_view}>
-                      <Text
-                        numberOfLines={1}
-                        elellipsizeMode="tail"
-                        style={[styles.amt_txt, { color: item.transactionType === 'Credit' ? colors.brightgreen : colors.black }]}>
-                        {item.transactionType === 'Credit' ? `+ ${item.transactionAmount}` : item.transactionAmount}.00
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={styles.envelope_account_txt_view}>
-                    <Text style={styles.envelope_name_txt}>{item.envelopeName}</Text>
-                    <Text style={styles.account_name_txt}> | My Account</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
+
+      <View style={styles.all_transactions_view}>
+        {transactions.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Image
+              source={Images.expenseplannerimagegray}
+              style={styles.emptyImage}
+            />
+            <View style={styles.emptyTextContainer}>
+              <Text style={styles.emptyText}>You have not made any transaction yet</Text>
             </View>
-          );
-        }}
-      />
+          </View>
+        ) : (
+          <FlatList
+            data={transactions}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => {
+              return (
+                <View style={styles.item_view}>
+                  <TouchableOpacity onPress={() => handleEditTransaction(item)} style={styles.touchable_view}>
+                    <View style={styles.date_view}>
+                      <Text style={styles.date_txt}>{formatDate(item.transactionDate)}</Text>
+                    </View>
+                    <View style={styles.name_payee_amt_view}>
+                      <View style={styles.payee_amt_view}>
+                        <View style={styles.payee_text_view}>
+                          <Text
+                            numberOfLines={1}
+                            elellipsizeMode="tail"
+                            style={styles.payee_txt}>{item.payee}</Text>
+                        </View>
+                        <View style={styles.amount_text_view}>
+                          <Text
+                            numberOfLines={1}
+                            elellipsizeMode="tail"
+                            style={[styles.amt_txt, { color: item.transactionType === 'Credit' ? colors.brightgreen : colors.black }]}>
+                            {item.transactionType === 'Credit' ? `+ ${item.transactionAmount}` : item.transactionAmount}.00
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={styles.envelope_account_txt_view}>
+                        <Text style={styles.envelope_name_txt}>{item.envelopeName}</Text>
+                        <Text style={styles.account_name_txt}> | My Account</Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              );
+            }}
+          />
+        )}
+      </View>
 
       <Modal visible={searchModalVisible} onDismiss={() => setSearchModalVisible(false)} contentContainerStyle={styles.modalContainer}>
         <View style={styles.search_transaction_txt_view}>
@@ -185,7 +202,32 @@ export default Transactions
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.white,
   },
+  all_transactions_view: {
+    flex: 1,
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyImage: {
+    width: hp('10%'),
+    height: hp('10%'),
+    marginBottom: hp('5%'),
+  },
+  emptyTextContainer: {
+    maxWidth: hp('30%'),
+    // backgroundColor: 'yellow',
+  },
+  emptyText: {
+    fontSize: hp('2.5%'),
+    color: colors.gray,
+    textAlign: 'center',
+    alignSelf: 'center',
+  },
+
   //flatlist styles
   item_view: {
     marginHorizontal: hp('1.5%'),

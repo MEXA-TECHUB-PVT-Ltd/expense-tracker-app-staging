@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useFocusEffect } from '@react-navigation/native';
 import { Appbar, Modal, Portal, Button, TextInput, RadioButton, IconButton, Menu } from 'react-native-paper';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import colors from '../../constants/colors';
 import Images from '../../constants/images';
 import dimensions from '../../constants/dimensions';
@@ -50,12 +51,11 @@ const SpendingByEnvelope = () => {
   // Memoize tempUserId based on isAuthenticated and user_id
   const tempUserId = useMemo(() => {
     if (isAuthenticated) {
-      return user_id; // Set to the current user's ID
+      return user_id;
     } else {
-      return -1; // Default value when not authenticated means temp_user_id as in redux it also have value -1
+      return -1;
     }
   }, [isAuthenticated, user_id]);
-
   // console.log('value of tempUserId in SpendingByEnvelope', tempUserId);
 
   // No need to manage tempUserId state manually
@@ -68,7 +68,41 @@ const SpendingByEnvelope = () => {
 
   // code for modal of dates
   const [visible, setVisible] = useState(false);
-  const [selectedRange, setSelectedRange] = useState('thisMonth');
+  const [selectedRange, setSelectedRange] = useState('');
+
+  // selected range code start here for async storage... get selected range from async storage
+  useFocusEffect(
+    React.useCallback(() => {
+      const fetchLastSelectedRange = async () => {
+        try {
+          const savedRange = await AsyncStorage.getItem('selectedRange');
+          if (savedRange !== null) {
+            console.log('=====---------=== savedRange = ', savedRange); // This should log the saved range if it exists
+            setSelectedRange(savedRange);  // Update state with the retrieved value
+          } else {
+            console.log('=====---------=== No saved range found, using default'); // Log if no saved range exists
+          }
+        } catch (error) {
+          console.log('===============Error retrieving saved range:', error); // Catch any error in AsyncStorage
+        }
+      };
+
+      fetchLastSelectedRange();
+    }, []) // Empty dependency array, so it runs only when the screen is focused
+  );
+
+  // sets selected range in async storage whenever it changes
+  const handleValueChange = async (value) => {
+    try {
+      console.log('============================ selectedRange:', value); // Log the new selected value
+      setSelectedRange(value);  // Update state with the selected value
+      await AsyncStorage.setItem('selectedRange', value); // Save the new value to AsyncStorage
+    } catch (error) {
+      console.log('Error saving selected range:', error); // Catch any error during saving
+    }
+  };
+  // selected range code end here for async storage
+
   const [fromDate, setFromDate] = useState(null);
   const [toDate, setToDate] = useState(null);
   const [customFromDate, setCustomFromDate] = useState(null);
@@ -76,7 +110,6 @@ const SpendingByEnvelope = () => {
 
   const [formattedFromDate, setFormattedFromDate] = useState(null);
   const [formattedToDate, setFormattedToDate] = useState(null);
-
   // console.log('formattedFromDate in IncomeVsSpending', formattedFromDate);
   // console.log('formattedToDate in IncomeVsSpending', formattedToDate);
 
@@ -91,16 +124,26 @@ const SpendingByEnvelope = () => {
     return moment(date).format('MMM D, YYYY');  // Format: "Nov 1, 2024"
   };
   useEffect(() => {
+    if (!selectedRange) return;  // Don't run if selectedRange is not yet set
+
     const startOfMonth = moment().startOf('month');
     const endOfMonth = moment().endOf('month');
 
     // Format and set the dates
     setFromDate(formatDate(startOfMonth));
     setToDate(formatDate(endOfMonth));
-  }, []);
+  }, [selectedRange]);
  
+  // useEffect(() => {
+  //   if (selectedRange) {
+  //     handleSetDateRange();  // Call the function to update fromDate and toDate based on selectedRange
+  //   }
+  // }, [selectedRange]); // Depend on selectedRange to re-run whenever it changes
+
 
   const handleSetDateRange = () => {
+    // Only update if selectedRange is defined
+    if (!selectedRange) return;
     const formatDate = (date) => {
       return moment(date).format('MMM D, YYYY');  // e.g. "Nov 1, 2024"
     };
@@ -172,14 +215,14 @@ const SpendingByEnvelope = () => {
     }
   }, [fromDate, toDate]);   
 
+  // code related to dates ends here
 
-  // faisal code for filtering envelopes and transactions start here
 
-  // faisal code start here 
+  // code to filter and calculate values start here
   const [envelopes, setEnvelopes] = useState([]);
   // console.log('all envelopes data :', envelopes);
 
-  // faisal code filter envelopes with date
+  // code to filter envelopes with date
   const fetchRecordsWithinDateRange = (fromDate, toDate) => {
     const formattedFromDate = formatDateSql(fromDate);
     const formattedToDate = formatDateSql(toDate);
@@ -216,7 +259,7 @@ const SpendingByEnvelope = () => {
     }, [fromDate, toDate])
   );
 
-  // faisal code to search all envelopes and log them
+  // code to search all envelopes and log them
   useFocusEffect(
     useCallback(() => {
       db.transaction((tx) => {
@@ -244,7 +287,7 @@ const SpendingByEnvelope = () => {
   );
 
 
-  // faisal code to filter transactions by date
+  // code to filter transactions by date
   const [transactions, setTransactions] = useState([]);
   // console.log('all transactions data :', transactions);
   const filterTransactions = (fromDate, toDate) => {
@@ -285,7 +328,7 @@ const SpendingByEnvelope = () => {
     }, [fromDate, toDate])
   );
 
-  // faisal code to search and log all Transactions
+  // code to search and log all Transactions
   useFocusEffect(
     useCallback(() => {
       db.transaction((tx) => {
@@ -312,7 +355,6 @@ const SpendingByEnvelope = () => {
     }, [])
   );
 
-  // faisal code end here
 
   // new code for getting values for income from envelopes and for other values from Transactions table no date range
 
@@ -382,6 +424,25 @@ const SpendingByEnvelope = () => {
   };
 
   // Process data month-by-month
+  // const envelopesByMonth = groupByMonth(envelopes, "fillDate");
+  // const transactionsByMonth = groupByMonth(transactions, "transactionDate");
+
+  // const monthlyData = Object.keys({ ...envelopesByMonth, ...transactionsByMonth }).map((month) => {
+  //   const monthEnvelopes = envelopesByMonth[month] || [];
+  //   const monthTransactions = transactionsByMonth[month] || [];
+
+  //   const income = monthEnvelopes.reduce((sum, envelope) => sum + (envelope.amount || 0), 0);
+  //   const spending = monthTransactions.reduce((sum, transaction) => {
+  //     if (transaction.transactionType === "Expense") return sum + transaction.transactionAmount;
+  //     if (transaction.transactionType === "Credit") return sum - transaction.transactionAmount;
+  //     return sum;
+  //   }, 0);
+
+  //   const netTotal = income - spending;
+
+  //   return { month, income, spending, netTotal };
+  // });
+
   const envelopesByMonth = groupByMonth(envelopes, "fillDate");
   const transactionsByMonth = groupByMonth(transactions, "transactionDate");
 
@@ -390,210 +451,22 @@ const SpendingByEnvelope = () => {
     const monthTransactions = transactionsByMonth[month] || [];
 
     const income = monthEnvelopes.reduce((sum, envelope) => sum + (envelope.amount || 0), 0);
-    const spending = monthTransactions.reduce((sum, transaction) => {
+
+    const rawSpending = monthTransactions.reduce((sum, transaction) => {
       if (transaction.transactionType === "Expense") return sum + transaction.transactionAmount;
       if (transaction.transactionType === "Credit") return sum - transaction.transactionAmount;
       return sum;
     }, 0);
 
-    const netTotal = income - spending;
+    console.log('raw spending is: ', rawSpending);
+
+    const spending = Math.abs(rawSpending); // Ensure spending is positive
+    const netTotal = income - spending; // Keep rawSpending for accurate netTotal calculation
 
     return { month, income, spending, netTotal };
   });
 
-  console.log('monthlyData values:', monthlyData);
-
-
-  // irfan code for getting values for income from envelopes no date range
-  // useFocusEffect(
-  //   useCallback(() => {
-  //     db.transaction((tx) => {
-  //       const incomeQuery = `
-  //       SELECT SUM(amount) as totalIncome 
-  //       FROM envelopes
-  //       WHERE user_id = ?`;
-
-  //       tx.executeSql(
-  //         incomeQuery,
-  //         [tempUserId], // Pass tempUserId here
-  //         (_, { rows }) => {
-  //           const totalIncome = rows.item(0).totalIncome || 0;
-  //           console.log("Income Query Success:", incomeQuery, rows.item(0));
-  //           setIncome(totalIncome);
-  //         },
-  //         (_, error) => {
-  //           console.error("Income Query Error:", incomeQuery, error);
-  //           return true;
-  //         }
-  //       );
-
-  //       const spendingQuery = `
-  //       SELECT envelopeName, 
-  //         SUM(CASE WHEN transactionType = 'Expense' THEN transactionAmount ELSE 0 END) -
-  //         SUM(CASE WHEN transactionType = 'Credit' THEN transactionAmount ELSE 0 END) AS envelopeSpending
-  //       FROM Transactions
-  //       WHERE user_id = ?
-  //       GROUP BY envelopeName`;
-
-  //       tx.executeSql(
-  //         spendingQuery,
-  //         [tempUserId], // Pass tempUserId here
-  //         (_, { rows }) => {
-  //           const envelopeData = [];
-  //           let totalSpending = 0;
-
-  //           for (let i = 0; i < rows.length; i++) {
-  //             const { envelopeName, envelopeSpending } = rows.item(i);
-  //             const spending = envelopeSpending || 0;
-  //             envelopeData.push({ envelopeName, envelopeSpending: spending });
-  //             totalSpending += spending;
-  //           }
-
-  //           console.log("Spending Query Success:", spendingQuery, envelopeData);
-  //           setSpendingByEnvelope(envelopeData);
-  //           setSpending(totalSpending);
-  //         },
-  //         (_, error) => {
-  //           console.error("Spending Query Error:", spendingQuery, error);
-  //           return true;
-  //         }
-  //       );
-  //     });
-  //   }, [tempUserId])
-  // );
-
-
-  // useFocusEffect(
-  //   useCallback(() => {
-  //     setNetTotal(income - spending);
-  //   }, [income, spending])
-  // );
-
-
-  // Generate a list of months between fromDate and toDate start
-  //  const [incomeVsSpending, setIncomeVsSpending] = useState([]);
-  
-  // // Format dates for SQLite queries (assuming the format needed is 'YYYY-MM-DD')
-  // const formattedFromDateIS = moment('2024-01-01').format('YYYY-MM-DD'); // Example
-  // const formattedToDateIS = moment('2024-12-31').format('YYYY-MM-DD'); // Example
-
-  // // Generate a list of months between fromDate and toDate
-  // useEffect(() => {
-  //   const months = [];
-  //   const start = moment(formattedFromDateIS);
-  //   const end = moment(formattedToDateIS);
-
-  //   // Generate an array of months in the date range
-  //   while (start.isBefore(end) || start.isSame(end)) {
-  //     months.push(start.format('YYYY-MM')); // e.g., "2024-11"
-  //     start.add(1, 'month');
-  //   }
-
-  //   // Initialize the state with empty months
-  //   console.log("Generated Months:", months); // Log to track generated months
-  //   setIncomeVsSpending(months.map((month) => ({
-  //     month,
-  //     income: 0,
-  //     spending: 0,
-  //     netTotal: 0,
-  //   })));
-  // }, [formattedFromDateIS, formattedToDateIS]);
-
-  // useFocusEffect(
-  //   useCallback(() => {
-  //     console.log("Fetching data for income and spending...");
-
-  //     db.transaction((tx) => {
-  //       // Query to get the monthly income totals
-  //       const incomeQuery = `
-  //         SELECT strftime('%Y-%m', fillDate) AS month, SUM(amount) as totalIncome
-  //         FROM envelopes
-  //         WHERE fillDate BETWEEN ? AND ?
-  //         GROUP BY month
-  //         ORDER BY month ASC`;
-
-  //       console.log("Executing Income Query:", incomeQuery, [formattedFromDateIS, formattedToDateIS]);
-
-  //       tx.executeSql(
-  //         incomeQuery,
-  //         [formattedFromDateIS, formattedToDateIS],
-  //         (_, { rows }) => {
-  //           const incomeData = [];
-  //           console.log("Income Query Result:", rows); // Log the query result
-  //           for (let i = 0; i < rows.length; i++) {
-  //             const { month, totalIncome } = rows.item(i);
-  //             incomeData.push({ month, income: totalIncome || 0 });
-  //           }
-  //           console.log("Income Data:", incomeData); // Log parsed income data
-
-  //           // Merge income data with the existing state
-  //           setIncomeVsSpending((prevData) => {
-  //             return prevData.map((data) => {
-  //               const incomeMonth = incomeData.find((item) => item.month === data.month);
-  //               const income = incomeMonth ? incomeMonth.income : 0;
-  //               const spendingMonth = spendingData.find((item) => item.month === data.month);
-  //               const spending = spendingMonth ? spendingMonth.spending : 0;
-  //               const netTotal = income - spending;
-  //               return { ...data, income, spending, netTotal };
-  //             });
-  //           });
-  //         },
-  //         (_, error) => {
-  //           console.error("Income Query Error:", incomeQuery, error);
-  //           return true;
-  //         }
-  //       );
-
-  //       // Query to get the monthly spending totals
-  //       const spendingQuery = `
-  //         SELECT strftime('%Y-%m', fillDate) AS month, SUM(amount - filledIncome) AS totalSpending
-  //         FROM envelopes
-  //         WHERE fillDate BETWEEN ? AND ?
-  //         GROUP BY month
-  //         ORDER BY month ASC`;
-
-  //       console.log("Executing Spending Query:", spendingQuery, [formattedFromDateIS, formattedToDateIS]);
-
-  //       tx.executeSql(
-  //         spendingQuery,
-  //         [formattedFromDateIS, formattedToDateIS],
-  //         (_, { rows }) => {
-  //           const spendingData = [];
-  //           console.log("Spending Query Result:", rows); // Log the query result
-  //           for (let i = 0; i < rows.length; i++) {
-  //             const { month, totalSpending } = rows.item(i);
-  //             spendingData.push({ month, spending: totalSpending || 0 });
-  //           }
-  //           console.log("Spending Data:", spendingData); // Log parsed spending data
-
-  //           // Merge spending data with the existing state
-  //           setIncomeVsSpending((prevData) => {
-  //             return prevData.map((data) => {
-  //               const spendingMonth = spendingData.find((item) => item.month === data.month);
-  //               const spending = spendingMonth ? spendingMonth.spending : 0;
-  //               const incomeMonth = incomeData.find((item) => item.month === data.month);
-  //               const income = incomeMonth ? incomeMonth.income : 0;
-  //               const netTotal = income - spending;
-  //               return { ...data, income, spending, netTotal };
-  //             });
-  //           });
-  //         },
-  //         (_, error) => {
-  //           console.error("Spending Query Error:", spendingQuery, error);
-  //           return true;
-  //         }
-  //       );
-  //     });
-  //   }, [formattedFromDateIS, formattedToDateIS])
-  // );
-
-  // // Get month name from YYYY-MM format
-  // const getMonthName = (monthString) => {
-  //   const [year, month] = monthString.split('-');
-  //   return `${new Date(year, month - 1).toLocaleString('default', { month: 'long' })} ${year}`;
-  // };
-
-  // for individual counting of each month end here
+  // console.log('monthlyData values:', monthlyData);
 
 
   // for bar graph dynamically extract the months and their corresponding income and spending
@@ -605,11 +478,11 @@ const SpendingByEnvelope = () => {
 
   // Create labels for months
   const labels = monthlyData.flatMap((item) => ["", item.month, ""]);
-  console.log('labels are : ', labels);
+  // console.log('labels are : ', labels);
 
   // Create bar values (income and spending)
   const barValues = monthlyData.flatMap(item => [item.income, 0, item.spending]);
-  console.log('barValues are : ', barValues);
+  // console.log('barValues are : ', barValues);
 
   // Create bar colors
   const barColors = monthlyData.flatMap(() => [
@@ -620,18 +493,18 @@ const SpendingByEnvelope = () => {
 
   // Calculate the maximum value from the data (this will scale the bars dynamically)
   const maxDataValue = Math.max(...barValues);
-  console.log('maxDataValue: ', maxDataValue);
+  // console.log('maxDataValue: ', maxDataValue);
 
   // Calculate the Y-axis labels based on the max value in the data
   const yInterval = Math.ceil(maxDataValue / 5); // Divide the max value into 5 intervals
   const yLabels = Array.from({ length: 6 }, (_, index) => index * yInterval);
-  console.log('Y-axis Labels: ', yLabels);
+  // console.log('Y-axis Labels: ', yLabels);
 
   // Dynamically adjust bar width based on the total number of bars
   const totalBars = barValues.length;
-  console.log('totalBars = ' + totalBars);
+  // console.log('totalBars = ' + totalBars);
   const barPercentage = Math.max(0.1, 1.4 - (totalBars - 0.1) * (1.5 / 24));
-  console.log('barPercentage = ' + barPercentage);
+  // console.log('barPercentage = ' + barPercentage);
 
   // Prepare chart data
   const data = {
@@ -661,18 +534,13 @@ const SpendingByEnvelope = () => {
     propsForVerticalLabels: {
       fontSize: 12,
     },
-    formatYLabel: (yValue) => yValue, // Show Y-axis labels normally without formatting
+    // formatYLabel: (yValue) => yValue, // Show Y-axis labels normally without formatting
+    formatYLabel: (yValue) => parseInt(yValue, 10).toString(), // Remove decimals
   };
 
   // Output useful values
-  console.log('maxDataValue: ', maxDataValue);
-  console.log('yLabels: ', yLabels);
-
-
-
-
-
-
+  // console.log('maxDataValue: ', maxDataValue);
+  // console.log('yLabels: ', yLabels);
 
   return (
     <View style={styles.container}>
@@ -808,7 +676,9 @@ const SpendingByEnvelope = () => {
           <View style={styles.modalInnerContainer}>
             <Text style={styles.modalTitle}>Select Dates</Text>
             <RadioButton.Group
-              onValueChange={value => setSelectedRange(value)}
+              // onValueChange={value => setSelectedRange(value)}
+              // value={selectedRange}
+              onValueChange={handleValueChange} 
               value={selectedRange}
             >
               <View style={styles.radioButtonContainer}>
@@ -944,6 +814,7 @@ export default SpendingByEnvelope
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.white,
   },
   appBar: {
     backgroundColor: colors.brightgreen,

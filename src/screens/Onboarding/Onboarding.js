@@ -390,7 +390,7 @@ const Onboarding = () => {
               {({ handleChange, handleBlur, handleSubmit, values, errors, touched, setFieldValue }) => (
                 <View style={styles.login_container}>
                   <Text style={styles.title}>Log In to ExpensePlanner</Text>
-                  <Text style={styles.label}>Household Name or Email</Text>
+                  <Text style={styles.label}>Enter Your Email</Text>
                   <TextInput
                     value={values.email}
                     // onChangeText={handleChange('email')}

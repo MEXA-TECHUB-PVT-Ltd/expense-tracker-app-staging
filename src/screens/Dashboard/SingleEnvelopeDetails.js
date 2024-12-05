@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, Image, FlatList, Animated, TouchableOpacity } from 'react-native'
+import { StyleSheet, Text, View, Image, FlatList, Animated, TouchableOpacity, ImageBackground } from 'react-native'
 import React, { useState, useCallback, useRef } from 'react'
 import { useFocusEffect } from '@react-navigation/native';
 import colors from '../../constants/colors';
@@ -163,6 +163,8 @@ const SingleEnvelopeDetails = ({ route }) => {
     console.log('Searched Transactions:', allTransactions);
   };
 
+  const showBackground = envelope.budgetPeriod === "Goal" && envelope.filledIncome >= envelope.amount;
+
   return (
     <View style={styles.container}>
       <Appbar.Header style={styles.appBar}>
@@ -173,17 +175,25 @@ const SingleEnvelopeDetails = ({ route }) => {
       </Appbar.Header>
 
       {!isSearched && (
+        <ImageBackground
+          style={[
+            styles.envelope_details_view,
+            showBackground && { backgroundColor: 'transparent' } // Optional: modify this if needed
+          ]}
+          imageStyle={styles.imageStyle}
+          source={showBackground ? Images.goalbackgroundimage : null}
+        >
         <View style={styles.envelope_details_view}>
           <View style={styles.name_amount_view}>
             <Text style={styles.envelope_name}>{envelope.envelopeName}</Text>
-            <Text style={styles.filledIncome_text}>{envelope.filledIncome}</Text>
+            <Text style={styles.filledIncome_text}>{envelope.filledIncome}.00</Text>
           </View>
           <View style={styles.bar_amount_view}>
             <View style={styles.bar_view}>
               <CustomProgressBar filledIncome={envelope.filledIncome} amount={envelope.amount} />
             </View>
             <View style={styles.amount_view}>
-              <Text style={styles.amount_text}>{envelope.amount}</Text>
+              <Text style={styles.amount_text}>{envelope.amount}.00</Text>
             </View>
           </View>
           <View style={styles.text_image_view}>
@@ -202,6 +212,7 @@ const SingleEnvelopeDetails = ({ route }) => {
             </View>
           </View>
         </View>
+        </ImageBackground>
       )}
       {isSearched && (
         <View style={styles.searched_view}>
@@ -293,7 +304,7 @@ const SingleEnvelopeDetails = ({ route }) => {
                             <Text style={styles.account_name_txt}> | My Account</Text>
                           </View>
                           <View style={styles.amt_txt_view}>
-                            <Text style={styles.account_amount_txt}>{item.envelopeName}</Text>
+                            <Text style={styles.account_amount_txt}>{item.envelopeRemainingIncome}</Text>
                           </View>
                         </View>
                       </View>
@@ -357,6 +368,7 @@ export default SingleEnvelopeDetails
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.white,  
   },
   appBar: {
     backgroundColor: colors.brightgreen,
@@ -370,6 +382,9 @@ const styles = StyleSheet.create({
   envelope_details_view: {
     height: hp('17%'),
     marginHorizontal: hp('1.5%'),
+  },
+  imageStyle: {
+    resizeMode: 'repeat',
   },
   name_amount_view: {
     flexDirection: 'row',

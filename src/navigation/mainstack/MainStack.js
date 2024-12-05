@@ -24,6 +24,7 @@ import EnvelopeTransfer from '../../screens/Dashboard/EnvelopeTransfer';
 import PrivacyPolicy from '../../screens/Dashboard/PrivacyPolicy';
 import TermsAndConditions from '../../screens/Dashboard/TermsAndConditions';
 import { useNavigation } from '@react-navigation/native';
+import { db } from '../../database/database';
 
 import { useSelector, useDispatch } from 'react-redux';
 import { setUser, logout } from '../../redux/slices/userSlice';
@@ -36,11 +37,46 @@ const MainStack = () => {
     const isAuthenticated = useSelector((state) => state.user.isAuthenticated);
     const dispatch = useDispatch();
 
+    const fetchUserIdByEmail = (email, dispatch, setUser) => {
+        db.transaction(
+            (tx) => {
+                tx.executeSql(
+                    "SELECT id FROM Users WHERE email = ?;",
+                    [email],
+                    (tx, results) => {
+                        if (results.rows.length > 0) {
+                            const userId = results.rows.item(0).id;
+                            console.log("Fetched user_id:", userId);
+
+                            // Dispatch the user_id along with other user details
+                            const user = {
+                                user_id: userId,
+                                email: email,
+                                // Add other user data as needed
+                            };
+                            dispatch(setUser(user));
+                        } else {
+                            console.error("No user found with the provided email.");
+                        }
+                    },
+                    (error) => {
+                        console.error("Error fetching user_id by email:", error);
+                    }
+                );
+            },
+            (error) => {
+                console.error("Transaction error:", error);
+            }
+        );
+    };
+
     useEffect(() => {
         const initializeUser = async () => {
             const user = await getUserData();
-            if (user) {
-                dispatch(setUser(user));
+            console.log("Fetched user data from AsyncStorage:", user);
+
+            if (user?.email) {
+                fetchUserIdByEmail(user.email, dispatch, setUser);
             } else {
                 dispatch(logout());
             }
@@ -48,6 +84,22 @@ const MainStack = () => {
 
         initializeUser();
     }, [dispatch]);
+
+
+
+    // useEffect(() => {
+    //     const initializeUser = async () => {
+    //         const user = await getUserData();
+    //         console.log('values inside user variable if auto login from function getUserData from redux:', user);
+    //         if (user) {
+    //             dispatch(setUser(user));
+    //         } else {
+    //             dispatch(logout());
+    //         }
+    //     };
+
+    //     initializeUser();
+    // }, [dispatch]);
 
     useEffect(() => {
         if (isAuthenticated) {

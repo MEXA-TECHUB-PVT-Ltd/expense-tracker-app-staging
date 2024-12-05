@@ -12,6 +12,8 @@ import { removeUserData } from '../../utils/authUtils';
 import dimensions from '../../constants/dimensions';
 import { db } from '../../database/database';
 
+import RNFS from 'react-native-fs';
+
 const { width: screenWidth } = dimensions;
 
 const About = () => {
@@ -54,6 +56,7 @@ const About = () => {
 
     // to take user name and show in logout box
     const user = useSelector((state) => state.user.user);
+    // console.log('values inside setting of state user: ' , user);
     const email = user?.email;
     const username = email ? email.split('@')[0] : '';
 
@@ -65,9 +68,9 @@ const About = () => {
 
     const handleLogoutOkPress = async () => {
         await removeUserData();
-        // dropTables(); // drop all tables if needed
+        dropTables(); // drop all tables
         dispatch(logout());
-        navigation.navigate('Onboarding');  // later on check actual navigation on basis of redux and async
+        navigation.navigate('Onboarding');  // this is for cross confirmation although it navigates on basis of isAuthenticated state in redux
         setLogoutModalVisible(false);
     };
 
@@ -105,6 +108,31 @@ const About = () => {
                 (tx, error) => console.error("Error clearing default payees:", error)
             );
         });
+    };
+
+
+    // function to export database file
+    const exportDatabase = async () => {
+        try {
+            // Path of your internal SQLite database
+            const dbPath = '/data/user/0/com.expensetrackerapp/databases/ExpenseTrackerDB.db';
+
+            // External directory path where you want to export the database (e.g., Downloads)
+            const externalPath = RNFS.ExternalDirectoryPath + '/ExpenseTrackerDB.db';  // Or use RNFS.DownloadDirectoryPath
+
+            // Check if external directory exists, if not create it
+            const exists = await RNFS.exists(RNFS.ExternalDirectoryPath);
+            if (!exists) {
+                console.log('Creating external directory...');
+                await RNFS.mkdir(RNFS.ExternalDirectoryPath);  // Create the directory if it doesn't exist
+            }
+
+            // Copy the database file to the external directory
+            await RNFS.copyFile(dbPath, externalPath);
+            console.log('Database exported successfully to:', externalPath);
+        } catch (error) {
+            console.error('Error exporting database:', error);
+        }
     };
 
 
@@ -192,6 +220,15 @@ const About = () => {
                     }>
                     <Text style={styles.title_text}>About Goodbudget</Text>
                     <Text style={styles.subtitle_text}>Come say hi.</Text>
+                </TouchableOpacity>
+                <Divider />
+
+                <TouchableOpacity
+                    onPress={exportDatabase}
+                    style={styles.touchable_view
+                    }>
+                    <Text style={styles.title_text}>Export Database</Text>
+                    <Text style={styles.subtitle_text}>To export database file as .db file in storage.</Text>
                 </TouchableOpacity>
                 <Divider />
 

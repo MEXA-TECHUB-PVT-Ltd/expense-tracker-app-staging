@@ -14,6 +14,7 @@ import { db, fetchTotalIncome } from '../../database/database';
 import Calculator from '../Onboarding/Calculator';
 import { useSelector } from 'react-redux';
 import { formatDateSql } from '../../utils/DateFormatter';
+import moment from 'moment';
 
 const { width: screenWidth } = dimensions;
 
@@ -52,7 +53,7 @@ const AddEditDeleteTransaction = () => {
   const [focusedInputAmount, setFocusedInputAmount] = useState(false);
 
   const [payee, setPayee] = useState(null);
-  console.log('value of payee name in addeditdelete transaction is:', payee);
+  // console.log('value of payee name in addeditdelete transaction is:', payee);
   const [transactionAmount, setTransactionAmount] = useState(0);
   // console.log('after edit prop set transactionAmount', transactionAmount);
   const handleTransactionAmountChange = (value) => {
@@ -60,13 +61,16 @@ const AddEditDeleteTransaction = () => {
   };
 
   useEffect(() => {
-    console.log('Route params:', route.params);
+    // console.log('Route params:', route.params);
   }, [route.params]);
 
-  // data being passed as props from transaction screen to add/edit transaction
+  // data being passed as props from transaction screen to add/edit transaction for edit
   const [transactionId, setTransactionId] = useState(null);
   const edit_transaction = route.params;
   const id = route.params?.id;
+  
+  // const envelopeID = route.params?.envelopeId;
+  // console.log('envelopeID from route for edit transaction: ', envelopeID);
 
   useFocusEffect(
     useCallback(() => {
@@ -76,6 +80,8 @@ const AddEditDeleteTransaction = () => {
         setTransactionAmount(route.params.transactionAmount.toString());
         setTransactionType(route.params.transactionType);
         setSelectedEnvelope(route.params.envelopeName);
+        setSelectedEnvelopeId(route.params.envelopeId);
+
         if (route.params.transactionDate) {
           const date = new Date(route.params.transactionDate);
           setTransactionDate(date); // Set as Date object
@@ -98,6 +104,8 @@ const AddEditDeleteTransaction = () => {
   const [envelopeRemainingIncome, setEnvelopeRemainingIncome] = useState(0);
   const [envelopeMenuVisible, setEnvelopeMenuVisible] = useState(false);
   const [selectedEnvelope, setSelectedEnvelope] = useState(false); // selectedEnvelope holds envelopeName for transaction
+  const [selectedEnvelopeId, setSelectedEnvelopeId] = useState(null);
+  // console.log('selectedEnvelopeId', selectedEnvelopeId);
   const handleEnvelopeMenuToggle = useMemo(
     () => debounce(() => setEnvelopeMenuVisible(prev => !prev), 10),
     []
@@ -111,10 +119,32 @@ const AddEditDeleteTransaction = () => {
     []
   );
 
-  // code for date 
+  // to get current month dates and then formate them into our sql date formate
+  const [formattedFromDate, setFormattedFromDate] = useState('');
+  const [formattedToDate, setFormattedToDate] = useState('');
+
+  // console.log('Formatted From Date in Envelopes:', formattedFromDate);
+  // console.log('Formatted To Date in Envelopes:', formattedToDate);
+
+  useFocusEffect(
+    useCallback(() => {
+      const fromDate = moment().startOf('month').format('YYYY-MM-DD');
+      const toDate = moment().endOf('month').format('YYYY-MM-DD');
+
+      // default dates set to todays date
+      setFormattedFromDate(formatDateSql(fromDate));
+      setFormattedToDate(formatDateSql(toDate));
+
+      // hardcoded dates to set and retrieve data for testing purposes
+      // setFormattedFromDate('2025-01-01');
+      // setFormattedToDate('2025-01-30');
+    }, [])
+  );
+
+  // code for transaction date 
   const [transactionDate, setTransactionDate] = useState(new Date());
-  const formattedFromDate = formatDateSql(transactionDate);
-  console.log('value of state transaction date is: ', formattedFromDate);
+  const formattedTransactionDate = formatDateSql(transactionDate);
+  // console.log('value of state transaction date is: ', formattedTransactionDate);
 
   const [show, setShow] = useState(false);
   const onChange = (event, selectedDate) => {
@@ -171,22 +201,22 @@ const AddEditDeleteTransaction = () => {
   // code for getting all envelopes from envelopes table
   const [envelopes, setEnvelopes] = useState([]);
   if (edit_transaction) {
-    console.log('Editing transaction, envelopes state: ', envelopes);
+    // console.log('Editing transaction, envelopes state: ', envelopes);
   } else {
-    console.log('Adding transaction, envelopes state: ', envelopes);
+    // console.log('Adding transaction, envelopes state: ', envelopes);
   }
 
   useFocusEffect(
     useCallback(() => {
-      getAllEnvelopes(setEnvelopes, tempUserId);
-    }, [tempUserId])
+      getAllEnvelopes(setEnvelopes, tempUserId, formattedFromDate, formattedToDate);
+    }, [tempUserId, formattedFromDate, formattedToDate])
   );
   const getAllEnvelopes = (callback) => {
     db.transaction(tx => {
-      const sqlQuery = 'SELECT * FROM envelopes WHERE user_id = ? ORDER BY orderIndex';
+      const sqlQuery = 'SELECT * FROM envelopes WHERE user_id = ? AND fillDate BETWEEN ? AND ? ORDER BY orderIndex';
       tx.executeSql(
         sqlQuery,
-        [tempUserId],
+        [tempUserId, formattedFromDate, formattedToDate],
         (_, results) => {
           if (results.rows && results.rows.length > 0) {
             let envelopesArray = [];
@@ -216,8 +246,8 @@ const AddEditDeleteTransaction = () => {
   const [budgetAmount, setBudgetAmount] = useState(0);
   useFocusEffect(
     useCallback(() => {
-      fetchTotalIncome(setBudgetAmount, tempUserId);
-    }, [tempUserId])
+      fetchTotalIncome(setBudgetAmount, tempUserId, formattedFromDate, formattedToDate);
+    }, [tempUserId, formattedFromDate, formattedToDate])
   );
 
   // code for setting data in a single object for adding transaction
@@ -228,7 +258,7 @@ const AddEditDeleteTransaction = () => {
       !transactionType ||
       !selectedEnvelope ||
       !accountName ||
-      !formattedFromDate
+      !formattedTransactionDate
     ) {
       // Show snackbar if a required field is missing
       setSnackbarVisible(true);
@@ -240,28 +270,117 @@ const AddEditDeleteTransaction = () => {
       transactionAmount: transactionAmount,
       transactionType: transactionType,
       envelopeName: selectedEnvelope,
+      envelopeId: selectedEnvelopeId,    
       envelopeRemainingIncome: envelopeRemainingIncome, // now added
       accountName: accountName,
-      transactionDate: formattedFromDate,
+      transactionDate: formattedTransactionDate,
       transactionNote: note,
       user_id: tempUserId,
     };
     console.log('Transaction values to be added:', transaction);
-    insertTransaction(transaction);
+    insertTransaction(transaction, formattedFromDate, formattedToDate);
   };
 
-  // code for adding transaction, updating envelope, updating Income table or monthly budget
-  const insertTransaction = (transaction) => {
+  // code for adding transaction, updating envelope, updating Income table or monthly budget where it was juts updating income against each record
+  // const insertTransaction = (transaction, formattedFromDate, formattedToDate) => {
+  //   db.transaction((tx) => {
+  //     // Insert the transaction into the Transactions table
+  //     tx.executeSql(
+  //       `INSERT INTO Transactions (payee, transactionAmount, transactionType, envelopeName, envelopeId, envelopeRemainingIncome, accountName, transactionDate, transactionNote, user_id) 
+  //           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+  //       [
+  //         transaction.payee,
+  //         transaction.transactionAmount,
+  //         transaction.transactionType,
+  //         transaction.envelopeName,
+  //         transaction.envelopeId,
+  //         transaction.envelopeRemainingIncome,
+  //         transaction.accountName,
+  //         transaction.transactionDate,
+  //         transaction.transactionNote,
+  //         transaction.user_id,
+  //       ],
+  //       (_, result) => {
+  //         console.log('Transaction inserted successfully:', result);
+  //         addPayee(payee);
+
+  //         // Now update the corresponding envelope based on the transactionType
+  //         const amount = transaction.transactionAmount;
+  //         // const envelopeName = transaction.envelopeName;
+  //         const envelopeId = transaction.envelopeId;
+  //         const transactionType = transaction.transactionType;
+  //         // const accountName = transaction.accountName; // for Income table
+
+  //         console.log('=================insertion dates=========== :', formattedFromDate, formattedToDate);
+
+  //         // Update the envelope based on the transaction type
+  //         if (transactionType === 'Credit') {
+  //           tx.executeSql(
+  //             `UPDATE envelopes SET filledIncome = filledIncome + ? WHERE envelopeId = ?;`,
+  //             [amount, envelopeId],
+  //             (_, updateResult) => {
+  //               console.log('Envelope updated successfully for credit:', updateResult);
+  //               navigation.goBack();
+  //             },
+  //             (_, error) => {
+  //               console.error('Error updating envelope for credit:', error.message);
+  //             }
+  //           );
+  //           // to update Income table for
+  //           tx.executeSql(
+  //             `UPDATE Income SET budgetAmount = budgetAmount + ? WHERE accountName = 'My Account' AND budgetPeriod = 'Monthly' AND incomeDate BETWEEN ? AND ?;`,
+  //             [amount, formattedFromDate, formattedToDate],
+  //             (_, updateResult) => {
+  //               console.log('Income table updated successfully for credit:', updateResult);
+  //             },
+  //             (_, error) => {
+  //               console.error('Error updating Income table for credit:', error.message);
+  //             }
+  //           );
+  //         } else if (transactionType === 'Expense') {
+  //           tx.executeSql(
+  //             `UPDATE envelopes SET filledIncome = filledIncome - ? WHERE envelopeId = ?;`,
+  //             [amount, envelopeId],
+  //             (_, updateResult) => {
+  //               console.log('Envelope updated successfully for expense:', updateResult);
+  //               navigation.goBack();
+  //             },
+  //             (_, error) => {
+  //               console.error('Error updating envelope for expense:', error.message);
+  //             }
+  //           );
+  //           // to update Income table for expense
+  //           tx.executeSql(
+  //             `UPDATE Income SET budgetAmount = budgetAmount - ? WHERE accountName = 'My Account' AND budgetPeriod = 'Monthly' AND incomeDate BETWEEN ? AND ?;`,
+  //             [amount, formattedFromDate, formattedToDate],
+  //             (_, updateResult) => {
+  //               console.log('Income table updated successfully for expense:', updateResult);
+  //             },
+  //             (_, error) => {
+  //               console.error('Error updating Income table for expense:', error.message);
+  //             }
+  //           );
+  //         }
+  //       },
+  //       (_, error) => {
+  //         console.error('Error inserting transaction', error.code, error.message);
+  //       }
+  //     );
+  //   });
+  // };
+
+  const insertTransaction = (transaction, formattedFromDate, formattedToDate) => {
     db.transaction((tx) => {
       // Insert the transaction into the Transactions table
       tx.executeSql(
-        `INSERT INTO Transactions (payee, transactionAmount, transactionType, envelopeName, envelopeRemainingIncome, accountName, transactionDate, transactionNote, user_id) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        `INSERT INTO Transactions (payee, transactionAmount, transactionType, envelopeName, envelopeId, envelopeRemainingIncome, accountName, transactionDate, transactionNote, user_id) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
         [
           transaction.payee,
           transaction.transactionAmount,
           transaction.transactionType,
           transaction.envelopeName,
+          transaction.envelopeId,
           transaction.envelopeRemainingIncome,
           transaction.accountName,
           transaction.transactionDate,
@@ -269,63 +388,109 @@ const AddEditDeleteTransaction = () => {
           transaction.user_id,
         ],
         (_, result) => {
-          console.log('Transaction inserted successfully:', result);
+          console.log('Transaction inserted successfully:');
+
           addPayee(payee);
 
-          // Now update the corresponding envelope based on the transactionType
           const amount = transaction.transactionAmount;
-          const envelopeName = transaction.envelopeName;
+          const envelopeId = transaction.envelopeId;
           const transactionType = transaction.transactionType;
-          // const accountName = transaction.accountName; // for Income table
 
-          // Update the envelope based on the transaction type
+          console.log('=================insertion dates=========== :', formattedFromDate, formattedToDate);
+
+          // Update envelopes table based on transaction type
           if (transactionType === 'Credit') {
+            // Credit: Update envelopes table (increase filledIncome)
             tx.executeSql(
-              `UPDATE envelopes SET filledIncome = filledIncome + ? WHERE envelopeName = ?;`,
-              [amount, envelopeName],
+              `UPDATE envelopes SET filledIncome = filledIncome + ? WHERE envelopeId = ?;`,
+              [amount, envelopeId],
               (_, updateResult) => {
                 console.log('Envelope updated successfully for credit:', updateResult);
-                navigation.goBack();
               },
               (_, error) => {
                 console.error('Error updating envelope for credit:', error.message);
               }
             );
-            // to update Income table 
-            tx.executeSql(
-              `UPDATE Income SET budgetAmount = budgetAmount + ? WHERE accountName = 'My Account' AND budgetPeriod = 'Monthly';`,
-              [amount],
-              (_, updateResult) => {
-                console.log('Income table updated successfully for credit:', updateResult);
-              },
-              (_, error) => {
-                console.error('Error updating Income table for credit:', error.message);
-              }
-            );
           } else if (transactionType === 'Expense') {
+            // Expense: Update envelopes table (decrease filledIncome)
             tx.executeSql(
-              `UPDATE envelopes SET filledIncome = filledIncome - ? WHERE envelopeName = ?;`,
-              [amount, envelopeName],
+              `UPDATE envelopes SET filledIncome = filledIncome - ? WHERE envelopeId = ?;`,
+              [amount, envelopeId],
               (_, updateResult) => {
                 console.log('Envelope updated successfully for expense:', updateResult);
-                navigation.goBack();
               },
               (_, error) => {
                 console.error('Error updating envelope for expense:', error.message);
               }
             );
-            // to update Income table for expense
-            tx.executeSql(
-              `UPDATE Income SET budgetAmount = budgetAmount - ? WHERE accountName = 'My Account' AND budgetPeriod = 'Monthly';`,
-              [amount],
-              (_, updateResult) => {
-                console.log('Income table updated successfully for expense:', updateResult);
-              },
-              (_, error) => {
-                console.error('Error updating Income table for expense:', error.message);
-              }
-            );
           }
+
+          // Fetch ids from Income table and update the selected id
+          tx.executeSql(
+            `SELECT id FROM Income WHERE incomeDate BETWEEN ? AND ? AND id IS NOT NULL;`,
+            [formattedFromDate, formattedToDate],
+            (_, result) => {
+              // Log all ids found within the date range
+              const ids = [];
+              for (let i = 0; i < result.rows.length; i++) {
+                const row = result.rows.item(i);
+                ids.push(row.id);
+                console.log('Found id:', row.id); // Log each found id
+              }
+
+              // If there are any ids, randomly select one
+              if (ids.length > 0) {
+                const randomIndex = Math.floor(Math.random() * ids.length); // Get a random index
+                const incomeId = ids[randomIndex]; // Select the incomeId
+                console.log('Selected incomeId:', incomeId); // Log the selected incomeId
+
+                // Now perform the update on Income table for either Credit or Expense
+
+                if (transactionType === 'Credit') {
+                  // Credit: Update Income table (increase budgetAmount)
+                  tx.executeSql(
+                    `UPDATE Income SET budgetAmount = budgetAmount + ? 
+                   WHERE accountName = 'My Account' 
+                   AND budgetPeriod = 'Monthly' 
+                   AND incomeDate BETWEEN ? AND ? 
+                   AND id = ?;`,
+                    [amount, formattedFromDate, formattedToDate, incomeId], // Pass amount, date range, and incomeId
+                    (_, updateResult) => {
+                      console.log('Income table updated successfully for credit:', updateResult);
+                      navigation.goBack(); // Go back after the update
+                    },
+                    (_, error) => {
+                      console.error('Error updating Income table for credit:', error.message);
+                    }
+                  );
+                } else if (transactionType === 'Expense') {
+                  // Expense: Update Income table (decrease budgetAmount)
+                  tx.executeSql(
+                    `UPDATE Income SET budgetAmount = budgetAmount - ? 
+                   WHERE accountName = 'My Account' 
+                   AND budgetPeriod = 'Monthly' 
+                   AND incomeDate BETWEEN ? AND ? 
+                   AND id = ?;`,
+                    [amount, formattedFromDate, formattedToDate, incomeId], // Pass amount, date range, and incomeId
+                    (_, updateResult) => {
+                      console.log('Income table updated successfully for expense:', updateResult);
+                      navigation.goBack(); // Go back after the update
+                    },
+                    (_, error) => {
+                      console.error('Error updating Income table for expense:', error.message);
+                    }
+                  );
+                }
+
+              } else {
+                console.log('No valid income records found within the specified date range.');
+              }
+            },
+            (_, error) => {
+              console.error('Error fetching ids from Income table:', error.message);
+            }
+          );
+
         },
         (_, error) => {
           console.error('Error inserting transaction', error.code, error.message);
@@ -334,77 +499,193 @@ const AddEditDeleteTransaction = () => {
     });
   };
 
+
   // code to delte transaction
-  const handleDeleteTransaction = () => {
+  // const handleDeleteTransaction = (formattedFromDate, formattedToDate) => {
+  //   if (id) {
+  //     db.transaction((tx) => {
+  //       // First, retrieve the transaction details
+  //       tx.executeSql(
+  //         `SELECT transactionAmount, transactionType, envelopeId FROM Transactions WHERE id = ?;`,
+  //         [id],
+  //         (_, { rows }) => {
+  //           if (rows.length > 0) {
+  //             const { transactionAmount, transactionType, envelopeId } = rows.item(0);
+
+  //             console.log('=================deletion dates================', formattedFromDate, formattedToDate);
+
+  //             // Based on transactionType, adjust the envelope amount
+  //             if (transactionType === 'Credit') {
+  //               // If it was a credit, subtract the amount from the envelope
+  //               tx.executeSql(
+  //                 `UPDATE envelopes SET filledIncome = filledIncome - ? WHERE envelopeId = ?;`,
+  //                 [transactionAmount, envelopeId],
+  //                 (_, updateResult) => {
+  //                   console.log('Envelope updated successfully for deleted credit:', updateResult);
+  //                 },
+  //                 (_, error) => {
+  //                   console.error('Error updating envelope for deleted credit:', error.message);
+  //                 }
+  //               );
+  //               // Subtract the amount from Income table budgetAmount for "My Account" and "Monthly"
+  //               tx.executeSql(
+  //                 `UPDATE Income SET budgetAmount = budgetAmount - ? WHERE accountName = ? AND budgetPeriod = ? AND incomeDate BETWEEN ? AND ?;`,
+  //                 [transactionAmount, "My Account", "Monthly", formattedFromDate, formattedToDate],
+  //                 (_, updateResult) => {
+  //                   console.log('Income updated successfully for deleted credit:', updateResult);
+  //                 },
+  //                 (_, error) => {
+  //                   console.error('Error updating Income for deleted credit:', error.message);
+  //                 }
+  //               );
+  //             } else if (transactionType === 'Expense') {
+  //               // If it was an expense, add the amount back to the envelope
+  //               tx.executeSql(
+  //                 `UPDATE envelopes SET filledIncome = filledIncome + ? WHERE envelopeId = ?;`,
+  //                 [transactionAmount, envelopeId],
+  //                 (_, updateResult) => {
+  //                   console.log('Envelope updated successfully for deleted expense:', updateResult);
+  //                 },
+  //                 (_, error) => {
+  //                   console.error('Error updating envelope for deleted expense:', error.message);
+  //                 }
+  //               );
+  //               // Add the amount back to Income table budgetAmount for "My Account" and "Monthly"
+  //               tx.executeSql(
+  //                 `UPDATE Income SET budgetAmount = budgetAmount + ? WHERE accountName = ? AND budgetPeriod = ? AND incomeDate BETWEEN ? AND ?;`,
+  //                 [transactionAmount, "My Account", "Monthly", formattedFromDate, formattedToDate],
+  //                 (_, updateResult) => {
+  //                   console.log('Income updated successfully for deleted expense:', updateResult);
+  //                 },
+  //                 (_, error) => {
+  //                   console.error('Error updating Income for deleted expense:', error.message);
+  //                 }
+  //               );
+  //             }
+
+  //             // Now delete the transaction from Transactions table
+  //             tx.executeSql(
+  //               `DELETE FROM Transactions WHERE id = ?;`,
+  //               [id],
+  //               () => {
+  //                 console.log(`Transaction with ID ${id} deleted successfully`);
+  //                 navigation.goBack();
+  //               },
+  //               (error) => {
+  //                 console.error('Error deleting transaction', error);
+  //               }
+  //             );
+  //           } else {
+  //             console.error(`No transaction found with ID ${id}`);
+  //           }
+  //         },
+  //         (error) => {
+  //           console.error('Error fetching transaction details for deletion', error);
+  //         }
+  //       );
+  //     });
+  //   } else {
+  //     console.error('No ID provided for deletion');
+  //   }
+  // };
+
+  const handleDeleteTransaction = (formattedFromDate, formattedToDate) => {
     if (id) {
       db.transaction((tx) => {
         // First, retrieve the transaction details
         tx.executeSql(
-          `SELECT transactionAmount, transactionType, envelopeName FROM Transactions WHERE id = ?;`,
+          `SELECT transactionAmount, transactionType, envelopeId FROM Transactions WHERE id = ?;`,
           [id],
           (_, { rows }) => {
             if (rows.length > 0) {
-              const { transactionAmount, transactionType, envelopeName } = rows.item(0);
+              const { transactionAmount, transactionType, envelopeId } = rows.item(0);
 
-              // Based on transactionType, adjust the envelope amount
-              if (transactionType === 'Credit') {
-                // If it was a credit, subtract the amount from the envelope
-                tx.executeSql(
-                  `UPDATE envelopes SET filledIncome = filledIncome - ? WHERE envelopeName = ?;`,
-                  [transactionAmount, envelopeName],
-                  (_, updateResult) => {
-                    console.log('Envelope updated successfully for deleted credit:', updateResult);
-                  },
-                  (_, error) => {
-                    console.error('Error updating envelope for deleted credit:', error.message);
-                  }
-                );
-                // Subtract the amount from Income table budgetAmount for "My Account" and "Monthly"
-                tx.executeSql(
-                  `UPDATE Income SET budgetAmount = budgetAmount - ? WHERE accountName = ? AND budgetPeriod = ?;`,
-                  [transactionAmount, "My Account", "Monthly"],
-                  (_, updateResult) => {
-                    console.log('Income updated successfully for deleted credit:', updateResult);
-                  },
-                  (_, error) => {
-                    console.error('Error updating Income for deleted credit:', error.message);
-                  }
-                );
-              } else if (transactionType === 'Expense') {
-                // If it was an expense, add the amount back to the envelope
-                tx.executeSql(
-                  `UPDATE envelopes SET filledIncome = filledIncome + ? WHERE envelopeName = ?;`,
-                  [transactionAmount, envelopeName],
-                  (_, updateResult) => {
-                    console.log('Envelope updated successfully for deleted expense:', updateResult);
-                  },
-                  (_, error) => {
-                    console.error('Error updating envelope for deleted expense:', error.message);
-                  }
-                );
-                // Add the amount back to Income table budgetAmount for "My Account" and "Monthly"
-                tx.executeSql(
-                  `UPDATE Income SET budgetAmount = budgetAmount + ? WHERE accountName = ? AND budgetPeriod = ?;`,
-                  [transactionAmount, "My Account", "Monthly"],
-                  (_, updateResult) => {
-                    console.log('Income updated successfully for deleted expense:', updateResult);
-                  },
-                  (_, error) => {
-                    console.error('Error updating Income for deleted expense:', error.message);
-                  }
-                );
-              }
+              console.log('=================deletion dates================', formattedFromDate, formattedToDate);
 
-              // Now delete the transaction from Transactions table
+              // Retrieve incomeId from the Income table based on the date range
               tx.executeSql(
-                `DELETE FROM Transactions WHERE id = ?;`,
-                [id],
-                () => {
-                  console.log(`Transaction with ID ${id} deleted successfully`);
-                  navigation.goBack();
+                `SELECT id FROM Income WHERE incomeDate BETWEEN ? AND ? AND id IS NOT NULL;`,
+                [formattedFromDate, formattedToDate],
+                (_, result) => {
+                  const ids = [];
+                  for (let i = 0; i < result.rows.length; i++) {
+                    const row = result.rows.item(i);
+                    ids.push(row.id);
+                    console.log('Found id:', row.id);
+                  }
+
+                  if (ids.length > 0) {
+                    const randomIndex = Math.floor(Math.random() * ids.length);
+                    const incomeId = ids[randomIndex];
+                    console.log('Selected incomeId:', incomeId);
+
+                    // Based on transactionType, adjust the envelope amount
+                    if (transactionType === 'Credit') {
+                      // If it was a credit, subtract the amount from the envelope
+                      tx.executeSql(
+                        `UPDATE envelopes SET filledIncome = filledIncome - ? WHERE envelopeId = ?;`,
+                        [transactionAmount, envelopeId],
+                        (_, updateResult) => {
+                          console.log('Envelope updated successfully for deleted credit:', updateResult);
+                        },
+                        (_, error) => {
+                          console.error('Error updating envelope for deleted credit:', error.message);
+                        }
+                      );
+                      // Subtract the amount from Income table budgetAmount for "My Account" and "Monthly"
+                      tx.executeSql(
+                        `UPDATE Income SET budgetAmount = budgetAmount - ? WHERE accountName = ? AND budgetPeriod = ? AND incomeDate BETWEEN ? AND ? AND id = ?;`,
+                        [transactionAmount, "My Account", "Monthly", formattedFromDate, formattedToDate, incomeId],
+                        (_, updateResult) => {
+                          console.log('Income updated successfully for deleted credit:', updateResult);
+                        },
+                        (_, error) => {
+                          console.error('Error updating Income for deleted credit:', error.message);
+                        }
+                      );
+                    } else if (transactionType === 'Expense') {
+                      // If it was an expense, add the amount back to the envelope
+                      tx.executeSql(
+                        `UPDATE envelopes SET filledIncome = filledIncome + ? WHERE envelopeId = ?;`,
+                        [transactionAmount, envelopeId],
+                        (_, updateResult) => {
+                          console.log('Envelope updated successfully for deleted expense:', updateResult);
+                        },
+                        (_, error) => {
+                          console.error('Error updating envelope for deleted expense:', error.message);
+                        }
+                      );
+                      // Add the amount back to Income table budgetAmount for "My Account" and "Monthly"
+                      tx.executeSql(
+                        `UPDATE Income SET budgetAmount = budgetAmount + ? WHERE accountName = ? AND budgetPeriod = ? AND incomeDate BETWEEN ? AND ? AND id = ?;`,
+                        [transactionAmount, "My Account", "Monthly", formattedFromDate, formattedToDate, incomeId],
+                        (_, updateResult) => {
+                          console.log('Income updated successfully for deleted expense:', updateResult);
+                        },
+                        (_, error) => {
+                          console.error('Error updating Income for deleted expense:', error.message);
+                        }
+                      );
+                    }
+
+                    // Now delete the transaction from Transactions table
+                    tx.executeSql(
+                      `DELETE FROM Transactions WHERE id = ?;`,
+                      [id],
+                      () => {
+                        console.log(`Transaction with ID ${id} deleted successfully`);
+                        navigation.goBack();
+                      },
+                      (error) => {
+                        console.error('Error deleting transaction', error);
+                      }
+                    );
+                  } else {
+                    console.error('No valid income records found within the specified date range.');
+                  }
                 },
-                (error) => {
-                  console.error('Error deleting transaction', error);
+                (_, error) => {
+                  console.error('Error fetching ids from Income table:', error.message);
                 }
               );
             } else {
@@ -421,67 +702,163 @@ const AddEditDeleteTransaction = () => {
     }
   };
 
+
   // code for updating a transaction
-  const handleUpdateTransaction = () => {
+  // const handleUpdateTransaction = (formattedFromDate, formattedToDate) => {
+  //   db.transaction((tx) => {
+  //     // Step 1: Fetch existing transaction details
+  //     tx.executeSql(
+  //       `SELECT transactionAmount, transactionType, envelopeId FROM Transactions WHERE id = ?;`,
+  //       [transactionId],
+  //       (_, { rows }) => {
+  //         if (rows.length > 0) {
+  //           const existingTransaction = rows.item(0);
+  //           const { transactionAmount: oldAmount, transactionType: oldType, envelopeId: oldEnvelopeId } = existingTransaction;
+
+  //           // Step 2: Revert impact on the old envelope based on old transaction details
+  //           if (oldEnvelopeId) {
+  //             let revertAmount = oldType === 'Credit' ? -oldAmount : oldAmount;
+  //             tx.executeSql(
+  //               `UPDATE envelopes SET filledIncome = filledIncome + ? WHERE envelopeId = ?;`,
+  //               [revertAmount, oldEnvelopeId],
+  //               () => console.log('Reverted impact on old envelope successfully'),
+  //               (error) => console.error('Error reverting impact on old envelope', error)
+  //             );
+  //           }
+
+  //           console.log('=================updation dates================', formattedFromDate, formattedToDate);
+
+  //           // Also, revert impact on the Income table based on the old type
+  //           let revertIncomeAmount = oldType === 'Credit' ? -oldAmount : oldAmount;
+  //           tx.executeSql(
+  //             `UPDATE Income SET budgetAmount = budgetAmount + ? WHERE accountName = "My Account" AND budgetPeriod = "Monthly" AND incomeDate BETWEEN ? AND ?;`,
+  //             [revertIncomeAmount, formattedFromDate, formattedToDate],
+  //             () => console.log('Reverted impact on Income table successfully'),
+  //             (error) => console.error('Error reverting Income table', error)
+  //           );
+
+  //           // Step 3: Apply impact on the new or updated envelope based on new transaction details
+  //           let newAmountImpact = transactionType === 'Credit' ? transactionAmount : -transactionAmount;
+  //           tx.executeSql(
+  //             `UPDATE envelopes SET filledIncome = filledIncome + ? WHERE envelopeId = ?;`,
+  //             [newAmountImpact, selectedEnvelopeId],
+  //             () => console.log('Updated impact on new envelope successfully'),
+  //             (error) => console.error('Error updating new envelope', error)
+  //           );
+
+  //           // Also, update the Income table based on the new transaction type
+  //           let newIncomeAmount = transactionType === 'Credit' ? transactionAmount : -transactionAmount;
+  //           tx.executeSql(
+  //             `UPDATE Income SET budgetAmount = budgetAmount + ? WHERE accountName = "My Account" AND budgetPeriod = "Monthly" AND incomeDate BETWEEN ? AND ?;`,
+  //             [newIncomeAmount, formattedFromDate, formattedToDate],
+  //             () => console.log('Updated impact on Income table successfully'),
+  //             (error) => console.error('Error updating Income table', error)
+  //           );
+
+  //           // Step 4: Update the transaction in the Transactions table
+  //           tx.executeSql(
+  //             `UPDATE Transactions SET payee = ?, transactionAmount = ?, transactionType = ?, envelopeId = ?, envelopeRemainingIncome = ?, accountName = ?, transactionDate = ?, transactionNote = ? WHERE id = ?;`,
+  //             [
+  //               payee,
+  //               transactionAmount,
+  //               transactionType,
+  //               selectedEnvelopeId,
+  //               envelopeRemainingIncome,
+  //               selectedAccount,
+  //               formattedTransactionDate,
+  //               note,
+  //               transactionId,
+  //             ],
+  //             () => {
+  //               console.log('Transaction updated successfully');
+  //             },
+  //             (error) => console.error('Error updating transaction', error)
+  //           );
+
+  //           navigation.goBack();
+  //         } else {
+  //           console.error('Transaction not found for updating');
+  //         }
+  //       },
+  //       (error) => console.error('Error fetching existing transaction details', error)
+  //     );
+  //   });
+  // };
+
+  const handleUpdateTransaction = (formattedFromDate, formattedToDate) => {
     db.transaction((tx) => {
       // Step 1: Fetch existing transaction details
       tx.executeSql(
-        `SELECT transactionAmount, transactionType, envelopeName FROM Transactions WHERE id = ?;`,
+        `SELECT transactionAmount, transactionType, envelopeId FROM Transactions WHERE id = ?;`,
         [transactionId],
         (_, { rows }) => {
           if (rows.length > 0) {
             const existingTransaction = rows.item(0);
-            const { transactionAmount: oldAmount, transactionType: oldType, envelopeName: oldEnvelope } = existingTransaction;
+            const { transactionAmount: oldAmount, transactionType: oldType, envelopeId: oldEnvelopeId } = existingTransaction;
 
             // Step 2: Revert impact on the old envelope based on old transaction details
-            if (oldEnvelope) {
+            if (oldEnvelopeId) {
               let revertAmount = oldType === 'Credit' ? -oldAmount : oldAmount;
               tx.executeSql(
-                `UPDATE envelopes SET filledIncome = filledIncome + ? WHERE envelopeName = ?;`,
-                [revertAmount, oldEnvelope],
+                `UPDATE envelopes SET filledIncome = filledIncome + ? WHERE envelopeId = ?;`,
+                [revertAmount, oldEnvelopeId],
                 () => console.log('Reverted impact on old envelope successfully'),
                 (error) => console.error('Error reverting impact on old envelope', error)
               );
             }
 
-            // Also, revert impact on the Income table based on the old type
-            let revertIncomeAmount = oldType === 'Credit' ? -oldAmount : oldAmount;
+            // Step 3: Fetch the incomeId associated with the period (formattedFromDate, formattedToDate)
             tx.executeSql(
-              `UPDATE Income SET budgetAmount = budgetAmount + ? WHERE accountName = "My Account" AND budgetPeriod = "Monthly";`,
-              [revertIncomeAmount],
-              () => console.log('Reverted impact on Income table successfully'),
-              (error) => console.error('Error reverting Income table', error)
+              `SELECT id FROM Income WHERE accountName = "My Account" AND budgetPeriod = "Monthly" AND incomeDate BETWEEN ? AND ?;`,
+              [formattedFromDate, formattedToDate],
+              (_, { rows }) => {
+                if (rows.length > 0) {
+                  const incomeId = rows.item(0).id; // Set the incomeId to the first matched result
+
+                  // Step 4: Revert impact on the Income table based on the old type
+                  let revertIncomeAmount = oldType === 'Credit' ? -oldAmount : oldAmount;
+                  tx.executeSql(
+                    `UPDATE Income SET budgetAmount = budgetAmount + ? WHERE id = ?;`,
+                    [revertIncomeAmount, incomeId],
+                    () => console.log('Reverted impact on Income table successfully'),
+                    (error) => console.error('Error reverting Income table', error)
+                  );
+
+                  // Step 5: Apply impact on the new or updated envelope based on new transaction details
+                  let newAmountImpact = transactionType === 'Credit' ? transactionAmount : -transactionAmount;
+                  tx.executeSql(
+                    `UPDATE envelopes SET filledIncome = filledIncome + ? WHERE envelopeId = ?;`,
+                    [newAmountImpact, selectedEnvelopeId],
+                    () => console.log('Updated impact on new envelope successfully'),
+                    (error) => console.error('Error updating new envelope', error)
+                  );
+
+                  // Step 6: Update the Income table based on the new transaction type
+                  let newIncomeAmount = transactionType === 'Credit' ? transactionAmount : -transactionAmount;
+                  tx.executeSql(
+                    `UPDATE Income SET budgetAmount = budgetAmount + ? WHERE id = ?;`,
+                    [newIncomeAmount, incomeId],
+                    () => console.log('Updated impact on Income table successfully'),
+                    (error) => console.error('Error updating Income table', error)
+                  );
+                } else {
+                  console.error('No matching income record found for the given period');
+                }
+              },
+              (error) => console.error('Error fetching incomeId for the specified period', error)
             );
 
-            // Step 3: Apply impact on the new or updated envelope based on new transaction details
-            let newAmountImpact = transactionType === 'Credit' ? transactionAmount : -transactionAmount;
+            // Step 7: Update the transaction in the Transactions table
             tx.executeSql(
-              `UPDATE envelopes SET filledIncome = filledIncome + ? WHERE envelopeName = ?;`,
-              [newAmountImpact, selectedEnvelope],
-              () => console.log('Updated impact on new envelope successfully'),
-              (error) => console.error('Error updating new envelope', error)
-            );
-
-            // Also, update the Income table based on the new transaction type
-            let newIncomeAmount = transactionType === 'Credit' ? transactionAmount : -transactionAmount;
-            tx.executeSql(
-              `UPDATE Income SET budgetAmount = budgetAmount + ? WHERE accountName = "My Account" AND budgetPeriod = "Monthly";`,
-              [newIncomeAmount],
-              () => console.log('Updated impact on Income table successfully'),
-              (error) => console.error('Error updating Income table', error)
-            );
-
-            // Step 4: Update the transaction in the Transactions table
-            tx.executeSql(
-              `UPDATE Transactions SET payee = ?, transactionAmount = ?, transactionType = ?, envelopeName = ?, envelopeRemainingIncome = ?, accountName = ?, transactionDate = ?, transactionNote = ? WHERE id = ?;`,
+              `UPDATE Transactions SET payee = ?, transactionAmount = ?, transactionType = ?, envelopeId = ?, envelopeRemainingIncome = ?, accountName = ?, transactionDate = ?, transactionNote = ? WHERE id = ?;`,
               [
                 payee,
                 transactionAmount,
                 transactionType,
-                selectedEnvelope,
+                selectedEnvelopeId,
                 envelopeRemainingIncome,
                 selectedAccount,
-                formattedFromDate,
+                formattedTransactionDate,
                 note,
                 transactionId,
               ],
@@ -500,6 +877,7 @@ const AddEditDeleteTransaction = () => {
       );
     });
   };
+
 
 
   // code for adding a payee names in Payees table
@@ -588,12 +966,24 @@ const AddEditDeleteTransaction = () => {
             titleStyle={styles.appbar_title}
           />
           <Appbar.Action
-            onPress={edit_transaction ? handleUpdateTransaction : handleAddTransaction}
+            // onPress={edit_transaction ? handleUpdateTransaction : handleAddTransaction}
+            onPress={() => {
+              if (edit_transaction) {
+                handleUpdateTransaction(formattedFromDate, formattedToDate);
+              } else {
+                handleAddTransaction();
+              }
+            }}
             icon="check"
             color={colors.white}
           />
           {edit_transaction && (
-            <Appbar.Action onPress={handleDeleteTransaction} icon="delete" color={colors.white} />
+            <Appbar.Action 
+            // onPress={handleDeleteTransaction} 
+            onPress={() => handleDeleteTransaction(formattedFromDate, formattedToDate)}
+            icon="delete" 
+            color={colors.white} 
+            />
           )}
           <Appbar.Action onPress={handleRightIconPress} icon="dots-vertical" color={colors.white} />
         </Appbar.Header>
@@ -749,6 +1139,7 @@ const AddEditDeleteTransaction = () => {
                   <Menu.Item
                     onPress={() => {
                       setSelectedEnvelope(item.envelopeName);
+                      setSelectedEnvelopeId(item.envelopeId);
                       setEnvelopeMenuVisible(false);
                       setEnvelopeRemainingIncome(item.filledIncome);
                     }}

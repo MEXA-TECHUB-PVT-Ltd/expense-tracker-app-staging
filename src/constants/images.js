@@ -4,6 +4,7 @@ const Images = {
     expenseplannerimage: require('../assets/expenseplannerimage.png'),
     expenseplannerimagegray: require('../assets/expenseplannerimagegray.png'),
     sorryet: require('../assets/sorryet.png'),
+    goalbackgroundimage: require('../assets/goalbackgroundimage.jpg'),
 
 };
 

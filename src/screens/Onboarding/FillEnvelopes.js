@@ -14,6 +14,7 @@ import Calculator from './Calculator';
 import CustomProgressBar from '../../components/CustomProgressBar';
 import { useSelector } from 'react-redux';
 import { formatDateSql } from '../../utils/DateFormatter';
+import moment from 'moment';
 
 const { width: screenWidth } = dimensions;
 
@@ -24,12 +25,13 @@ const FillEnvelopes = () => {
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
   const slideAnim = useRef(new Animated.Value(screenWidth)).current;
 
+  
+  // code to get current user id
   const isAuthenticated = useSelector((state) => state.user.isAuthenticated);
-
   const user_id = useSelector(state => state.user.user_id);
   const temp_user_id = useSelector(state => state.user.temp_user_id);
   const [tempUserId, setTempUserId] = useState(temp_user_id);
-  console.log('value of tempUserId in state', tempUserId);
+  // console.log('value of tempUserId in state', tempUserId);
   useEffect(() => {
     if (isAuthenticated) {
       setTempUserId(user_id);
@@ -89,9 +91,31 @@ const FillEnvelopes = () => {
     }, [isAuthenticated, navigation])
   );
 
+  // to get current month dates and then formate them into our sql date formate
+  const [formattedFromDate, setFormattedFromDate] = useState('');
+  const [formattedToDate, setFormattedToDate] = useState('');
+
+  // console.log('Formatted From Date in Fill Envelopes:', formattedFromDate);
+  // console.log('Formatted To Date in Fill Envelopes:', formattedToDate);
+
+  useFocusEffect(
+    useCallback(() => {
+      const fromDate = moment().startOf('month').format('YYYY-MM-DD');
+      const toDate = moment().endOf('month').format('YYYY-MM-DD');
+
+      // default dates set to todays date
+      setFormattedFromDate(formatDateSql(fromDate));
+      setFormattedToDate(formatDateSql(toDate));
+
+      // hardcoded dates to set and retrieve data for testing purposes
+      // setFormattedFromDate('2025-01-01');
+      // setFormattedToDate('2025-01-30');
+    }, [])
+  );
+
   const [totalBudgetAmount, setTotalBudgetAmount] = useState(0);
   useFocusEffect(() => {
-    fetchTotalIncome(setTotalBudgetAmount, tempUserId);
+    fetchTotalIncome(setTotalBudgetAmount, tempUserId, formattedFromDate, formattedToDate);
   });
 
   const [calculatorVisible, setCalculatorVisible] = useState(false);
@@ -161,8 +185,8 @@ const FillEnvelopes = () => {
 
   // code for date 
   const [date, setDate] = useState(new Date());
-  const formattedToDate = formatDateSql(date);
-  console.log('todays date in fill envelopes: ', formattedToDate);
+  const formattedFillDate = formatDateSql(date);
+  console.log('todays date in fill envelopes: ', formattedFillDate);
   const [show, setShow] = useState(false);
 
   const onChange = (event, selectedDate) => {
@@ -183,8 +207,8 @@ const FillEnvelopes = () => {
   // console.log('envelopes', envelopes);
 
   const fetchEnvelopes = useCallback(() => {
-    getAllEnvelopes(setEnvelopes, tempUserId);
-  }, [tempUserId]);
+    getAllEnvelopes(setEnvelopes, tempUserId, formattedFromDate, formattedToDate);
+  }, [tempUserId, formattedFromDate, formattedToDate]);
 
   // Use useEffect to call the function on component mount
   useEffect(() => {
@@ -193,12 +217,12 @@ const FillEnvelopes = () => {
 
 
   // function to get all envelopes their rows
-  const getAllEnvelopes = (callback, tempUserId) => {
+  const getAllEnvelopes = (callback, tempUserId, formattedFromDate, formattedToDate) => {
     db.transaction(tx => {
-      const sqlQuery = 'SELECT * FROM envelopes WHERE user_id = ? ORDER BY orderIndex ';
+      const sqlQuery = 'SELECT * FROM envelopes WHERE user_id = ? AND fillDate BETWEEN ? AND ? ORDER BY orderIndex ';
       tx.executeSql(
         sqlQuery,
-        [tempUserId],
+        [tempUserId, formattedFromDate, formattedToDate],
         (_, results) => {
           if (results.rows && results.rows.length > 0) {
             let envelopesArray = [];
@@ -224,11 +248,17 @@ const FillEnvelopes = () => {
 
   // for showing total sum of all envelopes incomes single sumup of all
   const [totalIncome, setTotalIncome] = useState(0);
-  useEffect(
+  useFocusEffect(
     useCallback(() => {
-      fetchTotalEnvelopesAmount(setTotalIncome, tempUserId);
-    }, [tempUserId])
+      fetchTotalEnvelopesAmount(setTotalIncome, tempUserId, formattedFromDate, formattedToDate);
+    }, [tempUserId, formattedFromDate, formattedToDate, setTotalIncome])
   );
+
+  // useEffect(
+  //   useCallback(() => {
+  //     fetchTotalEnvelopesAmount(setTotalIncome, tempUserId, formattedFromDate, formattedToDate);
+  //   }, [tempUserId])
+  // );
 
   // Automatically fill all envelopes when selectedOption changes to 'fillAll'
   const [filledIncomes, setFilledIncomes] = useState([]);
@@ -247,10 +277,12 @@ const FillEnvelopes = () => {
       budgetPeriod: envelope.budgetPeriod,
       envelopeName: envelope.envelopeName,
       filledIncome: envelope.amount,
-      fillDate: formattedToDate,
+      fillDate: formattedFillDate,
       user_id: tempUserId,
     }));
     fillAllEnvelopes(incomeRecords, fetchAndLogFilledIncomes);
+    // Fetch total envelopes amount after insertion to update the UI
+    fetchTotalEnvelopesAmount(setTotalIncome, tempUserId, formattedFromDate, formattedToDate);
   };
 
   const fillAllEnvelopes = (incomeRecords, callback) => {
@@ -381,7 +413,7 @@ const FillEnvelopes = () => {
     }
 
     // if (filledIncome !== undefined) {
-    //   handleFillIndividual(envelopeId, envelopeName, amount, budgetPeriod, filledIncome, formattedToDate, tempUserId);
+    //   handleFillIndividual(envelopeId, envelopeName, amount, budgetPeriod, filledIncome, formattedFillDate, tempUserId);
     //   fetchAndLogIndividualIncomes(tempUserId);
     // }
 
@@ -392,20 +424,22 @@ const FillEnvelopes = () => {
         filledIncome,
       };
       setUpdatedEnvelopes(prev => [...prev, updatedEnvelope]); // Track updated envelope
-      handleFillIndividual(envelopeId, envelopeName, amount, budgetPeriod, filledIncome, formattedToDate, tempUserId);
+      handleFillIndividual(envelopeId, envelopeName, amount, budgetPeriod, filledIncome, formattedFillDate, tempUserId);
       fetchAndLogIndividualIncomes(tempUserId);
     }
     
     closeModal();
   };
 
-  const handleFillIndividual = (envelopeId, envelopeName, amount, budgetPeriod, filledIncome, formattedToDate, tempUserId) => {
-    console.log('input values for individual fill of envelope:', envelopeId, envelopeName, amount, budgetPeriod, filledIncome, formattedToDate, tempUserId);
-    fillIndividualEnvelope(envelopeId, envelopeName, amount, budgetPeriod, filledIncome, formattedToDate, tempUserId);
+  const handleFillIndividual = (envelopeId, envelopeName, amount, budgetPeriod, filledIncome, formattedFillDate, tempUserId) => {
+    console.log('input values for individual fill of envelope:', envelopeId, envelopeName, amount, budgetPeriod, filledIncome, formattedFillDate, tempUserId);
+    fillIndividualEnvelope(envelopeId, envelopeName, amount, budgetPeriod, filledIncome, formattedFillDate, tempUserId);
+    // Fetch total envelopes amount after insertion to update the UI
+    fetchTotalEnvelopesAmount(setTotalIncome, tempUserId, formattedFromDate, formattedToDate);
   };
 
 
-  const fillIndividualEnvelope = (envelopeId, envelopeName, amount, budgetPeriod, filledIncome, formattedToDate, tempUserId, callback) => {
+  const fillIndividualEnvelope = (envelopeId, envelopeName, amount, budgetPeriod, filledIncome, formattedFillDate, tempUserId, callback) => {
     console.log('value of tempUserId inside fillIndividualEnvelope: ', tempUserId);
     db.transaction(
       (tx) => {
@@ -421,7 +455,7 @@ const FillEnvelopes = () => {
                 `UPDATE envelopes 
                 SET envelopeName = ?, amount = ?, budgetPeriod = ?, filledIncome = ?, fillDate = ?, user_id = ? 
                 WHERE envelopeId = ?;`,
-                [envelopeName, amount, budgetPeriod, filledIncome, formattedToDate, tempUserId, envelopeId],
+                [envelopeName, amount, budgetPeriod, filledIncome, formattedFillDate, tempUserId, envelopeId],
                 (tx, results) => {
                   console.log(`Record updated for envelopeId and record: ${envelopeId}`);
                 },
@@ -435,7 +469,7 @@ const FillEnvelopes = () => {
               tx.executeSql(
                 `INSERT INTO envelopes (envelopeId, envelopeName, amount, budgetPeriod, filledIncome, fillDate, user_id) 
                VALUES (?, ?, ?, ?, ?, ?, ?);`,
-                [envelopeId, envelopeName, amount, budgetPeriod, filledIncome, formattedToDate, tempUserId],
+                [envelopeId, envelopeName, amount, budgetPeriod, filledIncome, formattedFillDate, tempUserId],
                 (tx, results) => {
                   console.log(`New record inserted for envelopeId: ${envelopeId}`);
                 },
@@ -585,7 +619,7 @@ const FillEnvelopes = () => {
               <View style={styles.how_to_fill_view}>
                 <Text style={styles.title}>Amount</Text>
                 <View style={styles.selectionView}>
-                  <Text style={styles.selectionText}>{totalIncome}</Text>
+                  <Text style={styles.selectionText}>{totalIncome}.00</Text>
                 </View>
               </View>
 
@@ -593,7 +627,7 @@ const FillEnvelopes = () => {
                 <Text style={styles.title}>Account</Text>
                 <TouchableOpacity style={styles.selectionView} onPress={showAccountModal}>
                   <Text style={styles.selectionText}>
-                    {selectedAccount ? `${selectedAccount} [ ${totalBudgetAmount} ]` : 'Select Account'}
+                    {selectedAccount ? `${selectedAccount} [${totalBudgetAmount}]` : 'Select Account'}
                   </Text>
                   <VectorIcon name="arrow-drop-down" size={20} color={colors.gray} type="mi" />
                 </TouchableOpacity>

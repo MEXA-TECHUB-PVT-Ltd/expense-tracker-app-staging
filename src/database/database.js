@@ -6,6 +6,13 @@ const db = SQLite.openDatabase(
     error => console.error('Error opening database:', error)
 );
 
+// To get the path where the database is located
+db.transaction(tx => {
+    tx.executeSql('PRAGMA database_list;', [], (tx, results) => {
+        console.log('Database Path:', results.rows.item(0).file);
+    });
+});
+
 const initializeDatabase = () => {
     db.transaction(tx => {
 
@@ -69,8 +76,10 @@ const initializeDatabase = () => {
             `CREATE TABLE IF NOT EXISTS Income (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             accountName TEXT,
+            monthlyAmount REAL NOT NULL,
             budgetAmount REAL NOT NULL,
             budgetPeriod TEXT,
+            incomeDate TEXT, 
             user_id INTEGER,
             FOREIGN KEY (user_id) REFERENCES Users(id) ON DELETE CASCADE
         );`,
@@ -89,10 +98,12 @@ const initializeDatabase = () => {
             envelopeName TEXT,
             envelopeRemainingIncome REAL,
             accountName TEXT,
+            envelopeId INTEGER,
             transactionDate TEXT,
             transactionNote TEXT,
             user_id INTEGER,
-            FOREIGN KEY (user_id) REFERENCES Users(id) ON DELETE CASCADE 
+            FOREIGN KEY (user_id) REFERENCES Users(id) ON DELETE CASCADE
+            FOREIGN KEY (envelopeId) REFERENCES envelopes(envelopeId) ON DELETE CASCADE
             );`,
             [],
             () => {
@@ -116,12 +127,20 @@ const initializeDatabase = () => {
                 [],
                 () => {
                     console.log("Payees table created successfully");
-                    // Insert default payees
+
+                    let payeesAdded = 0; // Counter to track added payees
+
                     DEFAULT_PAYEES.forEach(payee => {
                         tx.executeSql(
                             `INSERT OR IGNORE INTO Payees (name, isDefault) VALUES (?, 1);`,
                             [payee],
-                            () => console.log(`Default payee "${payee}" added`),
+                            () => {
+                                payeesAdded++;
+                                // Once all payees are added, log a single success message
+                                if (payeesAdded === DEFAULT_PAYEES.length) {
+                                    console.log("Default payees added successfully");
+                                }
+                            },
                             (tx, error) => console.error(`Error adding default payee "${payee}"`, error)
                         );
                     });
@@ -129,6 +148,32 @@ const initializeDatabase = () => {
                 (tx, error) => console.error("Error creating Payees table:", error)
             );
         });
+
+        
+        // db.transaction(tx => {
+        //     // Create the table if it doesn't exist
+        //     tx.executeSql(
+        //         `CREATE TABLE IF NOT EXISTS Payees (
+        //     id INTEGER PRIMARY KEY AUTOINCREMENT,
+        //     name TEXT NOT NULL UNIQUE,
+        //     isDefault INTEGER DEFAULT 0
+        // );`,
+        //         [],
+        //         () => {
+        //             console.log("Payees table created successfully");
+        //             // Insert default payees
+        //             DEFAULT_PAYEES.forEach(payee => {
+        //                 tx.executeSql(
+        //                     `INSERT OR IGNORE INTO Payees (name, isDefault) VALUES (?, 1);`,
+        //                     [payee],
+        //                     () => console.log(`Default payee "${payee}" added`),
+        //                     (tx, error) => console.error(`Error adding default payee "${payee}"`, error)
+        //                 );
+        //             });
+        //         },
+        //         (tx, error) => console.error("Error creating Payees table:", error)
+        //     );
+        // });
 
         
 
@@ -253,11 +298,11 @@ const getAllEnvelopes = () => {
 };
 
 // Function to edit an envelope
-const editEnvelope = (envelopeId, envelopeName, amount, budgetPeriod, tempUserId) => {
+const editEnvelope = (envelopeId, envelopeName, amount, budgetPeriod, tempUserId, formattedFromDate) => {
     db.transaction(tx => {
         tx.executeSql(
-            'UPDATE envelopes SET envelopeName = ?, amount = ?, budgetPeriod = ?, user_id = ? WHERE envelopeId = ?',
-            [envelopeName, amount, budgetPeriod, tempUserId, envelopeId],
+            'UPDATE envelopes SET envelopeName = ?, amount = ?, budgetPeriod = ?, user_id = ?, fillDate = ? WHERE envelopeId = ?',
+            [envelopeName, amount, budgetPeriod, tempUserId, formattedFromDate, envelopeId],
             (_, result) => {
                 console.log('Envelope updated successfully');
                 console.log('Rows affected:', result.rowsAffected);
@@ -312,11 +357,29 @@ const addAmount = (amount, budgetPeriod) => {
 };
 
 // Function to fetch total income
-const fetchTotalIncome = (callback, tempUserId) => {
+const fetchTotalIncome = (callback, tempUserId, formattedFromDate, formattedToDate) => {
     db.transaction(tx => {
         tx.executeSql(
-            'SELECT SUM(budgetAmount) as totalIncome FROM Income  WHERE user_id = ?',
-            [tempUserId],
+            'SELECT SUM(budgetAmount) as totalIncome FROM Income WHERE user_id = ? AND incomeDate BETWEEN ? AND ?',
+            [tempUserId, formattedFromDate, formattedToDate],
+            (_, results) => {
+                const totalIncome = results.rows.item(0).totalIncome || 0;
+                callback(totalIncome);
+            },
+            (_, error) => {
+                console.error('Error fetching total income:', error);
+                callback(0); // Fallback to 0 in case of error
+            }
+        );
+    });
+};
+
+// for calculating monthly income for setup budget because there monthlyAmount remains same we dont change it while making transactions
+const fetchTotalIncomeSetupBudget = (callback, tempUserId, formattedFromDate, formattedToDate) => {
+    db.transaction(tx => {
+        tx.executeSql(
+            'SELECT SUM(monthlyAmount) as totalIncome FROM Income WHERE user_id = ? AND incomeDate BETWEEN ? AND ?',
+            [tempUserId, formattedFromDate, formattedToDate],
             (_, results) => {
                 const totalIncome = results.rows.item(0).totalIncome || 0;
                 callback(totalIncome);
@@ -370,11 +433,11 @@ const fetchAllIncomes = (callback) => {
 
 //for filled envelopes screen fill all or individual
 // for total sum of all envelopes amount as single sumup amount
-const fetchTotalEnvelopesAmount = (callback, tempUserId) => {
+const fetchTotalEnvelopesAmount = (callback, tempUserId, formattedFromDate, formattedToDate) => {
     db.transaction(tx => {
         tx.executeSql(
-            'SELECT SUM(filledIncome) AS totalAmount FROM envelopes WHERE user_id = ?;',
-            [tempUserId],
+            'SELECT SUM(filledIncome) AS totalAmount FROM envelopes WHERE user_id = ? AND fillDate BETWEEN ? AND ?;',
+            [tempUserId, formattedFromDate, formattedToDate],
             (_, results) => {
                 const totalAmount = results.rows.item(0).totalAmount || 0;
                 callback(totalAmount);
@@ -387,4 +450,70 @@ const fetchTotalEnvelopesAmount = (callback, tempUserId) => {
     });
 };
 
-export { db, initializeDatabase, fetchUsers, addEnvelope, getAllEnvelopes, editEnvelope, deleteEnvelope, addAmount, fetchTotalIncome, deleteIncome, fetchAllIncomes, fetchTotalEnvelopesAmount };
+// for every month
+const fetchTotalEnvelopesAmountMonthly = (callback, tempUserId, formattedFromDate, formattedToDate) => {
+    db.transaction(tx => {
+        tx.executeSql(
+            `SELECT SUM(filledIncome) AS totalAmount 
+             FROM envelopes 
+             WHERE user_id = ? 
+               AND fillDate BETWEEN ? AND ? 
+               AND budgetPeriod = ?;`,
+            [tempUserId, formattedFromDate, formattedToDate, "Monthly"],
+            (_, results) => {
+                const totalAmount = results.rows.item(0).totalAmount || 0;
+                callback(totalAmount);
+            },
+            (_, error) => {
+                console.error('Error fetching total envelopes amount:', error);
+                callback(0); // Fallback to 0 in case of error
+            }
+        );
+    });
+};
+
+// for every year
+const fetchTotalEnvelopesAmountYearly = (callback, tempUserId, formattedFromDate, formattedToDate) => {
+    db.transaction(tx => {
+        tx.executeSql(
+            `SELECT SUM(filledIncome) AS totalAmount 
+             FROM envelopes 
+             WHERE user_id = ? 
+               AND fillDate BETWEEN ? AND ? 
+               AND budgetPeriod = ?;`,
+            [tempUserId, formattedFromDate, formattedToDate, "Every Year"],
+            (_, results) => {
+                const totalAmount = results.rows.item(0).totalAmount || 0;
+                callback(totalAmount);
+            },
+            (_, error) => {
+                console.error('Error fetching total envelopes amount:', error);
+                callback(0); // Fallback to 0 in case of error
+            }
+        );
+    });
+};
+
+// for goal 
+const fetchTotalEnvelopesAmountGoal = (callback, tempUserId, formattedFromDate, formattedToDate) => {
+    db.transaction(tx => {
+        tx.executeSql(
+            `SELECT SUM(filledIncome) AS totalAmount 
+             FROM envelopes 
+             WHERE user_id = ? 
+               AND fillDate BETWEEN ? AND ? 
+               AND budgetPeriod = ?;`,
+            [tempUserId, formattedFromDate, formattedToDate, "Goal"],
+            (_, results) => {
+                const totalAmount = results.rows.item(0).totalAmount || 0;
+                callback(totalAmount);
+            },
+            (_, error) => {
+                console.error('Error fetching total envelopes amount:', error);
+                callback(0); // Fallback to 0 in case of error
+            }
+        );
+    });
+};
+
+export { db, initializeDatabase, fetchUsers, addEnvelope, getAllEnvelopes, editEnvelope, deleteEnvelope, addAmount, fetchTotalIncome, fetchTotalIncomeSetupBudget, deleteIncome, fetchAllIncomes, fetchTotalEnvelopesAmount, fetchTotalEnvelopesAmountMonthly, fetchTotalEnvelopesAmountYearly, fetchTotalEnvelopesAmountGoal };

@@ -5,6 +5,8 @@ import colors from '../../constants/colors'
 import { fetchTotalEnvelopesAmount} from '../../database/database';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
+import moment from 'moment';
+import { formatDateSql } from '../../utils/DateFormatter';
 
 
 const Accounts = () => {
@@ -15,7 +17,7 @@ const Accounts = () => {
   const user_id = useSelector(state => state.user.user_id);
   const temp_user_id = useSelector(state => state.user.temp_user_id);
   const [tempUserId, setTempUserId] = useState(user_id);
-  console.log('value of tempUserId in state inside Accounts is : ', tempUserId);
+  // console.log('value of tempUserId in state inside Accounts is : ', tempUserId);
   useFocusEffect(
     useCallback(() => {
       if (isAuthenticated) {
@@ -26,10 +28,32 @@ const Accounts = () => {
     }, [isAuthenticated, user_id, temp_user_id])
   );
 
+  // to get current month dates and then formate them into our sql date formate
+  const [formattedFromDate, setFormattedFromDate] = useState('');
+  const [formattedToDate, setFormattedToDate] = useState('');
+
+  // console.log('Formatted From Date in Envelopes:', formattedFromDate);
+  // console.log('Formatted To Date in Envelopes:', formattedToDate);
+
   useFocusEffect(
     useCallback(() => {
-      fetchTotalEnvelopesAmount(setTotalIncome, tempUserId);
+      const fromDate = moment().startOf('month').format('YYYY-MM-DD');
+      const toDate = moment().endOf('month').format('YYYY-MM-DD');
+
+      // default dates set to todays date
+      setFormattedFromDate(formatDateSql(fromDate));
+      setFormattedToDate(formatDateSql(toDate));
+
+      // hardcoded dates to set and retrieve data for testing purposes
+      // setFormattedFromDate('2025-01-01');
+      // setFormattedToDate('2025-01-30');
     }, [])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchTotalEnvelopesAmount(setTotalIncome, tempUserId, formattedFromDate, formattedToDate);
+    }, [tempUserId, formattedFromDate, formattedToDate])
   );
 
   return (
@@ -55,6 +79,7 @@ export default Accounts
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.white,
   },
   all_accounts_txt_amt: {
     marginHorizontal: hp('1.5%'),

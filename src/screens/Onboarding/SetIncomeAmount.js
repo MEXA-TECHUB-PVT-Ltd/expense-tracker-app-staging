@@ -1,8 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { StyleSheet, Text, View, Pressable, Animated, TouchableOpacity, FlatList, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import colors from '../../constants/colors';
 import { TextInput, Appbar, Button, Menu } from 'react-native-paper';
+import { useFocusEffect } from '@react-navigation/native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import dimensions from '../../constants/dimensions';
 import { VectorIcon } from '../../constants/vectoricons';
@@ -10,6 +11,8 @@ const { width: screenWidth } = dimensions;
 import Calculator from './Calculator';
 import { useSelector } from 'react-redux';
 import { db } from '../../database/database';
+import { formatDateSql } from '../../utils/DateFormatter';
+import moment from 'moment';
 
 const IncomeInput = ({ item, index, selectedIncomeIndex, setSelectedIncomeIndex, onDelete, onShowCalculator }) => {
     const [amount, setAmount] = useState(item.amount ? item.amount.toString() : '');
@@ -17,7 +20,8 @@ const IncomeInput = ({ item, index, selectedIncomeIndex, setSelectedIncomeIndex,
     const [menuVisible, setMenuVisible] = useState(false);
 
     useEffect(() => {
-        setAmount(item.budgetAmount ? item.budgetAmount.toString() : '');
+        // setAmount(item.budgetAmount ? item.budgetAmount.toString() : ''); older where we were setting budgetAmount
+        setAmount(item.monthlyAmount ? item.monthlyAmount.toString() : ''); // new because now monthlyAmount remain same...
         setBudgetPeriod(item.budgetPeriod || 'Monthly');
     }, [item]);
 
@@ -66,7 +70,30 @@ const SetIncomeAmount = () => {
     const route = useRoute();
     const envelope_prop = route.params?.envelope_prop;
 
+    // code for setting date for each income we add...in income table column incomeDate
+    const [dueDate, setDueDate] = useState(new Date());
+    const [formattedIncomeDate, setFormattedIncomeDate] = useState('');
+    console.log('value of formattedIncomeDate in setIncomeAmount :', formattedIncomeDate);
 
+    useEffect(() => {
+        // default date for setIncomeAmount
+        setFormattedIncomeDate(formatDateSql(dueDate));
+
+        // hardcoded date for setIncomeAmount for testing purposes
+        // setFormattedIncomeDate('2025-01-01');
+        
+    }, [dueDate]);
+
+    useFocusEffect(
+        React.useCallback(() => {
+            const currentDate = new Date();
+            const isoDate = currentDate.toISOString();
+            setDueDate(isoDate); // Triggers re-computation of formattedIncomeDate
+        }, [])
+    );
+
+    // code for getting user id
+    const isAuthenticated = useSelector((state) => state.user.isAuthenticated);
     const user_id = useSelector(state => state.user.user_id);
     const temp_user_id = useSelector(state => state.user.temp_user_id);
     const [tempUserId, setTempUserId] = useState(user_id || temp_user_id);
@@ -80,7 +107,33 @@ const SetIncomeAmount = () => {
         }
     }, [user_id, temp_user_id]);
 
-    console.log('value of tempUserId in SetupBudget', tempUserId);
+    console.log('value of tempUserId in SetIncomeAmount is : ', tempUserId);
+
+    // to get current month dates and then formate them into our sql date formate
+    const [formattedFromDate, setFormattedFromDate] = useState(() =>
+        formatDateSql(moment().startOf('month').format('YYYY-MM-DD'))
+    );
+    const [formattedToDate, setFormattedToDate] = useState(() =>
+        formatDateSql(moment().endOf('month').format('YYYY-MM-DD'))
+    );
+
+    console.log('Formatted From Date in SetIncomeAmount:', formattedFromDate);
+    console.log('Formatted To Date in SetIncomeAmount:', formattedToDate);
+
+    useFocusEffect(
+        useCallback(() => {
+            const fromDate = moment().startOf('month').format('YYYY-MM-DD');
+            const toDate = moment().endOf('month').format('YYYY-MM-DD');
+
+            // default dates set to todays date
+            setFormattedFromDate(formatDateSql(fromDate));
+            setFormattedToDate(formatDateSql(toDate));
+
+            // hardcoded dates to set and retrieve data for testing purposes
+            // setFormattedFromDate('2025-01-01');
+            // setFormattedToDate('2025-01-30');
+        }, [])
+    );
 
     const [isTooltipVisible, setIsTooltipVisible] = useState(false);
     const slideAnim = useRef(new Animated.Value(screenWidth)).current;
@@ -116,15 +169,15 @@ const SetIncomeAmount = () => {
         navigation.navigate('Help', {from_setincomeamount: true});
     };
 
-    const [incomes, setIncomes] = useState([{ id: null, accountName: 'My Account', budgetAmount: '', budgetPeriod: 'Monthly', user_id: tempUserId }]);
+    const [incomes, setIncomes] = useState([{ id: null, accountName: 'My Account', monthlyAmount: '', budgetAmount: '', budgetPeriod: 'Monthly', incomeDate: formattedIncomeDate, user_id: tempUserId }]);
     console.log('all data in income table is: ', incomes);
     const [selectedIncomeIndex, setSelectedIncomeIndex] = useState(null);
     const [calculatorAmount, setCalculatorAmount] = useState('');
     // code for calculator
     const [calculatorVisible, setCalculatorVisible] = useState(false);
-    const handleValueChange = (budgetAmount) => {
+    const handleValueChange = (monthlyAmount, budgetAmount) => {
         if (selectedIncomeIndex !== null) {
-            handleAmountChange(selectedIncomeIndex, budgetAmount, incomes[selectedIncomeIndex].budgetPeriod);
+            handleAmountChange(selectedIncomeIndex, monthlyAmount, budgetAmount, incomes[selectedIncomeIndex].budgetPeriod);
         }
         setCalculatorVisible(false);
     };
@@ -134,43 +187,56 @@ const SetIncomeAmount = () => {
         setCalculatorVisible(true);
     };
 
-    useEffect(() => {
-        fetchAllIncome();
-    }, []);
 
-    const fetchAllIncome = () => {
+
+    useEffect(() => {
+        fetchAllIncome(formattedFromDate, formattedToDate);
+    }, [formattedFromDate, formattedToDate]);
+
+    const fetchAllIncome = (formattedFromDate, formattedToDate) => {
         db.transaction((tx) => {
-            tx.executeSql('SELECT * FROM Income WHERE user_id = ?', [tempUserId], (tx, results) => {
-                let data = [];
-                for (let i = 0; i < results.rows.length; i++) {
-                    data.push(results.rows.item(i));
+            tx.executeSql(
+                'SELECT * FROM Income WHERE user_id = ? AND incomeDate BETWEEN ? AND ?',
+                [tempUserId, formattedFromDate, formattedToDate],
+                (tx, results) => {
+                    let data = [];
+                    for (let i = 0; i < results.rows.length; i++) {
+                        data.push(results.rows.item(i));
+                    }
+                    setIncomes([
+                        ...data,
+                        { id: null, accountName: 'My Account', monthlyAmount: '', budgetAmount: '', incomeDate: formattedIncomeDate, budgetPeriod: 'Monthly', user_id: tempUserId },
+                    ]);
+                },
+                (tx, error) => {
+                    console.error('Error fetching filtered income data: ', error);
                 }
-                setIncomes([...data, { id: null, accountName: 'My Account', budgetAmount: '', budgetPeriod: 'Monthly', user_id: tempUserId }]);
-            });
+            );
         });
     };
+
 
     const saveIncome = () => {
         db.transaction((tx) => {
             incomes.forEach((income) => {
-                if (income.accountName &&income.budgetAmount && income.budgetPeriod) {
+                if (income.accountName && income.budgetAmount && income.budgetPeriod) {
                     if (income.id) {
                         tx.executeSql(
-                            'UPDATE Income SET accountName = ?, budgetPeriod = ?, budgetAmount = ?, user_id = ? WHERE id = ?',
-                            [income.accountName, income.budgetPeriod, income.budgetAmount, tempUserId, income.id,],
+                            'UPDATE Income SET accountName = ?, budgetPeriod = ?, monthlyAmount = ?, budgetAmount = ?, incomeDate = ?, user_id = ? WHERE id = ?',
+                            [income.accountName, income.budgetPeriod, income.monthlyAmount, income.budgetAmount, income.incomeDate, tempUserId, income.id,],
                             (tx, results) => {
-                                console.log('Updated income values are: ', { id: income.id, accountName: income.accountName, budgetAmount: income.budgetAmount, budgetPeriod: income.budgetPeriod, user_id: tempUserId });
+                                console.log('Updated income values are: ', { id: income.id, accountName: income.accountName, monthlyAmount: income.monthlyAmount, budgetAmount: income.budgetAmount, incomeDate: income.incomeDate, budgetPeriod: income.budgetPeriod, user_id: tempUserId });
                             },
                             error => console.error('Error updating income:', error)
                         );
                     } else {
                         tx.executeSql(
-                            'INSERT INTO Income (accountName, budgetAmount, budgetPeriod, user_id) VALUES (?, ?, ?, ?)',
-                            [income.accountName, income.budgetAmount, income.budgetPeriod, tempUserId],
+                            'INSERT INTO Income (accountName, monthlyAmount, budgetAmount, incomeDate, budgetPeriod, user_id) VALUES (?, ?, ?, ?, ?, ?)',
+                            [income.accountName, income.monthlyAmount, income.budgetAmount, income.incomeDate, income.budgetPeriod, tempUserId],
                             (tx, results) => {
                                 if (results.insertId) {
                                     income.id = results.insertId;
-                                    console.log('Inserted: ', { id: results.insertId, accountName: income.accountName, budgetAmount: income.budgetAmount, budgetPeriod: income.budgetPeriod, user_id: tempUserId });
+                                    console.log('Inserted income values are: ', { id: results.insertId, accountName: income.accountName, monthlyAmount: income.monthlyAmount, budgetAmount: income.budgetAmount, incomeDate: income.incomeDate, budgetPeriod: income.budgetPeriod, user_id: tempUserId });
                                 }
                             },
                             error => console.error('Error inserting income:', error)
@@ -181,7 +247,7 @@ const SetIncomeAmount = () => {
         },
             error => console.error('Transaction error:', error),
             () => {
-                fetchAllIncome();
+                fetchAllIncome(formattedFromDate, formattedToDate);
                 if (envelope_prop) {
                     navigation.navigate('SetupBudget', { envelope_prop });
                 } else {
@@ -191,18 +257,33 @@ const SetIncomeAmount = () => {
     };
 
 
-    const logAllIncome = () => {
+    // gpt skipped this also cross check it
+    const logAllIncome = (formattedFromDate, formattedToDate) => {
         db.transaction((tx) => {
-            tx.executeSql('SELECT * FROM Income', [], (tx, results) => {
-                console.log('Current Income Table: ', results.rows.raw());
+            tx.executeSql(
+                'SELECT * FROM Income WHERE incomeDate BETWEEN ? AND ?',
+                 [formattedFromDate, formattedToDate],
+                (tx, results) => {
+                console.log('Income Table with all filtered values: ', results.rows.raw());
             });
         });
     };
 
-    const handleAmountChange = (index, budgetAmount, budgetPeriod) => {
-        const newIncomes = [...incomes];
-        newIncomes[index] = { ...newIncomes[index], accountName: 'My Account', budgetAmount, budgetPeriod };
-        setIncomes(newIncomes);
+    useEffect(() => {
+        logAllIncome(formattedFromDate, formattedToDate);
+    }, [formattedFromDate, formattedToDate]);
+
+    const handleAmountChange = (index, monthlyAmount, budgetAmount, budgetPeriod) => {
+        const newIncomes = [...incomes]; // Create a shallow copy of the incomes array
+        newIncomes[index] = {
+            ...newIncomes[index],
+            accountName: 'My Account',
+            monthlyAmount,
+            budgetAmount : monthlyAmount,
+            budgetPeriod,
+            incomeDate: formattedIncomeDate // Add formattedIncomeDate to the updated entry
+        };
+        setIncomes(newIncomes); // Update the state with the new array
     };
 
     const handleDelete = (index) => {
@@ -210,8 +291,8 @@ const SetIncomeAmount = () => {
         if (itemToDelete.id) {
             db.transaction((tx) => {
                 tx.executeSql('DELETE FROM Income WHERE id = ?', [itemToDelete.id], () => {
-                    fetchAllIncome();
-                    // console.log('item deleted with id: ', itemToDelete.id)
+                    fetchAllIncome(formattedFromDate, formattedToDate);
+                    console.log('item deleted with id: ', itemToDelete.id)
                 });
             });
         } else {
@@ -258,7 +339,7 @@ const SetIncomeAmount = () => {
                 style={styles.incomeList}
                 ListFooterComponent={
                     <Pressable
-                        onPress={() => setIncomes([...incomes, { id: null, accountName: 'My Account', budgetAmount: '', budgetPeriod: 'Monthly' }])}
+                        onPress={() => setIncomes([...incomes, { id: null, accountName: 'My Account', monthlyAmount: '', budgetAmount: '', incomeDate: formattedIncomeDate, budgetPeriod: 'Monthly' }])}
                         style={styles.addIncomeButton}
                     >
                         <View style={styles.buttonContent}>
