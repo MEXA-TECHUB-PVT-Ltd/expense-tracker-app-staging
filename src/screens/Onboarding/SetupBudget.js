@@ -118,7 +118,7 @@ const SetupBudget = () => {
     const [isTooltipVisible, setIsTooltipVisible] = useState(false);
     const slideAnim = useRef(new Animated.Value(screenWidth)).current;
     const [envelopes, setEnvelopes] = useState([]);
-    // console.log('after rearrange envelopes state is: ', envelopes);
+    console.log('after rearrange envelopes state is: ', envelopes);
     const [totalIncome, setTotalIncome] = useState(0);
     const [remainingAmount, setRemainingAmount] = useState(0);
     // console.log('value of remainingAmount: ', remainingAmount);
@@ -144,24 +144,40 @@ const SetupBudget = () => {
             // setFormattedToDate('2025-01-30');
         }, [])
     );
+
+    // code for getting current year 
+    const startOfYear = moment().startOf('year').toISOString();
+    const endOfYear = moment().endOf('year').toISOString();
+    // Format the dates using the formatDateSql function
+    const formattedFromDateYearly = formatDateSql(startOfYear);
+    const formattedToDateYearly = formatDateSql(endOfYear);
+
+    console.log(' date of formattedFromDateYearly', formattedFromDateYearly);
+    console.log(' date of formattedToDateYearly', formattedToDateYearly);
    
     useFocusEffect(
         useCallback(() => {
-            getAllEnvelopes(tempUserId, setEnvelopes, formattedFromDate, formattedToDate);
-        }, [tempUserId, formattedFromDate, formattedToDate])
+            getAllEnvelopes(tempUserId, setEnvelopes, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly);
+        }, [tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly])
     );
     const getAllEnvelopes = (tempUserId, callback) => {       
         db.transaction(tx => {
             const sqlQuery = `
-            SELECT * 
-            FROM envelopes 
-            WHERE user_id = ? 
-            AND fillDate BETWEEN ? AND ?
-            ORDER BY orderIndex
-        `;
+    SELECT * 
+    FROM envelopes 
+    WHERE user_id = ? 
+    AND (
+        (budgetPeriod IN ('Monthly', 'Goal') AND fillDate BETWEEN ? AND ?)
+        OR 
+        (budgetPeriod = 'Every Year' AND fillDate BETWEEN ? AND ?)
+    )
+    ORDER BY orderIndex
+`;
+            console.log('Executing Query:', sqlQuery);
+            console.log('Params:', tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly);
             tx.executeSql(
                 sqlQuery,
-                [tempUserId, formattedFromDate, formattedToDate],
+                [tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly],
                 (_, results) => {
                     if (results.rows && results.rows.length > 0) {
                         let envelopesArray = [];

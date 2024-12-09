@@ -201,14 +201,24 @@ const FillEnvelopes = () => {
     return date.toLocaleDateString('en-US', options);
   };
 
+  // code for getting current year 
+  const startOfYear = moment().startOf('year').toISOString();
+  const endOfYear = moment().endOf('year').toISOString();
+  // Format the dates using the formatDateSql function
+  const formattedFromDateYearly = formatDateSql(startOfYear);
+  const formattedToDateYearly = formatDateSql(endOfYear);
+
+  // console.log(' date of formattedFromDateYearly', formattedFromDateYearly);
+  // console.log(' date of formattedToDateYearly', formattedToDateYearly);
+
   // for flatlist
   const [envelopes, setEnvelopes] = useState([]);
   const [updatedEnvelopes, setUpdatedEnvelopes] = useState([]); // to track updated envelopes using fill individually for authenticated users
   // console.log('envelopes', envelopes);
 
   const fetchEnvelopes = useCallback(() => {
-    getAllEnvelopes(setEnvelopes, tempUserId, formattedFromDate, formattedToDate);
-  }, [tempUserId, formattedFromDate, formattedToDate]);
+    getAllEnvelopes(setEnvelopes, tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly);
+  }, [tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly]);
 
   // Use useEffect to call the function on component mount
   useEffect(() => {
@@ -217,12 +227,23 @@ const FillEnvelopes = () => {
 
 
   // function to get all envelopes their rows
-  const getAllEnvelopes = (callback, tempUserId, formattedFromDate, formattedToDate) => {
+  const getAllEnvelopes = (callback, tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly) => {
     db.transaction(tx => {
-      const sqlQuery = 'SELECT * FROM envelopes WHERE user_id = ? AND fillDate BETWEEN ? AND ? ORDER BY orderIndex ';
+      // const sqlQuery = 'SELECT * FROM envelopes WHERE user_id = ? AND fillDate BETWEEN ? AND ? ORDER BY orderIndex ';
+      const sqlQuery = `
+    SELECT * 
+    FROM envelopes 
+    WHERE user_id = ? 
+    AND (
+        (budgetPeriod IN ('Monthly', 'Goal') AND fillDate BETWEEN ? AND ?)
+        OR 
+        (budgetPeriod = 'Every Year' AND fillDate BETWEEN ? AND ?)
+    )
+    ORDER BY orderIndex
+`;
       tx.executeSql(
         sqlQuery,
-        [tempUserId, formattedFromDate, formattedToDate],
+        [tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly],
         (_, results) => {
           if (results.rows && results.rows.length > 0) {
             let envelopesArray = [];

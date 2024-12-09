@@ -289,6 +289,7 @@ export default TransactionsSearch
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+        backgroundColor: colors.white,
     },
     appBar: {
         backgroundColor: colors.brightgreen,

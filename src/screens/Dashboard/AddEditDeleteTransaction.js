@@ -198,6 +198,17 @@ const AddEditDeleteTransaction = () => {
     navigation.navigate('Help', { from_addeditdelete_transaction: true });
   };
 
+
+  // code for getting current year 
+  const startOfYear = moment().startOf('year').toISOString();
+  const endOfYear = moment().endOf('year').toISOString();
+  // Format the dates using the formatDateSql function
+  const formattedFromDateYearly = formatDateSql(startOfYear);
+  const formattedToDateYearly = formatDateSql(endOfYear);
+
+  // console.log(' date of formattedFromDateYearly', formattedFromDateYearly);
+  // console.log(' date of formattedToDateYearly', formattedToDateYearly);
+
   // code for getting all envelopes from envelopes table
   const [envelopes, setEnvelopes] = useState([]);
   if (edit_transaction) {
@@ -208,15 +219,26 @@ const AddEditDeleteTransaction = () => {
 
   useFocusEffect(
     useCallback(() => {
-      getAllEnvelopes(setEnvelopes, tempUserId, formattedFromDate, formattedToDate);
-    }, [tempUserId, formattedFromDate, formattedToDate])
+      getAllEnvelopes(setEnvelopes, tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly);
+    }, [tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly])
   );
   const getAllEnvelopes = (callback) => {
     db.transaction(tx => {
-      const sqlQuery = 'SELECT * FROM envelopes WHERE user_id = ? AND fillDate BETWEEN ? AND ? ORDER BY orderIndex';
+      // const sqlQuery = 'SELECT * FROM envelopes WHERE user_id = ? AND fillDate BETWEEN ? AND ? ORDER BY orderIndex';
+      const sqlQuery = `
+    SELECT * 
+    FROM envelopes 
+    WHERE user_id = ? 
+    AND (
+        (budgetPeriod IN ('Monthly', 'Goal') AND fillDate BETWEEN ? AND ?)
+        OR 
+        (budgetPeriod = 'Every Year' AND fillDate BETWEEN ? AND ?)
+    )
+    ORDER BY orderIndex
+`;
       tx.executeSql(
         sqlQuery,
-        [tempUserId, formattedFromDate, formattedToDate],
+        [tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly],
         (_, results) => {
           if (results.rows && results.rows.length > 0) {
             let envelopesArray = [];
@@ -435,14 +457,14 @@ const AddEditDeleteTransaction = () => {
               for (let i = 0; i < result.rows.length; i++) {
                 const row = result.rows.item(i);
                 ids.push(row.id);
-                console.log('Found id:', row.id); // Log each found id
+                // console.log('Found id:', row.id); // Log each found id
               }
 
               // If there are any ids, randomly select one
               if (ids.length > 0) {
                 const randomIndex = Math.floor(Math.random() * ids.length); // Get a random index
                 const incomeId = ids[randomIndex]; // Select the incomeId
-                console.log('Selected incomeId:', incomeId); // Log the selected incomeId
+                // console.log('Selected incomeId:', incomeId); // Log the selected incomeId
 
                 // Now perform the update on Income table for either Credit or Expense
 
@@ -611,13 +633,13 @@ const AddEditDeleteTransaction = () => {
                   for (let i = 0; i < result.rows.length; i++) {
                     const row = result.rows.item(i);
                     ids.push(row.id);
-                    console.log('Found id:', row.id);
+                    // console.log('Found id:', row.id);
                   }
 
                   if (ids.length > 0) {
                     const randomIndex = Math.floor(Math.random() * ids.length);
                     const incomeId = ids[randomIndex];
-                    console.log('Selected incomeId:', incomeId);
+                    // console.log('Selected incomeId:', incomeId);
 
                     // Based on transactionType, adjust the envelope amount
                     if (transactionType === 'Credit') {
@@ -956,7 +978,7 @@ const AddEditDeleteTransaction = () => {
 
 
   return (
-    <Pressable style={{ flex: 1 }} onPress={handleOutsidePress}>
+    <Pressable style={{ flex: 1, backgroundColor: colors.white }} onPress={handleOutsidePress}>
       <StatusBar backgroundColor={colors.munsellgreen} />
       <View>
         <Appbar.Header style={styles.appBar}>

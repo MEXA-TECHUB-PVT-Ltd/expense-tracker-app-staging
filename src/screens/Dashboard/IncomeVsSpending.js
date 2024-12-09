@@ -458,7 +458,7 @@ const SpendingByEnvelope = () => {
       return sum;
     }, 0);
 
-    console.log('raw spending is: ', rawSpending);
+    // console.log('raw spending is: ', rawSpending);
 
     const spending = Math.abs(rawSpending); // Ensure spending is positive
     const netTotal = income - spending; // Keep rawSpending for accurate netTotal calculation

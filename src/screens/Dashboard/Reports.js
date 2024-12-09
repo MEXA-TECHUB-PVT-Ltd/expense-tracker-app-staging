@@ -431,7 +431,7 @@ const Reports = () => {
               .map((item, index) => {
                 const envelopeName = item.envelopeName;
                 const envelopeSpending = item.envelopeSpending || 0;
-                console.log('value of individual envelope spending is: ', envelopeSpending);
+                // console.log('value of individual envelope spending is: ', envelopeSpending);
 
                 // const envelopeColor = pieData[index]?.color || randomColor();
                 const envelopeColor = pieData[index]?.color || randomColor();

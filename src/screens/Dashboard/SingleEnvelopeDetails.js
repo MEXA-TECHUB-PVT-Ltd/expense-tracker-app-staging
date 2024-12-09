@@ -16,7 +16,7 @@ const { width: screenWidth } = dimensions;
 const SingleEnvelopeDetails = ({ route }) => {
   const navigation = useNavigation();
   const { envelope } = route.params;
-  console.log('value of envelope in singel envelope screen: ', envelope);
+  // console.log('value of envelope in singel envelope screen: ', envelope);
   const envelopeName = envelope.envelopeName;
   const handleLeftIconPress = () => {
     navigation.goBack();
@@ -27,7 +27,7 @@ const SingleEnvelopeDetails = ({ route }) => {
   const user_id = useSelector(state => state.user.user_id);
   const temp_user_id = useSelector(state => state.user.temp_user_id);
   const [tempUserId, setTempUserId] = useState(user_id);
-  console.log('value of tempUserId in state inside single envelope: ', tempUserId);
+  // console.log('value of tempUserId in state inside single envelope: ', tempUserId);
   useFocusEffect(
     useCallback(() => {
       if (isAuthenticated) {
@@ -197,13 +197,49 @@ const SingleEnvelopeDetails = ({ route }) => {
             </View>
           </View>
           <View style={styles.text_image_view}>
-            <View style={styles.emotional_text_view}>
+            {/* apply different logic in this view to show relevent text msg and amount */}
+              <View style={styles.emotional_text_view}>
+                <Text style={styles.emotional_text}>
+                  {(() => {
+                    if (envelope.filledIncome < 0) {
+                      return "Hmm, negative money. Interesting...";
+                    } 
+                    else if (envelope.filledIncome === envelope.amount) {
+                      return envelope.budgetPeriod === "Goal"
+                        ? "Hooray! You have reached your set goal."
+                        : "You haven't spent yet!";
+                    }
+                    else if (envelope.amount === 0) {
+                      return "No budget set yet!";
+                    } 
+                    else if (
+                      envelope.filledIncome > 0 &&
+                      envelope.amount > 0 &&
+                      envelope.filledIncome > envelope.amount
+                    ) {
+                      return `You have ${envelope.filledIncome - envelope.amount} more to spend!`;
+                    }
+                    else if (
+                      envelope.filledIncome > 0 &&
+                      envelope.amount > 0 &&
+                      envelope.filledIncome < envelope.amount
+                    ) {
+                      return `You have ${envelope.amount - envelope.filledIncome} more to fill!`;
+                    }
+                    else if (envelope.filledIncome === 0 || " " && envelope.amount > 0) {
+                      return envelope.budgetPeriod === "Goal"
+                        ? "You have not started saving yet. Time to fill?"
+                        : "Time to refill Envelope!";
+                    } 
+                  })()}
+                </Text>
+              </View>
+            {/* <View style={styles.emotional_text_view}>
               <Text style={styles.emotional_text}>
-                {envelope.filledIncome < 0
-                  ? "Hmm, negative money. Interesting..."
-                  : `You are spending ${envelope.filledIncome - envelope.amount} more than your budget.`}
+                {envelope.filledIncome < 0 ? "Hmm, negative money. Interesting..." : `You are spending ${envelope.filledIncome - envelope.amount} more than your budget.`}
               </Text>
-            </View>
+            </View> */}
+
             <View style={styles.image_view}>
               <Image
                 style={styles.image}

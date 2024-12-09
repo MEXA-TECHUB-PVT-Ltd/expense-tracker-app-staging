@@ -26,6 +26,13 @@ const initializeDatabase = () => {
         //     (_, error) => console.error('Error dropping income table:', error)
         // );
 
+        // tx.executeSql(
+        //     "DROP TABLE IF EXISTS Income;",
+        //     [],
+        //     () => console.log('Table dropped'),
+        //     (_, error) => console.error('Error dropping income table:', error)
+        // );
+
         // creates the Users table
         tx.executeSql(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='Users';",
@@ -126,7 +133,7 @@ const initializeDatabase = () => {
         );`,
                 [],
                 () => {
-                    console.log("Payees table created successfully");
+                    // console.log("Payees table created successfully");
 
                     let payeesAdded = 0; // Counter to track added payees
 
@@ -138,7 +145,7 @@ const initializeDatabase = () => {
                                 payeesAdded++;
                                 // Once all payees are added, log a single success message
                                 if (payeesAdded === DEFAULT_PAYEES.length) {
-                                    console.log("Default payees added successfully");
+                                    // console.log("Default payees added successfully");
                                 }
                             },
                             (tx, error) => console.error(`Error adding default payee "${payee}"`, error)

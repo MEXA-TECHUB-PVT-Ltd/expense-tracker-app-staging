@@ -291,7 +291,7 @@ const RegisterAccount = () => {
 
 
     return (
-        <Pressable style={{ flex: 1}} onPress={handleOutsidePress}>
+        <Pressable style={{ flex: 1, backgroundColor: colors.white}} onPress={handleOutsidePress}>
             <Formik
                 initialValues={{ email: '', password: '', repeatPassword: '' }}
                 validationSchema={validationSchema}
@@ -347,6 +347,8 @@ const RegisterAccount = () => {
                                         theme={{ colors: { primary: focusedInput ? colors.brightgreen : colors.gray } }}
                                         textColor={colors.black}
                                         dense={true}
+                                        autoCapitalize="none"
+                                        keyboardType='email-address'
                                         onFocus={() => setFocusedInput('email')}
                                     // onBlur={() => setFocusedInput(null)}
                                     />
