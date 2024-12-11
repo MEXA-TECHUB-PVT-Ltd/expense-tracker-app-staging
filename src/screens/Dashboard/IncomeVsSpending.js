@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View, StatusBar, TouchableOpacity, ScrollView } from 'react-native'
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useFocusEffect } from '@react-navigation/native';
-import { Appbar, Modal, Portal, Button, TextInput, RadioButton, IconButton, Menu } from 'react-native-paper';
+import { Appbar, Modal, Portal, Button, TextInput, RadioButton, IconButton, Menu, Divider } from 'react-native-paper';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import colors from '../../constants/colors';
@@ -443,30 +443,92 @@ const SpendingByEnvelope = () => {
   //   return { month, income, spending, netTotal };
   // });
 
+  // code for calculating monthly income from Income table
+  const [incomeRecord, setIncomeRecord ] = useState([]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (fromDate && toDate) {
+        fetchIncomeWithinDateRange(fromDate, toDate);
+      }
+    }, [fromDate, toDate])
+  );
+
+  const fetchIncomeWithinDateRange = (fromDate, toDate) => {
+    const formattedFromDate = formatDateSql(fromDate);
+    const formattedToDate = formatDateSql(toDate);
+
+    db.transaction((tx) => {
+      const fetchQuery = `
+      SELECT * 
+      FROM Income 
+      WHERE incomeDate BETWEEN ? AND ? AND user_id = ?;
+    `;
+
+      tx.executeSql(
+        fetchQuery,
+        [formattedFromDate, formattedToDate, tempUserId],
+        (_, { rows }) => {
+          const incomeData = [];
+          for (let i = 0; i < rows.length; i++) {
+            incomeData.push(rows.item(i));
+          }
+          setIncomeRecord(incomeData);
+        },
+        (_, error) => {
+          console.error("Error Fetching Income Data:", error);
+          return true;
+        }
+      );
+    });
+  };
+
+  // before i was using this
   const envelopesByMonth = groupByMonth(envelopes, "fillDate");
   const transactionsByMonth = groupByMonth(transactions, "transactionDate");
+  const incomeByMonth = groupByMonth(incomeRecord, "incomeDate");
+  console.log('  ============   incomeByMonth   ============', incomeByMonth);
 
-  const monthlyData = Object.keys({ ...envelopesByMonth, ...transactionsByMonth }).map((month) => {
+  // older code working fine and taking income from envelopes 
+  // const monthlyData = Object.keys({ ...envelopesByMonth, ...transactionsByMonth }).map((month) => {
+  //   const monthEnvelopes = envelopesByMonth[month] || [];
+  //   const monthTransactions = transactionsByMonth[month] || [];
+
+  //   const income = monthEnvelopes.reduce((sum, envelope) => sum + (envelope.amount || 0), 0); // calculates Income by summing up all budgeted amounts of all envelopes
+
+  //   // calculate spending by summing all expenses and summing all creditis and then minus credites from expenses...from all transactions of current month
+  //   const rawSpending = monthTransactions.reduce((sum, transaction) => {
+  //     if (transaction.transactionType === "Expense") return sum + transaction.transactionAmount;
+  //     if (transaction.transactionType === "Credit") return sum - transaction.transactionAmount;
+  //     return sum;
+  //   }, 0);
+
+  //   // console.log('raw spending is: ', rawSpending);
+
+  //   const spending = Math.abs(rawSpending); // Ensure spending is positive
+  //   const netTotal = income - spending; // Keep rawSpending for accurate netTotal calculation
+
+  //   return { month, income, spending, netTotal };
+  // });
+
+  // new code latest....taking and calculating income from Income table spending from transactions of current month
+  const monthlyData = Object.keys({ ...envelopesByMonth, ...transactionsByMonth, ...incomeByMonth }).map((month) => {
     const monthEnvelopes = envelopesByMonth[month] || [];
     const monthTransactions = transactionsByMonth[month] || [];
+    const monthIncomes = incomeByMonth[month] || [];
 
-    const income = monthEnvelopes.reduce((sum, envelope) => sum + (envelope.amount || 0), 0);
-
-    const rawSpending = monthTransactions.reduce((sum, transaction) => {
+    const income = monthIncomes.reduce((sum, income) => sum + (income.monthlyAmount || 0), 0);
+    const spending = monthTransactions.reduce((sum, transaction) => {
       if (transaction.transactionType === "Expense") return sum + transaction.transactionAmount;
       if (transaction.transactionType === "Credit") return sum - transaction.transactionAmount;
       return sum;
     }, 0);
 
-    // console.log('raw spending is: ', rawSpending);
-
-    const spending = Math.abs(rawSpending); // Ensure spending is positive
-    const netTotal = income - spending; // Keep rawSpending for accurate netTotal calculation
+    const netTotal = income - spending;
 
     return { month, income, spending, netTotal };
   });
 
-  // console.log('monthlyData values:', monthlyData);
 
 
   // for bar graph dynamically extract the months and their corresponding income and spending
@@ -593,23 +655,28 @@ const SpendingByEnvelope = () => {
       </View>
 
       <ScrollView style={{ flex: 1 }}>
-        {monthlyData.map(({ month, income, spending, netTotal }) => (
-          <View key={month} style={styles.envelope_text_amount_view}>
-            <View style={styles.envelope_txt_amt_view}>
-              <View style={styles.envelope_column_name_legend_month}>
-                <Text style={styles.envelope_text}>{month}</Text>
-              </View>
-              <View style={styles.envelope_column_name_legend}>
-                <Text style={styles.envelope_text}>{income || 0}.00</Text>
-              </View>
-              <View style={styles.envelope_column}>
-                <Text style={styles.percentage_text}>{spending || 0}.00</Text>
-              </View>
-              <View style={styles.envelope_column}>
-                <Text style={styles.envelope_amount_net_total}>{netTotal || 0}.00</Text>
+        {monthlyData.map(({ month, income, spending, netTotal }, index) => (
+          <React.Fragment key={month}>
+            <View style={styles.envelope_text_amount_view}>
+              <View style={styles.envelope_txt_amt_view}>
+                <View style={styles.envelope_column_name_legend_month}>
+                  <Text style={styles.envelope_text}>{month}</Text>
+                </View>
+                <View style={styles.envelope_column_name_legend}>
+                  <Text style={styles.envelope_text}>{income || 0}.00</Text>
+                </View>
+                <View style={styles.envelope_column}>
+                  <Text style={styles.percentage_text}>{spending || 0}.00</Text>
+                </View>
+                <View style={styles.envelope_column}>
+                  <Text style={styles.envelope_amount_net_total}>{netTotal || 0}.00</Text>
+                </View>
               </View>
             </View>
-          </View>
+
+            {/* Divider */}
+            <Divider />
+          </React.Fragment>
         ))}
       </ScrollView>
 
@@ -969,36 +1036,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: hp('1.5%'),
     paddingHorizontal: hp('1.5%'),
+    // backgroundColor: 'cyan',
   },
   legendSquare: {
     width: 8,
     height: 8,
     marginRight: 8,
+    marginTop: 6,
   },
   envelope_txt_amt_view: {
     flex: 1,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
+    // backgroundColor: 'yellow',
   },
   envelope_column_name_legend_month: {
     flex: 1,
+    // height: 50,
     justifyContent: 'flex-start',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     flexDirection: 'row',
     marginLeft: hp('1%'),
+    // backgroundColor: 'pink',
   },
   envelope_column_name_legend: {
     flex: 1,
+    // height: 50,
     justifyContent: 'flex-end',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     flexDirection: 'row',
+    // backgroundColor: 'green',
   },
   envelope_column: {
     flex: 1,
+    // height: 50,
     justifyContent: 'flex-end',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     flexDirection: 'row',
+    // backgroundColor: 'purple',
   },
   envelope_text: {
     fontSize: hp('2%'),

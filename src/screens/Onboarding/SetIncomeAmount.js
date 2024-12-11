@@ -170,7 +170,7 @@ const SetIncomeAmount = () => {
     };
 
     const [incomes, setIncomes] = useState([{ id: null, accountName: 'My Account', monthlyAmount: '', budgetAmount: '', budgetPeriod: 'Monthly', incomeDate: formattedIncomeDate, user_id: tempUserId }]);
-    console.log('all data in income table is: ', incomes);
+    // console.log('all data in income table is: ', incomes);
     const [selectedIncomeIndex, setSelectedIncomeIndex] = useState(null);
     const [calculatorAmount, setCalculatorAmount] = useState('');
     // code for calculator

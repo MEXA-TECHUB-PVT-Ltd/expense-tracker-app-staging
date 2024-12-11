@@ -260,6 +260,7 @@ const SingleEnvelopeDetails = ({ route }) => {
       </View>
       <View style={styles.flatlist_view}>
         {!isSearched && (
+          envelopeTransactions.length > 0 ? (
           <FlatList
             data={envelopeTransactions}
             keyExtractor={(item) => item.id}
@@ -304,8 +305,18 @@ const SingleEnvelopeDetails = ({ route }) => {
               );
             }}
           />
+          ) : (
+            <View style={styles.emptyState}>
+              <Image source={Images.expenseplannerimagegray} style={styles.emptyImage} />
+              <View style={styles.emptyTextContainer}>
+                <Text style={styles.emptyText}>You have not made any transaction yet</Text>
+              </View>
+            </View>
+          )
         )}
+
         {isSearched && (
+          searchedTransactions.length > 0 ? (
           <FlatList
             data={searchedTransactions}
             keyExtractor={(item) => item.id}
@@ -350,13 +361,23 @@ const SingleEnvelopeDetails = ({ route }) => {
               );
             }}
           />
+          ) : (
+            <View style={styles.emptyState}>
+              <Image source={Images.expenseplannerimagegray} style={styles.emptyImage} />
+              <View style={styles.emptyTextContainer}>
+                <Text style={styles.emptyText}>You have not made any transaction yet</Text>
+              </View>
+            </View>
+          )
         )}
       </View>
+
       <FAB
         icon="plus"
         style={styles.fab}
         onPress={() => navigation.navigate('AddEditDeleteTransaction')}
       />
+      
       <Animated.View style={[styles.tooltipContainer, { transform: [{ translateX: slideAnim }] }]}>
         <TouchableOpacity onPress={handleTooltipPress}>
           <Text style={styles.tooltipText}>Help</Text>
@@ -512,6 +533,26 @@ const styles = StyleSheet.create({
   },
   flatlist_view: {
     flex: 1,
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyImage: {
+    width: hp('9%'),
+    height: hp('9%'),
+    marginBottom: hp('5%'),
+  },
+  emptyTextContainer: {
+    maxWidth: hp('30%'),
+    // backgroundColor: 'yellow',
+  },
+  emptyText: {
+    fontSize: hp('2.4%'),
+    color: colors.gray,
+    textAlign: 'center',
+    alignSelf: 'center',
   },
 
   //flatlist styles

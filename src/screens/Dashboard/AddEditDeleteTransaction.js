@@ -10,7 +10,7 @@ import colors from '../../constants/colors';
 import { VectorIcon } from '../../constants/vectoricons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import dimensions from '../../constants/dimensions';
-import { db, fetchTotalIncome } from '../../database/database';
+import { db, fetchTotalIncome, fetchTotalEnvelopesAmount } from '../../database/database';
 import Calculator from '../Onboarding/Calculator';
 import { useSelector } from 'react-redux';
 import { formatDateSql } from '../../utils/DateFormatter';
@@ -265,12 +265,23 @@ const AddEditDeleteTransaction = () => {
   // code for getting total income from income table which is default account for now
   const incomes = [{ accountName: "My Account" },]; // later on when adding multiple accounts replace it with accounts table
   const [accountName, setAccountName] = useState('My Account'); // for now you can use totalIncome to be filled in accountName
+  
   const [budgetAmount, setBudgetAmount] = useState(0);
+  // useFocusEffect(
+  //   useCallback(() => {
+  //     fetchTotalIncome(setBudgetAmount, tempUserId, formattedFromDate, formattedToDate);
+  //   }, [tempUserId, formattedFromDate, formattedToDate])
+  // );
+
+  // to show Account amount from sum of all envelopes filledIncome instead from Income table now only filters for montly evelopes
+  // modify so that it also counts for current year envelopes by passing current year start and end dates
   useFocusEffect(
     useCallback(() => {
-      fetchTotalIncome(setBudgetAmount, tempUserId, formattedFromDate, formattedToDate);
-    }, [tempUserId, formattedFromDate, formattedToDate])
+      fetchTotalEnvelopesAmount(setBudgetAmount, tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly);
+    }, [tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly])
   );
+
+
 
   // code for setting data in a single object for adding transaction
   const handleAddTransaction = () => {
@@ -1048,6 +1059,7 @@ const AddEditDeleteTransaction = () => {
                 onFocus={() => 
                 {
                   setFocusedInput('payee');
+                  setFocusedInputAmount(false);
                   setPayeesMenuVisible(payees.length > 0);
                 }
                 } // Show menu when focused if matches exist
@@ -1165,7 +1177,7 @@ const AddEditDeleteTransaction = () => {
                       setEnvelopeMenuVisible(false);
                       setEnvelopeRemainingIncome(item.filledIncome);
                     }}
-                    title={`${item.envelopeName} [${item.filledIncome || 0} left]`}
+                    title={`${item.envelopeName} (${item.filledIncome || 0} left)`}
                     titleStyle={{ color: colors.black }}
                   />
                 )}
@@ -1182,10 +1194,17 @@ const AddEditDeleteTransaction = () => {
               visible={accountMenuVisible}
               onDismiss={() => setAccountMenuVisible(false)}
               anchor={
-                <TouchableOpacity style={styles.envelope_txt_icon_view} onPress={handleAccountMenuToggle}>
+                <TouchableOpacity 
+                style={styles.envelope_txt_icon_view} 
+                // onPress={handleAccountMenuToggle}
+                  onPress={() => {
+                    handleAccountMenuToggle();
+                    setFocusedInputAmount(false);
+                  }}
+                >
                   <Text style={styles.selectionText}>
                     {selectedAccount
-                      ? `${selectedAccount} [${budgetAmount}]`
+                      ? `${selectedAccount} (${budgetAmount})`
                       : '-Select Account-'}
                   </Text>
                   {/* <Text style={styles.selectionText}>{selectedAccount  || '-Select Account-'}</Text> */}
@@ -1205,7 +1224,7 @@ const AddEditDeleteTransaction = () => {
                       setSelectedAccount(accountName);
                       setAccountMenuVisible(false);
                     }}
-                    title={`${item.accountName} [${budgetAmount} left]`}
+                    title={`${item.accountName} (${budgetAmount} left)`}
                     titleStyle={{ color: colors.black }}
                   />
                 )}

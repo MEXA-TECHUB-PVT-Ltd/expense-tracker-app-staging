@@ -186,7 +186,7 @@ const FillEnvelopes = () => {
   // code for date 
   const [date, setDate] = useState(new Date());
   const formattedFillDate = formatDateSql(date);
-  console.log('todays date in fill envelopes: ', formattedFillDate);
+  // console.log('todays date in fill envelopes: ', formattedFillDate);
   const [show, setShow] = useState(false);
 
   const onChange = (event, selectedDate) => {
@@ -214,6 +214,7 @@ const FillEnvelopes = () => {
   // for flatlist
   const [envelopes, setEnvelopes] = useState([]);
   const [updatedEnvelopes, setUpdatedEnvelopes] = useState([]); // to track updated envelopes using fill individually for authenticated users
+  console.log('   ===================       current state of updatedEnvelopes       ==================', updatedEnvelopes);
   // console.log('envelopes', envelopes);
 
   const fetchEnvelopes = useCallback(() => {
@@ -271,8 +272,8 @@ const FillEnvelopes = () => {
   const [totalIncome, setTotalIncome] = useState(0);
   useFocusEffect(
     useCallback(() => {
-      fetchTotalEnvelopesAmount(setTotalIncome, tempUserId, formattedFromDate, formattedToDate);
-    }, [tempUserId, formattedFromDate, formattedToDate, setTotalIncome])
+      fetchTotalEnvelopesAmount(setTotalIncome, tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly);
+    }, [tempUserId, formattedFromDate, formattedToDate, setTotalIncome, formattedFromDateYearly, formattedToDateYearly])
   );
 
   // useEffect(
@@ -303,7 +304,7 @@ const FillEnvelopes = () => {
     }));
     fillAllEnvelopes(incomeRecords, fetchAndLogFilledIncomes);
     // Fetch total envelopes amount after insertion to update the UI
-    fetchTotalEnvelopesAmount(setTotalIncome, tempUserId, formattedFromDate, formattedToDate);
+    fetchTotalEnvelopesAmount(setTotalIncome, tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly);
   };
 
   const fillAllEnvelopes = (incomeRecords, callback) => {
@@ -416,12 +417,12 @@ const FillEnvelopes = () => {
 
   const handleDone = () => {
     if (!selectedEnvelope) return;
-    // console.log('Selected Envelope:', selectedEnvelope); here fillDate is null and filledIncome is null and we have to fill it
+    console.log('Selected Envelope:', selectedEnvelope); // here fillDate is null and filledIncome is null and we have to fill it
     const envelopeId = selectedEnvelope.envelopeId;
     const envelopeName = selectedEnvelope.envelopeName;
     const amount = selectedEnvelope.amount;
     const budgetPeriod = selectedEnvelope.budgetPeriod;
-    console.log('value of tempUserId in handledone when it is called is: ', tempUserId);
+    // console.log('value of tempUserId in handledone when it is called is: ', tempUserId);
     let filledIncome;
     if (customAmountOption === 'noChange') {
       closeModal();
@@ -431,6 +432,7 @@ const FillEnvelopes = () => {
       filledIncome = selectedEnvelope.amount;
     } else if (customAmountOption === 'customAmount' && customAmount) {
       filledIncome = parseFloat(customAmount);
+      console.log('Custom amount option is customAmount, filledIncome set to:', filledIncome);
     }
 
     // if (filledIncome !== undefined) {
@@ -440,13 +442,45 @@ const FillEnvelopes = () => {
 
     if (filledIncome !== undefined) {
       // Update the selected envelope's filledIncome here
-      const updatedEnvelope = {
-        ...selectedEnvelope,
-        filledIncome,
-      };
-      setUpdatedEnvelopes(prev => [...prev, updatedEnvelope]); // Track updated envelope
+      // const updatedEnvelope = {
+      //   ...selectedEnvelope,
+      //   filledIncome,
+      // };
+      // console.log('Updated Envelope:', updatedEnvelope);
+      // console.log('Previous updatedEnvelopes:', updatedEnvelopes);
+      // setUpdatedEnvelopes(prev => [...prev, updatedEnvelope]); // Track updated envelope
+      // console.log('Updated updatedEnvelopes:', [...updatedEnvelopes, updatedEnvelope]);
+
+      // **Deduplication Logic Start**
+      // Check if an envelope with the same envelopeId and fillDate already exists in the updatedEnvelopes array
+      const existingEnvelopeIndex = updatedEnvelopes.findIndex(
+        (env) => env.envelopeId === envelopeId && env.fillDate === formattedFillDate
+      );
+
+      if (existingEnvelopeIndex !== -1) {
+        // If envelope already exists, update only the filledIncome
+        const updatedEnvelope = {
+          ...updatedEnvelopes[existingEnvelopeIndex],
+          filledIncome,
+        };
+
+        const newEnvelopes = [...updatedEnvelopes];
+        newEnvelopes[existingEnvelopeIndex] = updatedEnvelope;
+
+        setUpdatedEnvelopes(newEnvelopes); // Replace the old state with updated envelopes
+        console.log('Envelope updated to avoid duplication:', updatedEnvelope);
+      } else {
+        // If envelope does not already exist, add it to the state
+        setUpdatedEnvelopes(prev => [...prev, { ...selectedEnvelope, filledIncome }]);
+        console.log('New envelope added to updatedEnvelopes:', { ...selectedEnvelope, filledIncome });
+      }
+      // **Deduplication Logic End**
+
+
       handleFillIndividual(envelopeId, envelopeName, amount, budgetPeriod, filledIncome, formattedFillDate, tempUserId);
       fetchAndLogIndividualIncomes(tempUserId);
+    } else {
+      console.log('Filled income is undefined, skipping update.');
     }
     
     closeModal();
@@ -456,7 +490,7 @@ const FillEnvelopes = () => {
     console.log('input values for individual fill of envelope:', envelopeId, envelopeName, amount, budgetPeriod, filledIncome, formattedFillDate, tempUserId);
     fillIndividualEnvelope(envelopeId, envelopeName, amount, budgetPeriod, filledIncome, formattedFillDate, tempUserId);
     // Fetch total envelopes amount after insertion to update the UI
-    fetchTotalEnvelopesAmount(setTotalIncome, tempUserId, formattedFromDate, formattedToDate);
+    fetchTotalEnvelopesAmount(setTotalIncome, tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly);
   };
 
 
@@ -539,7 +573,7 @@ const FillEnvelopes = () => {
             });
           }
           setIndividualIncomes(records)
-          console.log('individual filled record is:', records);
+          // console.log('individual filled record is:', records);
         },
         (tx, error) => {
           console.error('Error fetching filled incomes:', error);
@@ -648,7 +682,10 @@ const FillEnvelopes = () => {
                 <Text style={styles.title}>Account</Text>
                 <TouchableOpacity style={styles.selectionView} onPress={showAccountModal}>
                   <Text style={styles.selectionText}>
-                    {selectedAccount ? `${selectedAccount} [${totalBudgetAmount}]` : 'Select Account'}
+                    {/* older taking value from sum of all income amounts from Income table */}
+                    {/* {selectedAccount ? `${selectedAccount} [${totalBudgetAmount}]` : 'Select Account'} */} 
+                    {/* new taking value from sum of all envelopes filledIncome from envelopes table */}
+                    {selectedAccount ? `${selectedAccount}` : 'Select Account'}
                   </Text>
                   <VectorIcon name="arrow-drop-down" size={20} color={colors.gray} type="mi" />
                 </TouchableOpacity>
@@ -747,13 +784,16 @@ const FillEnvelopes = () => {
                     data={envelopes}
                     keyExtractor={(item) => item.id}
                     renderItem={({ item }) => {
+                      // console.log('Rendering item:', item); // Log the current item being rendered
 
                       // const filledIncome = individualIncomes.find(filled => filled.envelopeId === item.envelopeId)?.filledIncome || 0;
                       // const amount = item.amount;
 
                       const updatedEnvelope = updatedEnvelopes.find(envelope => envelope.envelopeId === item.envelopeId);
+                      console.log('Updated Envelope:', updatedEnvelope); // Log the updated envelope if found
                       const filledIncome = updatedEnvelope ? updatedEnvelope.filledIncome : 0; // Show updated filledIncome, else 0
                       const amount = item.amount;
+                      console.log('Amount for envelope:', item.envelopeId, 'is:', amount); // Log amount value
 
                       return (
                         <View style={styles.item_view}>
@@ -778,7 +818,6 @@ const FillEnvelopes = () => {
                                 {filledIncome ? (
                                   <>
                                     <Text style={styles.budgeted_amount}>Add budgeted amount of {filledIncome}.00 </Text>
-                                    
                                   </>
                                 ) : (
                                   <Text style={styles.budgeted_amount}>No Change</Text>

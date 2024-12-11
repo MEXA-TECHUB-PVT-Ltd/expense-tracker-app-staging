@@ -50,10 +50,20 @@ const Accounts = () => {
     }, [])
   );
 
+  // for yearly filtering of envelopes
+  const startOfYear = moment().startOf('year').toISOString();
+  const endOfYear = moment().endOf('year').toISOString();
+  // Format the dates using the formatDateSql function
+  const formattedFromDateYearly = formatDateSql(startOfYear);
+  const formattedToDateYearly = formatDateSql(endOfYear);
+
+  // console.log('++++++++++++++++       formattedFromDateYearly in envelopes screen: ', formattedFromDateYearly);
+  // console.log('++++++++++++++++       formattedToDateYearly in envelopes screen: ', formattedToDateYearly);
+
   useFocusEffect(
     useCallback(() => {
-      fetchTotalEnvelopesAmount(setTotalIncome, tempUserId, formattedFromDate, formattedToDate);
-    }, [tempUserId, formattedFromDate, formattedToDate])
+      fetchTotalEnvelopesAmount(setTotalIncome, tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly);
+    }, [tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly])
   );
 
   return (

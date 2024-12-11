@@ -480,7 +480,11 @@ const SpendingByEnvelope = () => {
                                 .reduce((sum, item) => sum + (item.envelopeSpending || 0), 0);
 
                             // Calculate the percentage for the current envelope
-                            const percentage = Math.round((envelopeSpending / totalEnvelopeSpending) * 100);
+                            // no decimal
+                            // const percentage = Math.round((envelopeSpending / totalEnvelopeSpending) * 100);
+                            // one decimal
+                            const percentage = Math.round(((envelopeSpending / totalEnvelopeSpending) * 100) * 10) / 10;
+
 
                             return (
                                 <View style={styles.envelope_text_amount_view} key={index}>

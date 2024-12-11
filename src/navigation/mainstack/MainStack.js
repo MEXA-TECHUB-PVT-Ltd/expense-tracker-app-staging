@@ -141,35 +141,38 @@ const MainStack = () => {
         }
     }, [isAuthenticated, tempUserId]);
 
-    // works perfectly fine but has no check if new year has already copied envelopes and inserted
+    // this has check for boht month and year to check it is also working and for both month and year but relaunching app was again copying
     // const checkAndTriggerStartOfMonthTask = async (tempUserId) => {
     //     const now = moment();
     //     const startOfCurrentMonth = moment().startOf('month');
+    //     const currentYear = now.format('YYYY');
 
-    //     console.log('Current Date in triggering function:', now.format('YYYY-MM-DD HH:mm:ss'));
-    //     console.log('Start of Current Month in triggering function:', startOfCurrentMonth.format('YYYY-MM-DD HH:mm:ss'));
+    //     console.log('Current Date:', now.format('YYYY-MM-DD HH:mm:ss'));
+    //     console.log('Start of Current Month:', startOfCurrentMonth.format('YYYY-MM-DD HH:mm:ss'));
 
-    //     // Get the last copy month from AsyncStorage
     //     const lastCopyMonth = await AsyncStorage.getItem('lastCopyMonth');
+    //     const lastCopyYear = await AsyncStorage.getItem('lastCopyYear');
 
-    //     if (!lastCopyMonth) {
-    //         // If lastCopyMonth is null, run the task immediately
-    //         console.log('No record of lastCopyMonth. Running tasks immediately...');
+    //     if (!lastCopyMonth && !lastCopyYear) {
+    //         console.log('No records for previous month or year. Running tasks immediately...');
     //         await copyAndInsertNextMonthEnvelopesAndIncome(tempUserId);
-    //         // Save the current month as the last copied month
     //         await AsyncStorage.setItem('lastCopyMonth', startOfCurrentMonth.format('YYYY-MM'));
+    //         await AsyncStorage.setItem('lastCopyYear', currentYear);
     //     } else if (lastCopyMonth !== startOfCurrentMonth.format('YYYY-MM')) {
-    //         // If lastCopyMonth is not the current month, ensure the task is completed for the new month
-    //         console.log('Detected a new month. Checking if tasks need to be run...');
+    //         console.log('Detected a new month. Copying Monthly and Goal envelopes...');
     //         await copyAndInsertNextMonthEnvelopesAndIncome(tempUserId);
-    //         // Save the current month as the last copied month
     //         await AsyncStorage.setItem('lastCopyMonth', startOfCurrentMonth.format('YYYY-MM'));
+    //     } else if (lastCopyYear !== currentYear) {
+    //         console.log('New year detected. Copying Every Year envelopes...');
+    //         await copyAndInsertNextMonthEnvelopesAndIncome(tempUserId);
+    //         await AsyncStorage.setItem('lastCopyYear', currentYear);
+    //         await AsyncStorage.setItem('lastCopyMonth', startOfCurrentMonth.format('YYYY-MM')); // Update month to avoid re-triggering
     //     } else {
-    //         console.log('Data already copied for this month. Skipping the task.');
+    //         console.log('Envelopes already copied for this year or month. Skipping task.');
     //     }
     // };
 
-    // this has check for boht month and year to check it is also working and for both month and year
+    // latest logic to confirm if app relaunch it dont copy again and even if we move in back in months or years it still dont copy again
     const checkAndTriggerStartOfMonthTask = async (tempUserId) => {
         const now = moment();
         const startOfCurrentMonth = moment().startOf('month');
@@ -178,64 +181,102 @@ const MainStack = () => {
         console.log('Current Date:', now.format('YYYY-MM-DD HH:mm:ss'));
         console.log('Start of Current Month:', startOfCurrentMonth.format('YYYY-MM-DD HH:mm:ss'));
 
+        // Fetch stored records
         const lastCopyMonth = await AsyncStorage.getItem('lastCopyMonth');
         const lastCopyYear = await AsyncStorage.getItem('lastCopyYear');
 
-        if (!lastCopyMonth && !lastCopyYear) {
-            console.log('No records for previous month or year. Running tasks immediately...');
-            await copyAndInsertNextMonthEnvelopesAndIncome(tempUserId);
+        console.log('Stored lastCopyMonth:', lastCopyMonth);
+        console.log('Stored lastCopyYear:', lastCopyYear);
+
+        // Handle first-time installation scenario
+        if (!lastCopyMonth || !lastCopyYear) {
+            console.log('No previous month or year found in async. Copying data for the new month and year and setting async values.');
+            await copyAndInsertNextMonthEnvelopesAndIncome(tempUserId, true);
+
             await AsyncStorage.setItem('lastCopyMonth', startOfCurrentMonth.format('YYYY-MM'));
             await AsyncStorage.setItem('lastCopyYear', currentYear);
-        } else if (lastCopyMonth !== startOfCurrentMonth.format('YYYY-MM')) {
-            console.log('Detected a new month. Copying Monthly and Goal envelopes...');
-            await copyAndInsertNextMonthEnvelopesAndIncome(tempUserId);
-            await AsyncStorage.setItem('lastCopyMonth', startOfCurrentMonth.format('YYYY-MM'));
-        } else if (lastCopyYear !== currentYear) {
-            console.log('New year detected. Copying Every Year envelopes...');
-            await copyAndInsertNextMonthEnvelopesAndIncome(tempUserId);
+
+            console.log('Stored new lastCopyMonth and lastCopyYear in AsyncStorage.');
+            return;
+        }
+
+        // Parse stored month and year
+        const lastCopyDate = moment(lastCopyMonth, 'YYYY-MM');
+        const storedYear = parseInt(lastCopyYear, 10);
+        const isSameYear = parseInt(currentYear, 10) === storedYear; //can safetly remove as not being use anywhere
+        const isSameOrEarlierMonth = startOfCurrentMonth.isSameOrBefore(lastCopyDate); //can safetly remove as not being use anywhere
+
+        // Check if detected month/year is newer than stored ones
+        const detectedMonth = startOfCurrentMonth.format('YYYY-MM');
+        const isNewMonth = detectedMonth !== lastCopyMonth;
+        const isNewYear = currentYear !== lastCopyYear;
+
+        const isDetectedMonthNewer = moment(detectedMonth, 'YYYY-MM').isAfter(moment(lastCopyMonth, 'YYYY-MM'));
+        const isDetectedYearNewer = parseInt(currentYear, 10) > parseInt(lastCopyYear, 10);
+
+        if (isNewMonth && isNewYear && isDetectedMonthNewer && isDetectedYearNewer) {
+            console.log('Detected a new month and a new year.');
+
+            console.log('Copying envelopes for new month and new year...');
+            await copyAndInsertNextMonthEnvelopesAndIncome(tempUserId, true);
+
+            await AsyncStorage.setItem('lastCopyMonth', detectedMonth);
             await AsyncStorage.setItem('lastCopyYear', currentYear);
-            await AsyncStorage.setItem('lastCopyMonth', startOfCurrentMonth.format('YYYY-MM')); // Update month to avoid re-triggering
+
+            console.log('Updated lastCopyMonth and lastCopyYear in AsyncStorage.');
+        } else if (isNewMonth && isDetectedMonthNewer) {
+            console.log('Detected a new month.');
+
+            console.log('Copying envelopes for new month...');
+            await copyAndInsertNextMonthEnvelopesAndIncome(tempUserId, false);
+
+            await AsyncStorage.setItem('lastCopyMonth', detectedMonth);
+            console.log('Updated lastCopyMonth in AsyncStorage.');
+        } else if (isNewYear && isDetectedYearNewer) {
+            console.log('Detected a new year.');
+
+            console.log('Copying envelopes for new year...');
+            await copyAndInsertNextMonthEnvelopesAndIncome(tempUserId, true);
+
+            await AsyncStorage.setItem('lastCopyYear', currentYear);
+            console.log('Updated lastCopyYear in AsyncStorage.');
         } else {
-            console.log('Envelopes already copied for this year or month. Skipping task.');
+            console.log('No new month or year detected or detected values are not newer than stored ones. Skipping tasks.');
         }
     };
 
-
-    const copyAndInsertNextMonthEnvelopesAndIncome = async (tempUserId) => {
+    const copyAndInsertNextMonthEnvelopesAndIncome = async (tempUserId, isNewYear) => { // modified --- added isNewYear
         const startOfPreviousMonth = moment().subtract(1, 'month').startOf('month');
         const endOfPreviousMonth = moment().subtract(1, 'month').endOf('month');
         const startOfCurrentMonth = moment().startOf('month');
+        // here formatted
+        const formattedStartOfPreviousMonth = formatDateSql(startOfPreviousMonth);
+        const formattedEndOfPreviousMonth = formatDateSql(endOfPreviousMonth);
+        const formattedStartOfCurrentMonth = formatDateSql(startOfCurrentMonth);
 
         // dates for Every year because befor it was although copying Yearly envelopes but it had no idea to which range i nedd to copy now copy full previous year envelopes
         // Get the start and end of the **previous year** to pass in select query so that whole year envelopes of previous year with buegetPeriod Every Year are selected
         const startOfPreviousYear = moment().subtract(1, 'year').startOf('year').toISOString();
         const endOfPreviousYear = moment().subtract(1, 'year').endOf('year').toISOString();
+        // Format the dates using the formatDateSql function
+        const formattedFromDateYearly = formatDateSql(startOfPreviousYear);
+        const formattedToDateYearly = formatDateSql(endOfPreviousYear);
 
         // new logic
-        const lastCopyYear = await AsyncStorage.getItem('lastCopyYear');
-        const currentYear = moment().format('YYYY');
-        const isNewYear = lastCopyYear !== currentYear;
+        // const lastCopyYear = await AsyncStorage.getItem('lastCopyYear');
+        // const currentYear = moment().format('YYYY');
+        // const isNewYear = lastCopyYear !== currentYear;
 
         // for Every Year envelopes old logic
         // const startOfCurrentYear = moment().startOf('year');
         // const isNewYear = moment().isSame(startOfCurrentYear, 'year') && moment().isSame(startOfCurrentYear, 'day');
         // console.log('================= NewYear is =======', isNewYear)
 
-        // Format the dates using the formatDateSql function
-        const formattedFromDateYearly = formatDateSql(startOfPreviousYear);
-        const formattedToDateYearly = formatDateSql(endOfPreviousYear);
-
-        console.log('==============++++++++++ formattedFromDateYearly==============', formattedFromDateYearly);
-        console.log('==============++++++++++ formattedToDateYearly==============', formattedToDateYearly);
-
-        const formattedStartOfPreviousMonth = formatDateSql(startOfPreviousMonth);
-        const formattedEndOfPreviousMonth = formatDateSql(endOfPreviousMonth);
-        const formattedStartOfCurrentMonth = formatDateSql(startOfCurrentMonth);
-
         console.log('--- COPY & INSERT TASK STARTED ---');
 
         db.transaction(tx => {
             /*** ENVELOPES LOGIC ***/
+            // version 1
     //         const envelopesSelectQuery = `
     //   SELECT envelopeId, envelopeName, amount, budgetPeriod, orderIndex, user_id 
     //   FROM envelopes 
@@ -243,22 +284,39 @@ const MainStack = () => {
     //   ORDER BY orderIndex;
     // `;
 
+    // version 2
+//             const envelopesSelectQuery = `
+//     SELECT envelopeId, envelopeName, amount, budgetPeriod, orderIndex, user_id 
+//     FROM envelopes 
+//     WHERE user_id = ? 
+//       AND (
+//         (budgetPeriod IN ('Monthly', 'Goal') AND fillDate BETWEEN ? AND ?)
+//         OR 
+//         (budgetPeriod = 'Every Year' AND fillDate BETWEEN ? AND ?)
+//       )
+//     ORDER BY orderIndex;
+// `;
+
+            // version 3 latest
             const envelopesSelectQuery = `
     SELECT envelopeId, envelopeName, amount, budgetPeriod, orderIndex, user_id 
     FROM envelopes 
-    WHERE user_id = ? 
-      AND (
+    WHERE user_id = ? AND (
         (budgetPeriod IN ('Monthly', 'Goal') AND fillDate BETWEEN ? AND ?)
-        OR 
-        (budgetPeriod = 'Every Year' AND fillDate BETWEEN ? AND ?)
-      )
+        ${isNewYear ? "OR (budgetPeriod = 'Every Year' AND fillDate BETWEEN ? AND ?)" : ''}
+    )
     ORDER BY orderIndex;
 `;
+
+            const queryParams = isNewYear
+                ? [tempUserId, formattedStartOfPreviousMonth, formattedEndOfPreviousMonth, formattedFromDateYearly, formattedToDateYearly]
+                : [tempUserId, formattedStartOfPreviousMonth, formattedEndOfPreviousMonth];
 
             console.log('Executing envelopes SELECT query...');
             tx.executeSql(
                 envelopesSelectQuery,
-                [tempUserId, formattedStartOfPreviousMonth, formattedEndOfPreviousMonth, formattedFromDateYearly, formattedToDateYearly],
+                queryParams,
+                // [tempUserId, formattedStartOfPreviousMonth, formattedEndOfPreviousMonth, formattedFromDateYearly, formattedToDateYearly],
                 (_, results) => {
                     if (results.rows.length > 0) {
                         let newEnvelopes = [];

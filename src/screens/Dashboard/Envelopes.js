@@ -65,10 +65,11 @@ const Envelopes = () => {
   const formattedFromDateYearly = formatDateSql(startOfYear);
   const formattedToDateYearly = formatDateSql(endOfYear);
 
-  console.log('++++++++++++++++       formattedFromDateYearly in envelopes screen: ', formattedFromDateYearly);
-  console.log('++++++++++++++++       formattedToDateYearly in envelopes screen: ', formattedToDateYearly);
+  // console.log('++++++++++++++++       formattedFromDateYearly in envelopes screen: ', formattedFromDateYearly);
+  // console.log('++++++++++++++++       formattedToDateYearly in envelopes screen: ', formattedToDateYearly);
 
 
+  // for now we are not showing it but if we need to show i already have it, below i have view may be commented out in which showing this
   const [totalIncome, setTotalIncome] = useState(0);
   useEffect(
     useCallback(() => {
@@ -85,11 +86,12 @@ const Envelopes = () => {
   );
 
   // for showing total sum of all envelopes incomes single sumup of all for every year
+  // modify its dates to yearly if necessary
   const [yearlyIncome, setYearlyIncome] = useState(0);
   useEffect(
     useCallback(() => {
-      fetchTotalEnvelopesAmountYearly(setYearlyIncome, tempUserId, formattedFromDate, formattedToDate);
-    }, [tempUserId, formattedFromDate, formattedToDate])
+      fetchTotalEnvelopesAmountYearly(setYearlyIncome, tempUserId, formattedFromDateYearly, formattedToDateYearly);
+    }, [tempUserId, formattedFromDateYearly, formattedToDateYearly])
   );
 
   // for showing total sum of all envelopes incomes single sumup of all for goals
@@ -104,7 +106,7 @@ const Envelopes = () => {
   const [filledIncomes, setFilledIncomes] = useState([]);
 
   const [envelopes, setEnvelopes] = useState([]);
-  console.log('state of envelopes in envelopes screen-=-=-=-=--=-=-=: ', envelopes); 
+  // console.log('state of envelopes in envelopes screen-=-=-=-=--=-=-=: ', envelopes); 
 
   // Group the envelopes by budgetPeriod for section list to show data by Month year and goal
   const groupedEnvelopes = [
