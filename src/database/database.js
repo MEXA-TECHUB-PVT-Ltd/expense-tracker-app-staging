@@ -97,6 +97,25 @@ const initializeDatabase = () => {
             error => console.error('Error creating Income table', error)
         );
 
+        // create unallocated table if not exists
+        tx.executeSql(
+            `CREATE TABLE IF NOT EXISTS Unallocated (
+        envelopeName TEXT NOT NULL DEFAULT 'Available',
+        unallocatedIncome REAL DEFAULT 0,
+        fillDate TEXT,
+        user_id INTEGER,
+        FOREIGN KEY (user_id) REFERENCES Users(id) ON DELETE CASCADE
+    )`,
+            [],
+            () => console.log('Unallocated Table created successfully'),
+            (_, error) => {
+                console.log('Error creating Unallocated table:', error);
+                return true;
+            }
+        );
+
+
+
         // create transactions table if not exists
         tx.executeSql(
             `CREATE TABLE IF NOT EXISTS Transactions (
@@ -365,7 +384,7 @@ const addAmount = (amount, budgetPeriod) => {
     });
 };
 
-// Function to fetch total income
+// Function to fetch total income from Income table...budgetAmount that can be updated..either no need to update it and not being used...
 const fetchTotalIncome = (callback, tempUserId, formattedFromDate, formattedToDate) => {
     db.transaction(tx => {
         tx.executeSql(

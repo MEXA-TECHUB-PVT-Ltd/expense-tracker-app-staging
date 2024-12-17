@@ -102,6 +102,42 @@ const Envelopes = () => {
     }, [tempUserId, formattedFromDate, formattedToDate])
   );
 
+  // for unallocatedAmount from Unallocated table
+  const [unallocatedIncome, setUnallocatedIncome] = useState(0);
+  // query for getting total unallocattedIncome
+  const getUnallocatedIncome = (userId) => {
+    db.transaction(tx => {
+      tx.executeSql(
+        `SELECT SUM(unallocatedIncome) as totalUnallocatedIncome 
+         FROM Unallocated 
+         WHERE user_id = ?`,
+        [userId],
+        (_, result) => {
+          const totalUnallocatedIncome = result.rows.item(0)?.totalUnallocatedIncome || 0;
+          console.log('Total Unallocated Income:', totalUnallocatedIncome);
+          setUnallocatedIncome(totalUnallocatedIncome);
+        },
+        (_, error) => {
+          console.log('Error fetching Unallocated income:', error);
+          Alert.alert('Error', 'Failed to fetch unallocated income data.');
+          return true;
+        }
+      );
+    }, error => {
+      console.log('Transaction Error:', error);
+    });
+  };
+
+  // Call the query whenever the screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      if (tempUserId) {
+        getUnallocatedIncome(tempUserId);
+      }
+    }, [tempUserId])
+  );
+
+
   // for flatlist
   const [filledIncomes, setFilledIncomes] = useState([]);
 
@@ -113,6 +149,11 @@ const Envelopes = () => {
     { title: 'Monthly', data: envelopes.filter(item => item.budgetPeriod === 'Monthly') },
     { title: 'Every Year', data: envelopes.filter(item => item.budgetPeriod === 'Every Year') },
     { title: 'Goal', data: envelopes.filter(item => item.budgetPeriod === 'Goal') },
+    // { title: 'Unallocated', data: [{ envelopeId: -100, envelopeName: '(Available)', filledIncome: 336, amount: 336 }] },
+    {
+      title: 'Unallocated',
+      data: [{ envelopeId: -100000, envelopeName: '(Available)', filledIncome: unallocatedIncome, amount: unallocatedIncome }]
+    }
   ];
 
   // const fetchEnvelopes = useCallback(() => {
@@ -218,47 +259,47 @@ const Envelopes = () => {
 
 
   // works perfectly fine and filter monthly and yearly but once it is new year it still shows all yearly envelopes
-//   const getAllEnvelopes = (setEnvelopes, tempUserId, formattedFromDate, formattedToDate) => {
-//     // console.log('running getAllEnvelopes...');
-//     db.transaction(tx => {
-//       const sqlQuery = `
-//   SELECT * FROM envelopes 
-//   WHERE user_id = ? 
-//   AND (
-//     (budgetPeriod IN ('Monthly', 'Goal') AND fillDate BETWEEN ? AND ?) 
-//     OR (budgetPeriod = 'Every Year')
-//   )
-//   ORDER BY orderIndex;
-// `;
+  //   const getAllEnvelopes = (setEnvelopes, tempUserId, formattedFromDate, formattedToDate) => {
+  //     // console.log('running getAllEnvelopes...');
+  //     db.transaction(tx => {
+  //       const sqlQuery = `
+  //   SELECT * FROM envelopes 
+  //   WHERE user_id = ? 
+  //   AND (
+  //     (budgetPeriod IN ('Monthly', 'Goal') AND fillDate BETWEEN ? AND ?) 
+  //     OR (budgetPeriod = 'Every Year')
+  //   )
+  //   ORDER BY orderIndex;
+  // `;
 
-//       tx.executeSql(
-//         sqlQuery,
-//         [tempUserId, formattedFromDate, formattedToDate],
-//         (_, results) => {
-//           // console.log('SQL Results:', results.rows);
-//           if (results.rows && results.rows.length > 0) {
-//             let envelopesArray = [];
-//             for (let i = 0; i < results.rows.length; i++) {
-//               envelopesArray.push(results.rows.item(i));
-//             }
-//             setEnvelopes(envelopesArray);
-//           } else {
-//             setEnvelopes([]);
-//           }
-//         },
-//         (_, error) => {
-//           console.log('Error getting envelopes:', error);
-//           setEnvelopes([]);  // Handle errors by setting an empty state
-//           return true;
-//         }
-//       );
-//     }, (error) => {
-//       console.log('Transaction Error:', error);
-//       setEnvelopes([]);  // Handle transaction errors
-//     }, () => {
-//       // console.log('Transaction Success');
-//     });
-//   };
+  //       tx.executeSql(
+  //         sqlQuery,
+  //         [tempUserId, formattedFromDate, formattedToDate],
+  //         (_, results) => {
+  //           // console.log('SQL Results:', results.rows);
+  //           if (results.rows && results.rows.length > 0) {
+  //             let envelopesArray = [];
+  //             for (let i = 0; i < results.rows.length; i++) {
+  //               envelopesArray.push(results.rows.item(i));
+  //             }
+  //             setEnvelopes(envelopesArray);
+  //           } else {
+  //             setEnvelopes([]);
+  //           }
+  //         },
+  //         (_, error) => {
+  //           console.log('Error getting envelopes:', error);
+  //           setEnvelopes([]);  // Handle errors by setting an empty state
+  //           return true;
+  //         }
+  //       );
+  //     }, (error) => {
+  //       console.log('Transaction Error:', error);
+  //       setEnvelopes([]);  // Handle transaction errors
+  //     }, () => {
+  //       // console.log('Transaction Success');
+  //     });
+  //   };
 
   // Pull-to-refresh handler
   const [refreshing, setRefreshing] = useState(false);
@@ -267,7 +308,6 @@ const Envelopes = () => {
     getAllEnvelopes(setEnvelopes, tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly);
     setRefreshing(false);
   };
-
 
   // this logs all envelopes in table no date range
   const fetchAndLogFilledIncomes = (tempUserId) => {
@@ -619,125 +659,125 @@ const Envelopes = () => {
   //   triggerStartOfMonthTask(tempUserId);
   // }, [tempUserId]);
 
- // Function to copy and insert envelopes for the next month version 3 checks applied dont duplicate and if there is delay like user
- // opens app after few days later then start of new month
-  
-//   let functionRunCount = 0;
-//  const copyAndInsertNextMonthEnvelopesAndIncome = async (tempUserId) => {
+  // Function to copy and insert envelopes for the next month version 3 checks applied dont duplicate and if there is delay like user
+  // opens app after few days later then start of new month
 
-//    functionRunCount += 1;  // Increment the counter each time the function is called
-//    console.log(`Function copyAndInsertNextMonthEnvelopesAndIncome run count: ${functionRunCount}`);
+  //   let functionRunCount = 0;
+  //  const copyAndInsertNextMonthEnvelopesAndIncome = async (tempUserId) => {
 
-//    console.log('Function is running for the first time.');
-//     // Calculate date ranges
-//     const startOfPreviousMonth = moment().subtract(1, 'month').startOf('month');
-//     const endOfPreviousMonth = moment().subtract(1, 'month').endOf('month');
-//     const startOfCurrentMonth = moment().startOf('month'); // Updated for clarity
+  //    functionRunCount += 1;  // Increment the counter each time the function is called
+  //    console.log(`Function copyAndInsertNextMonthEnvelopesAndIncome run count: ${functionRunCount}`);
 
-//     // Format dates for SQL
-//     const formattedStartOfPreviousMonth = formatDateSql(startOfPreviousMonth);
-//     const formattedEndOfPreviousMonth = formatDateSql(endOfPreviousMonth);
-//     const formattedStartOfCurrentMonth = formatDateSql(startOfCurrentMonth);
+  //    console.log('Function is running for the first time.');
+  //     // Calculate date ranges
+  //     const startOfPreviousMonth = moment().subtract(1, 'month').startOf('month');
+  //     const endOfPreviousMonth = moment().subtract(1, 'month').endOf('month');
+  //     const startOfCurrentMonth = moment().startOf('month'); // Updated for clarity
 
-//     console.log('--- COPY & INSERT TASK STARTED ---');
-//     console.log('Formatted Start of Previous Month:', formattedStartOfPreviousMonth);
-//     console.log('Formatted End of Previous Month:', formattedEndOfPreviousMonth);
-//     console.log('Formatted Start of Current Month:', formattedStartOfCurrentMonth);
+  //     // Format dates for SQL
+  //     const formattedStartOfPreviousMonth = formatDateSql(startOfPreviousMonth);
+  //     const formattedEndOfPreviousMonth = formatDateSql(endOfPreviousMonth);
+  //     const formattedStartOfCurrentMonth = formatDateSql(startOfCurrentMonth);
 
-//     db.transaction(tx => {
-//       /*** ENVELOPES LOGIC ***/
-//       const envelopesSelectQuery = `
-//       SELECT envelopeId, envelopeName, amount, budgetPeriod, orderIndex, user_id 
-//       FROM envelopes 
-//       WHERE user_id = ? AND fillDate BETWEEN ? AND ? 
-//       ORDER BY orderIndex;
-//     `;
+  //     console.log('--- COPY & INSERT TASK STARTED ---');
+  //     console.log('Formatted Start of Previous Month:', formattedStartOfPreviousMonth);
+  //     console.log('Formatted End of Previous Month:', formattedEndOfPreviousMonth);
+  //     console.log('Formatted Start of Current Month:', formattedStartOfCurrentMonth);
 
-//       console.log('Executing envelopes SELECT query...');
-//       tx.executeSql(
-//         envelopesSelectQuery,
-//         [tempUserId, formattedStartOfPreviousMonth, formattedEndOfPreviousMonth],
-//         (_, results) => {
-//           if (results.rows.length > 0) {
-//             let newEnvelopes = [];
-//             for (let i = 0; i < results.rows.length; i++) {
-//               const item = results.rows.item(i);
-//               newEnvelopes.push([
-//                 item.envelopeName,
-//                 item.amount,
-//                 item.budgetPeriod,
-//                 formattedStartOfCurrentMonth, // Set fill date to the current month start
-//                 0, // Reset filledIncome
-//                 item.user_id,
-//                 item.orderIndex
-//               ]);
-//             }
+  //     db.transaction(tx => {
+  //       /*** ENVELOPES LOGIC ***/
+  //       const envelopesSelectQuery = `
+  //       SELECT envelopeId, envelopeName, amount, budgetPeriod, orderIndex, user_id 
+  //       FROM envelopes 
+  //       WHERE user_id = ? AND fillDate BETWEEN ? AND ? 
+  //       ORDER BY orderIndex;
+  //     `;
 
-//             const envelopesInsertQuery = `
-//             INSERT INTO envelopes (envelopeName, amount, budgetPeriod, fillDate, filledIncome, user_id, orderIndex)
-//             VALUES (?, ?, ?, ?, ?, ?, ?);
-//           `;
-//             newEnvelopes.forEach(env => {
-//               tx.executeSql(
-//                 envelopesInsertQuery,
-//                 env,
-//                 () => console.log('Envelope inserted successfully:', env),
-//                 (_, error) => console.error('Error inserting envelope:', env, error)
-//               );
-//             });
-//           } else {
-//             console.log('No envelopes found for the previous month.');
-//           }
-//         },
-//         (_, error) => console.error('Error fetching previous month envelopes:', error)
-//       );
+  //       console.log('Executing envelopes SELECT query...');
+  //       tx.executeSql(
+  //         envelopesSelectQuery,
+  //         [tempUserId, formattedStartOfPreviousMonth, formattedEndOfPreviousMonth],
+  //         (_, results) => {
+  //           if (results.rows.length > 0) {
+  //             let newEnvelopes = [];
+  //             for (let i = 0; i < results.rows.length; i++) {
+  //               const item = results.rows.item(i);
+  //               newEnvelopes.push([
+  //                 item.envelopeName,
+  //                 item.amount,
+  //                 item.budgetPeriod,
+  //                 formattedStartOfCurrentMonth, // Set fill date to the current month start
+  //                 0, // Reset filledIncome
+  //                 item.user_id,
+  //                 item.orderIndex
+  //               ]);
+  //             }
 
-//       /*** INCOME LOGIC ***/
-//       const incomeSelectQuery = `
-//       SELECT accountName, monthlyAmount, budgetAmount, budgetPeriod, user_id 
-//       FROM Income 
-//       WHERE user_id = ? AND incomeDate BETWEEN ? AND ?;
-//     `;
+  //             const envelopesInsertQuery = `
+  //             INSERT INTO envelopes (envelopeName, amount, budgetPeriod, fillDate, filledIncome, user_id, orderIndex)
+  //             VALUES (?, ?, ?, ?, ?, ?, ?);
+  //           `;
+  //             newEnvelopes.forEach(env => {
+  //               tx.executeSql(
+  //                 envelopesInsertQuery,
+  //                 env,
+  //                 () => console.log('Envelope inserted successfully:', env),
+  //                 (_, error) => console.error('Error inserting envelope:', env, error)
+  //               );
+  //             });
+  //           } else {
+  //             console.log('No envelopes found for the previous month.');
+  //           }
+  //         },
+  //         (_, error) => console.error('Error fetching previous month envelopes:', error)
+  //       );
 
-//       console.log('Executing income SELECT query...');
-//       tx.executeSql(
-//         incomeSelectQuery,
-//         [tempUserId, formattedStartOfPreviousMonth, formattedEndOfPreviousMonth],
-//         (_, results) => {
-//           if (results.rows.length > 0) {
-//             let newIncomeRecords = [];
-//             for (let i = 0; i < results.rows.length; i++) {
-//               const item = results.rows.item(i);
-//               newIncomeRecords.push([
-//                 item.accountName,
-//                 item.monthlyAmount,
-//                 item.monthlyAmount, // budgetAmount = monthlyAmount
-//                 item.budgetPeriod,
-//                 formattedStartOfCurrentMonth, // Set incomeDate to current month start
-//                 item.user_id
-//               ]);
-//             }
+  //       /*** INCOME LOGIC ***/
+  //       const incomeSelectQuery = `
+  //       SELECT accountName, monthlyAmount, budgetAmount, budgetPeriod, user_id 
+  //       FROM Income 
+  //       WHERE user_id = ? AND incomeDate BETWEEN ? AND ?;
+  //     `;
 
-//             const incomeInsertQuery = `
-//             INSERT INTO Income (accountName, monthlyAmount, budgetAmount, budgetPeriod, incomeDate, user_id)
-//             VALUES (?, ?, ?, ?, ?, ?);
-//           `;
-//             newIncomeRecords.forEach(income => {
-//               tx.executeSql(
-//                 incomeInsertQuery,
-//                 income,
-//                 () => console.log('Income record inserted successfully:', income),
-//                 (_, error) => console.error('Error inserting income record:', income, error)
-//               );
-//             });
-//           } else {
-//             console.log('No income records found for the previous month.');
-//           }
-//         },
-//         (_, error) => console.error('Error fetching previous month income records:', error)
-//       );
-//     });
-//   };
+  //       console.log('Executing income SELECT query...');
+  //       tx.executeSql(
+  //         incomeSelectQuery,
+  //         [tempUserId, formattedStartOfPreviousMonth, formattedEndOfPreviousMonth],
+  //         (_, results) => {
+  //           if (results.rows.length > 0) {
+  //             let newIncomeRecords = [];
+  //             for (let i = 0; i < results.rows.length; i++) {
+  //               const item = results.rows.item(i);
+  //               newIncomeRecords.push([
+  //                 item.accountName,
+  //                 item.monthlyAmount,
+  //                 item.monthlyAmount, // budgetAmount = monthlyAmount
+  //                 item.budgetPeriod,
+  //                 formattedStartOfCurrentMonth, // Set incomeDate to current month start
+  //                 item.user_id
+  //               ]);
+  //             }
+
+  //             const incomeInsertQuery = `
+  //             INSERT INTO Income (accountName, monthlyAmount, budgetAmount, budgetPeriod, incomeDate, user_id)
+  //             VALUES (?, ?, ?, ?, ?, ?);
+  //           `;
+  //             newIncomeRecords.forEach(income => {
+  //               tx.executeSql(
+  //                 incomeInsertQuery,
+  //                 income,
+  //                 () => console.log('Income record inserted successfully:', income),
+  //                 (_, error) => console.error('Error inserting income record:', income, error)
+  //               );
+  //             });
+  //           } else {
+  //             console.log('No income records found for the previous month.');
+  //           }
+  //         },
+  //         (_, error) => console.error('Error fetching previous month income records:', error)
+  //       );
+  //     });
+  //   };
 
   // const checkAndTriggerStartOfMonthTask = async (tempUserId) => {
   //   const now = moment();
@@ -810,7 +850,7 @@ const Envelopes = () => {
   //   checkAndTriggerStartOfMonthTask(tempUserId);
   // }, [tempUserId]);
 
-// version 4
+  // version 4
 
   // let functionRunCount = 0;
 
@@ -1197,7 +1237,7 @@ const Envelopes = () => {
   //   });
   // };
 
-// this was working fine like copy correctly but till here we had duplication error
+  // this was working fine like copy correctly but till here we had duplication error
   // const checkAndTriggerStartOfMonthTask = async (tempUserId) => {
   //   const now = moment();
   //   const startOfCurrentMonth = moment().startOf('month');
@@ -1341,14 +1381,17 @@ const Envelopes = () => {
                       <Text style={styles.item_text_name}>{item.envelopeName}</Text>
                       <Text style={styles.item_text_filledIncome}>{item.filledIncome || 0}.00</Text>
                     </View>
-                    <View style={styles.bar_icon_view}>
-                      <View style={styles.progress_bar_view}>
-                        <CustomProgressBar filledIncome={item.filledIncome} amount={item.amount} />
+
+                    {section.title !== 'Unallocated' && (
+                      <View style={styles.bar_icon_view}>
+                        <View style={styles.progress_bar_view}>
+                          <CustomProgressBar filledIncome={item.filledIncome} amount={item.amount} />
+                        </View>
+                        <View style={styles.progress_bar_view_icon}>
+                          <Text style={styles.item_text_amount}>{item.amount}.00</Text>
+                        </View>
                       </View>
-                      <View style={styles.progress_bar_view_icon}>
-                        <Text style={styles.item_text_amount}>{item.amount}.00</Text>
-                      </View>
-                    </View>
+                    )}
                   </TouchableOpacity>
                 </ImageBackground>
               ) : (
@@ -1360,14 +1403,17 @@ const Envelopes = () => {
                     <Text style={styles.item_text_name}>{item.envelopeName}</Text>
                     <Text style={styles.item_text_filledIncome}>{item.filledIncome || 0}.00</Text>
                   </View>
-                  <View style={styles.bar_icon_view}>
-                    <View style={styles.progress_bar_view}>
-                      <CustomProgressBar filledIncome={item.filledIncome} amount={item.amount} />
+
+                  {section.title !== 'Unallocated' && (
+                    <View style={styles.bar_icon_view}>
+                      <View style={styles.progress_bar_view}>
+                        <CustomProgressBar filledIncome={item.filledIncome} amount={item.amount} />
+                      </View>
+                      <View style={styles.progress_bar_view_icon}>
+                        <Text style={styles.item_text_amount}>{item.amount}.00</Text>
+                      </View>
                     </View>
-                    <View style={styles.progress_bar_view_icon}>
-                      <Text style={styles.item_text_amount}>{item.amount}.00</Text>
-                    </View>
-                  </View>
+                  )}
                 </TouchableOpacity>
               )}
               <Divider />
@@ -1383,6 +1429,8 @@ const Envelopes = () => {
             displayedIncome = yearlyIncome;
           } else if (title === 'Goal') {
             displayedIncome = goalIncome;
+          } else if (title === 'Unallocated') {
+            displayedIncome = unallocatedIncome;
           }
 
           return (
@@ -1434,7 +1482,7 @@ const styles = StyleSheet.create({
 
   //flatlist styles
   imageBackground: {
-    
+
   },
   imageStyle: {
     resizeMode: 'repeat',

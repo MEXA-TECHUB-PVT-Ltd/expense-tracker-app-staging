@@ -2,7 +2,7 @@ import { StyleSheet, Text, View, StatusBar } from 'react-native'
 import React, {useState, useEffect, useCallback} from 'react'
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import colors from '../../constants/colors'
-import { fetchTotalEnvelopesAmount} from '../../database/database';
+import { db, fetchTotalEnvelopesAmount, fetchTotalIncomeSetupBudget } from '../../database/database';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
 import moment from 'moment';
@@ -57,28 +57,107 @@ const Accounts = () => {
   const formattedFromDateYearly = formatDateSql(startOfYear);
   const formattedToDateYearly = formatDateSql(endOfYear);
 
-  // console.log('++++++++++++++++       formattedFromDateYearly in envelopes screen: ', formattedFromDateYearly);
-  // console.log('++++++++++++++++       formattedToDateYearly in envelopes screen: ', formattedToDateYearly);
-
+  // for counting sum of total filledIncome of all envelopes as remaining income
   useFocusEffect(
     useCallback(() => {
       fetchTotalEnvelopesAmount(setTotalIncome, tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly);
     }, [tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly])
   );
 
+  // 1. Total Income: for counting sum of total monthlyAmount from Income table.. budgeted amount that dont change even make transactions
+  const [totalMonthlyAmount, setTotalMonthlyAmount] = useState(0);
+  useFocusEffect(
+    useCallback(() => {
+      fetchTotalIncomeSetupBudget(setTotalMonthlyAmount, tempUserId, formattedFromDate, formattedToDate);
+    }, [tempUserId, formattedFromDate, formattedToDate])  // Add dependencies to re-fetch on change
+  );
+
+  // code to filter transactions by date
+  const [transactions, setTransactions] = useState([]);
+  // console.log('all transactions data :', transactions);
+  const filterTransactions = (formattedFromDate, formattedToDate) => {
+    db.transaction((tx) => {
+      const fetchQuery = `
+      SELECT * 
+      FROM Transactions 
+      WHERE transactionDate BETWEEN ? AND ? AND user_id = ?;
+    `;
+
+      tx.executeSql(
+        fetchQuery,
+        [formattedFromDate, formattedToDate, tempUserId],
+        (_, { rows }) => {
+          const allData = [];
+          for (let i = 0; i < rows.length; i++) {
+            allData.push(rows.item(i));
+          }
+          setTransactions(allData);
+        },
+        (_, error) => {
+          console.error("Error Fetching Data:", error);
+          return true;
+        }
+      );
+    });
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (formattedFromDate && formattedToDate) {
+        filterTransactions(formattedFromDate, formattedToDate);
+      }
+    }, [formattedFromDate, formattedToDate])
+  );
+
+
+  // code to calculate Spent Income which is sum of all transactions as expense
+  const [spentIncome, setSpentIncome] = useState(0);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      // Calculate spending directly from the transactions state
+      const totalSpent = transactions
+        .filter((transaction) => transaction.transactionType === "Expense")
+        .reduce((sum, transaction) => sum + transaction.transactionAmount, 0);
+
+      setSpentIncome(totalSpent);
+
+      // console.log('Spent Income:', totalSpent);
+    }, [transactions])
+  );
+
+  // to calculate remaining Income by subtracting spentAmount(calculated from sum of all expense transctions of current month) from totalMonthlySpent (from Income table monthlyAmount)
+  const [remainingIncome, setRemainingIncome] = useState(0);
+  // Calculate remaining income whenever totalMonthlyAmount or spentIncome updates
+  useEffect(() => {
+    if (totalMonthlyAmount && spentIncome !== undefined) {
+      const remaining = totalMonthlyAmount - spentIncome;
+      setRemainingIncome(remaining);
+    }
+  }, [totalMonthlyAmount, spentIncome]);
+
+
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor={colors.munsellgreen} />
       <View style={styles.all_accounts_txt_amt}>
-        <Text style={styles.aa_amt_txt}>All Accounts : {totalIncome}.00</Text>
+        {/* <Text style={styles.aa_amt_txt}>All Accounts : {totalIncome}.00</Text> */}
+        <Text style={styles.aa_amt_txt}>Total Monthly Income : {totalMonthlyAmount}.00</Text>
+
       </View>
       <View style={styles.account_amt_view}>
-        <Text style={styles.account_amt_txt}>My Account</Text>
-        <Text style={styles.account_amt_txt}>{totalIncome}.00</Text>
+        {/* <Text style={styles.account_amt_txt}>My Account</Text>
+        <Text style={styles.account_amt_txt}>{totalIncome}.00</Text> */}
+
+        <Text style={styles.account_amt_txt}>Spent Income</Text>
+        <Text style={styles.account_amt_txt}>{spentIncome}.00</Text>
       </View>
       <View style={styles.subtotal_amt_view}>
-        <Text style={styles.subtotal_txt}>Subtotal:</Text>
-        <Text style={styles.subtotal_amt_txt}>{totalIncome}.00</Text>
+        {/* <Text style={styles.subtotal_txt}>Subtotal:</Text>
+        <Text style={styles.subtotal_amt_txt}>{totalIncome}.00</Text> */}
+
+        <Text style={styles.subtotal_txt}>Remaining Income:</Text>
+        <Text style={styles.subtotal_amt_txt}>{remainingIncome}.00</Text>
       </View>
     </View>
   )

@@ -114,7 +114,7 @@ const SetupBudget = () => {
             return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
         }, [isAuthenticated, navigation])
     );
-  
+
     const [isTooltipVisible, setIsTooltipVisible] = useState(false);
     const slideAnim = useRef(new Animated.Value(screenWidth)).current;
     const [envelopes, setEnvelopes] = useState([]);
@@ -154,13 +154,13 @@ const SetupBudget = () => {
 
     console.log(' date of formattedFromDateYearly', formattedFromDateYearly);
     console.log(' date of formattedToDateYearly', formattedToDateYearly);
-   
+
     useFocusEffect(
         useCallback(() => {
             getAllEnvelopes(tempUserId, setEnvelopes, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly);
         }, [tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly])
     );
-    const getAllEnvelopes = (tempUserId, callback) => {       
+    const getAllEnvelopes = (tempUserId, callback) => {
         db.transaction(tx => {
             const sqlQuery = `
     SELECT * 
@@ -249,7 +249,7 @@ const SetupBudget = () => {
                 dueDate: envelope.dueDate,
                 edit_Envelope: true,
                 user_id: envelope.user_id,
-                
+
             });
         }
     };
@@ -397,16 +397,17 @@ const SetupBudget = () => {
                 showsVerticalScrollIndicator={false}
                 style={styles.scroll_view}
             > */}
-                <TouchableWithoutFeedback 
+            <TouchableWithoutFeedback
                 // onPress={() => navigation.navigate('ChangeBudgetPeriod')} 
                 style={styles.budget_period_view}
-                >
-                    <Text style={styles.monthly_txt}>Monthly</Text>
-                    {/* <VectorIcon name="menu-down" size={24} color={colors.black} type="mci" />
+            >
+                <Text style={styles.monthly_txt}>Monthly</Text>
+                {/* <VectorIcon name="menu-down" size={24} color={colors.black} type="mci" />
                     <Text style={styles.envelope_left_txt}>8 of 10 free Envelopes left</Text> */}
-                </TouchableWithoutFeedback>
+            </TouchableWithoutFeedback>
 
-                <View style={styles.flatListWrapper}>
+            <View style={styles.flatListWrapper}>
+                {envelopes.length > 0 ? (
                 <DraggableFlatList
                     data={envelopes}
                     onDragEnd={({ data }) => {
@@ -438,22 +439,33 @@ const SetupBudget = () => {
                     scrollEnabled={true}
                     contentContainerStyle={styles.flatListContainer}
                 />
-                </View>
+                ) : (
+                        <View style={styles.emptyState}>
+                            <Image
+                                source={Images.expenseplannerimage}
+                                style={styles.emptyImage}
+                            />
+                            <View style={styles.emptyTextContainer}>
+                                <Text style={styles.emptyText}>Add Envelope to start budgeting</Text>
+                            </View>
+                        </View>
+                )}
+            </View>
             {/* </ScrollView> */}
 
             <View style={envelope_prop ? styles.firstView_edit : styles.firstView}>
                 <View style={styles.imageContainer}>
                     <Image source={Images.expenseplannerimage} style={styles.image} />
                 </View>
-                <Pressable 
+                <Pressable
                     onPress={() => {
                         if (envelope_prop) {
                             navigation.navigate('SetIncomeAmount', { envelope_prop });
                         } else {
                             navigation.navigate('SetIncomeAmount');
                         }
-                    }}  
-                style={styles.incomeTextContainer}
+                    }}
+                    style={styles.incomeTextContainer}
                 >
                     <View style={styles.texts_view}>
                         <Text style={styles.estimatedIncomeText}>Estimated{"\n"}Income</Text>
@@ -490,34 +502,34 @@ const SetupBudget = () => {
             </View>
 
             {!envelope_prop && (
-            <View style={styles.secondView}>
-                <View style={styles.left_icon_btn_view}>
-                    <VectorIcon name="chevron-back" size={20} color={colors.androidbluebtn} type="ii" />
-                    <Button
-                        mode="text"
-                        onPress={() => navigation.goBack()}
-                        // onPress={() => console.log('later press')}
-                        style={styles.backButton}
-                        labelStyle={styles.backText}
-                        rippleColor={colors.gray}
-                    >
-                        BACK
-                    </Button>
+                <View style={styles.secondView}>
+                    <View style={styles.left_icon_btn_view}>
+                        <VectorIcon name="chevron-back" size={20} color={colors.androidbluebtn} type="ii" />
+                        <Button
+                            mode="text"
+                            onPress={() => navigation.goBack()}
+                            // onPress={() => console.log('later press')}
+                            style={styles.backButton}
+                            labelStyle={styles.backText}
+                            rippleColor={colors.gray}
+                        >
+                            BACK
+                        </Button>
+                    </View>
+                    <View style={styles.right_icon_btn_view}>
+                        <Button
+                            mode="text"
+                            onPress={handleNextPress}
+                            // onPress={() => console.log('later press')}
+                            style={styles.nextButton}
+                            labelStyle={styles.nextText}
+                            rippleColor={colors.gray}
+                        >
+                            NEXT
+                        </Button>
+                        <VectorIcon name="chevron-forward" size={20} color={colors.androidbluebtn} type="ii" />
+                    </View>
                 </View>
-                <View style={styles.right_icon_btn_view}>
-                    <Button
-                        mode="text"
-                        onPress={handleNextPress}
-                        // onPress={() => console.log('later press')}
-                        style={styles.nextButton}
-                        labelStyle={styles.nextText}
-                        rippleColor={colors.gray}
-                    >
-                        NEXT
-                    </Button>
-                    <VectorIcon name="chevron-forward" size={20} color={colors.androidbluebtn} type="ii" />
-                </View>
-            </View>
             )}
 
             <Snackbar
@@ -860,7 +872,7 @@ const styles = StyleSheet.create({
         width: '86%',
         // backgroundColor: 'green',
         textOverflow: 'ellipsis',
-        
+
     },
     item_text_amount: {
         color: colors.black,
@@ -876,6 +888,28 @@ const styles = StyleSheet.create({
     flatListWrapper: {
         flex: 1, // Makes sure the FlatList takes up all available space in the parent ScrollView
         marginBottom: hp('14%'), // Add some space to the bottom if necessary
+    },
+
+    emptyState: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: hp('8%'),
+    },
+    emptyImage: {
+        width: hp('8%'),
+        height: hp('8%'),
+        marginBottom: hp('4%'),
+    },
+    emptyTextContainer: {
+        maxWidth: hp('30%'),
+        // backgroundColor: 'yellow',
+    },
+    emptyText: {
+        fontSize: hp('2.4%'),
+        color: colors.gray,
+        textAlign: 'center',
+        alignSelf: 'center',
     },
 
     // snackbar styles

@@ -121,7 +121,7 @@ const Reports = () => {
     }, [formattedFromDate, formattedToDate])
   );
 
-  // code to search all envelopes and log them
+  // code to search all envelopes and only log them
   useFocusEffect(
     useCallback(() => {
       db.transaction((tx) => {
@@ -147,7 +147,6 @@ const Reports = () => {
       });
     }, [])
   );
-
 
   // code to filter transactions by date
   const [transactions, setTransactions] = useState([]);
@@ -192,7 +191,7 @@ const Reports = () => {
     }, [formattedFromDate, formattedToDate])
   );
 
-  // code to search and log all Transactions
+  // code to search and just log all Transactions
   useFocusEffect(
     useCallback(() => {
       db.transaction((tx) => {
@@ -220,7 +219,7 @@ const Reports = () => {
   );
   // code for filtering and fetching all data end here
 
-  // code for calculating income from Income table
+  // code for calculating income from Income table as this monthlyAmount dont change when make transactions
   const fetchIncomeWithinDateRange = (fromDate, toDate) => {
     const formattedFromDate = formatDateSql(fromDate);
     const formattedToDate = formatDateSql(toDate);
@@ -261,6 +260,7 @@ const Reports = () => {
     useCallback(() => {
       if (!envelopes || !transactions) return;
 
+      // now dont using envelopes to count income as it is being counted from Income table..using column monthlyAmount that never changes by making transactions
       // // Calculate total income
       // const totalIncome = envelopes.reduce((sum, envelope) => {
       //   return envelope.user_id === tempUserId ? sum + (envelope.amount || 0) : sum;
@@ -272,32 +272,51 @@ const Reports = () => {
       const spendingByEnvelope = [];
       let totalSpending = 0;
 
-      // Group transactions by envelopeName
+      // Group transactions by envelopeName old code in which it was also including credit transactions..then count spending by minusing credit and expense transctions
+      // const groupedTransactions = transactions.reduce((acc, transaction) => {
+      //   if (transaction.user_id === tempUserId) {
+      //     const { envelopeName, transactionType, transactionAmount } = transaction;
+      //     if (!acc[envelopeName]) {
+      //       acc[envelopeName] = { envelopeName, totalExpense: 0, totalCredit: 0 };
+      //     }
+      //     if (transactionType === "Expense") {
+      //       acc[envelopeName].totalExpense += transactionAmount || 0;
+      //     } else if (transactionType === "Credit") {
+      //       acc[envelopeName].totalCredit += transactionAmount || 0;
+      //     }
+      //   }
+      //   return acc;
+      // }, {});
+      // // Calculate spending per envelope and total spending
+      // for (const envelopeName in groupedTransactions) {
+      //   const { totalExpense, totalCredit } = groupedTransactions[envelopeName];
+      //   const envelopeSpending = totalExpense - totalCredit;
+      //   spendingByEnvelope.push({ envelopeName, envelopeSpending });
+      //   totalSpending += envelopeSpending;
+      // }
+
+      // Group transactions by envelopeName and calculate spending only for Expense transactions this is new code latest
       const groupedTransactions = transactions.reduce((acc, transaction) => {
-        if (transaction.user_id === tempUserId) {
-          const { envelopeName, transactionType, transactionAmount } = transaction;
+        if (transaction.user_id === tempUserId && transaction.transactionType === "Expense") {
+          const { envelopeName, transactionAmount } = transaction;
+
           if (!acc[envelopeName]) {
-            acc[envelopeName] = { envelopeName, totalExpense: 0, totalCredit: 0 };
+            acc[envelopeName] = { envelopeName, totalExpense: 0 };
           }
-          if (transactionType === "Expense") {
-            acc[envelopeName].totalExpense += transactionAmount || 0;
-          } else if (transactionType === "Credit") {
-            acc[envelopeName].totalCredit += transactionAmount || 0;
-          }
+
+          acc[envelopeName].totalExpense += transactionAmount || 0;
         }
         return acc;
       }, {});
 
-      // Calculate spending per envelope and total spending
       for (const envelopeName in groupedTransactions) {
-        const { totalExpense, totalCredit } = groupedTransactions[envelopeName];
-        const envelopeSpending = totalExpense - totalCredit;
-        spendingByEnvelope.push({ envelopeName, envelopeSpending });
-        totalSpending += envelopeSpending;
+        const { totalExpense } = groupedTransactions[envelopeName];
+        spendingByEnvelope.push({ envelopeName, envelopeSpending: totalExpense });
+        totalSpending += totalExpense;
       }
 
-      // console.log("Spending By Envelope:", spendingByEnvelope);
-      // console.log("Total Spending:", totalSpending);
+      console.log("Spending By Envelope:", spendingByEnvelope);
+      console.log("Total Spending:", totalSpending);
 
       // Ensure totalSpending is positive before setting the state
       const positiveTotalSpending = Math.abs(totalSpending);
@@ -462,7 +481,7 @@ const Reports = () => {
 
             <View style={styles.txt_amt_parent_view}>
               {spendingByEnvelope
-                .filter(item => item.envelopeSpending > 0)
+                // .filter(item => item.envelopeSpending > 0) // this was filtering negative envelopes just to dont show them...
               .map((item, index) => {
                 const envelopeName = item.envelopeName;
                 const envelopeSpending = item.envelopeSpending || 0;

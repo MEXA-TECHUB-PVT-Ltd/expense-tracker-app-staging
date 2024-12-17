@@ -26,7 +26,7 @@ const DashboardAppBar = ({ selectedTab, setIsSearched, setSearchModalVisible }) 
     const username = email ? email.split('@')[0] : '';
 
     const handleEnvelopePress = () => {
-        navigation.navigate('FillEnvelopes', {
+        navigation.navigate('FillEnvelopesAuthenticated', {  // modified this because i seperated fill envelope of un authenticated and authenticated for unallocated purpose
             fill_envelope: true,
         });
     };
