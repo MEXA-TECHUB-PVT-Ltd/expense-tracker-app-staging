@@ -97,7 +97,7 @@ const initializeDatabase = () => {
             error => console.error('Error creating Income table', error)
         );
 
-        // create unallocated table if not exists
+        // create Unallocated table if not exists
         tx.executeSql(
             `CREATE TABLE IF NOT EXISTS Unallocated (
         envelopeName TEXT NOT NULL DEFAULT 'Available',

@@ -19,7 +19,7 @@ import { Dimensions } from 'react-native';
 
 const { width: screenWidth } = dimensions;
 
-const SpendingByEnvelope = () => {
+const IncomeVsSpending = () => {
   const navigation = useNavigation();
   const handleLeftIconPress = () => {
     navigation.goBack();
@@ -56,52 +56,59 @@ const SpendingByEnvelope = () => {
       return -1;
     }
   }, [isAuthenticated, user_id]);
-  // console.log('value of tempUserId in SpendingByEnvelope', tempUserId);
 
   // No need to manage tempUserId state manually
-  useFocusEffect(
-    useCallback(() => {
-      // Log or handle tempUserId usage whenever the screen gains focus
-      // console.log('useFocusEffect triggered with tempUserId:', tempUserId);
-    }, [tempUserId])
-  );
+  // useFocusEffect(
+  //   useCallback(() => {
+  //     // Log or handle tempUserId usage whenever the screen gains focus
+  //     // console.log('useFocusEffect triggered with tempUserId:', tempUserId);
+  //   }, [tempUserId])
+  // );
 
   // code for modal of dates
   const [visible, setVisible] = useState(false);
   const [selectedRange, setSelectedRange] = useState('');
+  const [modalSelectedRange, setModalSelectedRange] = useState('');
 
-  // selected range code start here for async storage... get selected range from async storage
-  useFocusEffect(
-    React.useCallback(() => {
-      const fetchLastSelectedRange = async () => {
-        try {
-          const savedRange = await AsyncStorage.getItem('selectedRange');
-          if (savedRange !== null) {
-            console.log('=====---------=== savedRange = ', savedRange); // This should log the saved range if it exists
-            setSelectedRange(savedRange);  // Update state with the retrieved value
-          } else {
-            console.log('=====---------=== No saved range found, using default'); // Log if no saved range exists
-          }
-        } catch (error) {
-          console.log('===============Error retrieving saved range:', error); // Catch any error in AsyncStorage
-        }
-      };
-
-      fetchLastSelectedRange();
-    }, []) // Empty dependency array, so it runs only when the screen is focused
-  );
-
-  // sets selected range in async storage whenever it changes
-  const handleValueChange = async (value) => {
+  const fetchLastSelectedRange = async () => {
     try {
-      console.log('============================ selectedRange:', value); // Log the new selected value
-      setSelectedRange(value);  // Update state with the selected value
-      await AsyncStorage.setItem('selectedRange', value); // Save the new value to AsyncStorage
+      const savedRange = await AsyncStorage.getItem('selectedRange');
+      if (savedRange) {
+        if (savedRange === 'custom') {
+          // Default to 'thisMonth' if custom range is invalid or missing
+          const defaultRange = 'thisMonth';
+          setSelectedRange(defaultRange);
+          setModalSelectedRange(defaultRange);
+          await AsyncStorage.setItem('selectedRange', defaultRange);
+          handleSetDateRange(defaultRange);
+        } else {
+          setSelectedRange(savedRange);
+          setModalSelectedRange(savedRange);
+          handleSetDateRange(savedRange);
+        }
+      } else {
+        // Default to 'thisMonth' if no saved range
+        const defaultRange = 'thisMonth';
+        setSelectedRange(defaultRange);
+        setModalSelectedRange(defaultRange);
+        await AsyncStorage.setItem('selectedRange', defaultRange);
+        handleSetDateRange(defaultRange);
+      }
     } catch (error) {
-      console.log('Error saving selected range:', error); // Catch any error during saving
+      console.error('Error retrieving or setting default range:', error);
     }
   };
-  // selected range code end here for async storage
+
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchLastSelectedRange();
+    }, [])
+  );
+
+  const handleModalSelection = (value) => {
+    setModalSelectedRange(value);
+  };
 
   const [fromDate, setFromDate] = useState(null);
   const [toDate, setToDate] = useState(null);
@@ -133,15 +140,19 @@ const SpendingByEnvelope = () => {
     setFromDate(formatDate(startOfMonth));
     setToDate(formatDate(endOfMonth));
   }, [selectedRange]);
- 
-  // useEffect(() => {
-  //   if (selectedRange) {
-  //     handleSetDateRange();  // Call the function to update fromDate and toDate based on selectedRange
-  //   }
-  // }, [selectedRange]); // Depend on selectedRange to re-run whenever it changes
 
+  // manually call function
+  const handleSetButtonPress = async () => {
+    try {
+      setSelectedRange(modalSelectedRange); // Update the app's main selected range
+      await AsyncStorage.setItem('selectedRange', modalSelectedRange); // Save to AsyncStorage
+      handleSetDateRange(modalSelectedRange); // Update the dates
+    } catch (error) {
+      console.error('Error saving selected range:', error);
+    }
+  };
 
-  const handleSetDateRange = () => {
+  const handleSetDateRange = (selectedRange) => {
     // Only update if selectedRange is defined
     if (!selectedRange) return;
     const formatDate = (date) => {
@@ -251,6 +262,7 @@ const SpendingByEnvelope = () => {
     });
   };
 
+  // for testing just to log filtered envelopes
   useFocusEffect(
     React.useCallback(() => {
       if (fromDate && toDate) {
@@ -259,37 +271,34 @@ const SpendingByEnvelope = () => {
     }, [fromDate, toDate])
   );
 
-  // code to search all envelopes and log them
-  useFocusEffect(
-    useCallback(() => {
-      db.transaction((tx) => {
-        const fetchAllQuery = `
-            SELECT * 
-            FROM envelopes `;
+  // useFocusEffect(
+  //   useCallback(() => {
+  //     db.transaction((tx) => {
+  //       const fetchAllQuery = `
+  //           SELECT * 
+  //           FROM envelopes `;
 
-        tx.executeSql(
-          fetchAllQuery,
-          [],
-          (_, { rows }) => {
-            const allData = [];
-            for (let i = 0; i < rows.length; i++) {
-              allData.push(rows.item(i));
-            }
-            // console.log("Fetched All Data from envelopes:", allData);
-          },
-          (_, error) => {
-            console.error("Error Fetching All Data:", error);
-            return true;
-          }
-        );
-      });
-    }, [])
-  );
-
+  //       tx.executeSql(
+  //         fetchAllQuery,
+  //         [],
+  //         (_, { rows }) => {
+  //           const allData = [];
+  //           for (let i = 0; i < rows.length; i++) {
+  //             allData.push(rows.item(i));
+  //           }
+  //           // console.log("Fetched All Data from envelopes:", allData);
+  //         },
+  //         (_, error) => {
+  //           console.error("Error Fetching All Data:", error);
+  //           return true;
+  //         }
+  //       );
+  //     });
+  //   }, [])
+  // );
 
   // code to filter transactions by date
   const [transactions, setTransactions] = useState([]);
-  // console.log('all transactions data :', transactions);
   const filterTransactions = (fromDate, toDate) => {
 
     const formattedFromDate = formatDateSql(fromDate);
@@ -320,6 +329,7 @@ const SpendingByEnvelope = () => {
     });
   };
 
+  // code to search and only log all Transactions
   useFocusEffect(
     React.useCallback(() => {
       if (fromDate && toDate) {
@@ -327,128 +337,44 @@ const SpendingByEnvelope = () => {
       }
     }, [fromDate, toDate])
   );
-
-  // code to search and only log all Transactions
-  useFocusEffect(
-    useCallback(() => {
-      db.transaction((tx) => {
-        const fetchAllQuery = `
-            SELECT * 
-            FROM Transactions`;
-
-        tx.executeSql(
-          fetchAllQuery,
-          [],
-          (_, { rows }) => {
-            const allData = [];
-            for (let i = 0; i < rows.length; i++) {
-              allData.push(rows.item(i));
-            }
-            // console.log("Fetched All Data from transactions:", allData);
-          },
-          (_, error) => {
-            console.error("Error Fetching All Data:", error);
-            return true;
-          }
-        );
-      });
-    }, [])
-  );
-
-
-  // new code for getting values for income from envelopes and for other values from Transactions table no date range
-
-  const [income, setIncome] = useState(0);
-  const [spending, setSpending] = useState(0);
-  const [netTotal, setNetTotal] = useState(0);
-  const [spendingByEnvelope, setSpendingByEnvelope] = useState([]);
-
-  // new code to calculate values from envelopes and transactions array
-
+ 
   // useFocusEffect(
   //   useCallback(() => {
-  //     // Calculate total income
-  //     const totalIncome = envelopes
-  //       .filter((envelope) => envelope.user_id === tempUserId)
-  //       .reduce((sum, envelope) => sum + (envelope.amount || 0), 0);
-  //     // console.log('income inside useFocusEffect: ', totalIncome);
-  //     setIncome(totalIncome);
+  //     db.transaction((tx) => {
+  //       const fetchAllQuery = `
+  //           SELECT * 
+  //           FROM Transactions`;
 
-  //     // Calculate spending by envelope
-  //     const spendingMap = {};
-
-  //     transactions
-  //       .filter((transaction) => transaction.user_id === tempUserId)
-  //       .forEach((transaction) => {
-  //         const { envelopeName, transactionType, transactionAmount } = transaction;
-
-  //         if (!spendingMap[envelopeName]) {
-  //           spendingMap[envelopeName] = 0;
+  //       tx.executeSql(
+  //         fetchAllQuery,
+  //         [],
+  //         (_, { rows }) => {
+  //           const allData = [];
+  //           for (let i = 0; i < rows.length; i++) {
+  //             allData.push(rows.item(i));
+  //           }
+  //           // console.log("Fetched All Data from transactions:", allData);
+  //         },
+  //         (_, error) => {
+  //           console.error("Error Fetching All Data:", error);
+  //           return true;
   //         }
-
-  //         if (transactionType === "Expense") {
-  //           spendingMap[envelopeName] += transactionAmount || 0;
-  //         } else if (transactionType === "Credit") {
-  //           spendingMap[envelopeName] -= transactionAmount || 0;
-  //         }
-  //       });
-
-  //     const envelopeData = Object.entries(spendingMap).map(([envelopeName, envelopeSpending]) => ({
-  //       envelopeName,
-  //       envelopeSpending,
-  //     }));
-
-  //     const totalSpending = envelopeData.reduce((sum, { envelopeSpending }) => sum + envelopeSpending, 0);
-
-  //     setSpendingByEnvelope(envelopeData);
-  //     setSpending(totalSpending);
-  //   }, [tempUserId, envelopes, transactions])
+  //       );
+  //     });
+  //   }, [])
   // );
-
-  // useFocusEffect(
-  //   useCallback(() => {
-  //     setNetTotal(income - spending);
-  //   }, [income, spending])
-  // );
-
-  // irfan code to count for each month
-  
 
   const groupByMonth = (data, dateKey) => {
     return data.reduce((acc, item) => {
       const date = new Date(item[dateKey]);
       const month = date.toLocaleString("default", { month: "short" });
       const year = date.getFullYear();  // e.g., 2024
-
       const monthYearKey = `${month} , ${year}`;
-
       if (!acc[monthYearKey]) acc[monthYearKey] = [];
       acc[monthYearKey].push(item);
-
       return acc;
     }, {});
   };
-
-
-  // Process data month-by-month
-  // const envelopesByMonth = groupByMonth(envelopes, "fillDate");
-  // const transactionsByMonth = groupByMonth(transactions, "transactionDate");
-
-  // const monthlyData = Object.keys({ ...envelopesByMonth, ...transactionsByMonth }).map((month) => {
-  //   const monthEnvelopes = envelopesByMonth[month] || [];
-  //   const monthTransactions = transactionsByMonth[month] || [];
-
-  //   const income = monthEnvelopes.reduce((sum, envelope) => sum + (envelope.amount || 0), 0);
-  //   const spending = monthTransactions.reduce((sum, transaction) => {
-  //     if (transaction.transactionType === "Expense") return sum + transaction.transactionAmount;
-  //     if (transaction.transactionType === "Credit") return sum - transaction.transactionAmount;
-  //     return sum;
-  //   }, 0);
-
-  //   const netTotal = income - spending;
-
-  //   return { month, income, spending, netTotal };
-  // });
 
   // code for calculating monthly income from Income table
   const [incomeRecord, setIncomeRecord ] = useState([]);
@@ -490,11 +416,10 @@ const SpendingByEnvelope = () => {
     });
   };
 
-  // before i was using this
+
   const envelopesByMonth = groupByMonth(envelopes, "fillDate");
   const transactionsByMonth = groupByMonth(transactions, "transactionDate");
   const incomeByMonth = groupByMonth(incomeRecord, "incomeDate");
-  // console.log('  ============   incomeByMonth   ============', incomeByMonth);
 
   // older code working fine and taking income from envelopes 
   // const monthlyData = Object.keys({ ...envelopesByMonth, ...transactionsByMonth }).map((month) => {
@@ -765,8 +690,11 @@ const SpendingByEnvelope = () => {
             <RadioButton.Group
               // onValueChange={value => setSelectedRange(value)}
               // value={selectedRange}
-              onValueChange={handleValueChange} 
-              value={selectedRange}
+              // onValueChange={handleValueChange} 
+              onValueChange={handleModalSelection}
+              // value={selectedRange}
+              value={modalSelectedRange}
+
             >
               <View style={styles.radioButtonContainer}>
                 <RadioButton value="thisMonth" color={colors.androidbluebtn} uncheckedColor={colors.androidbluebtn} />
@@ -804,7 +732,7 @@ const SpendingByEnvelope = () => {
               </View>
             </RadioButton.Group>
 
-            {selectedRange === 'custom' && (
+            {modalSelectedRange === 'custom' && (
               <View style={styles.inputContainer}>
                 <TouchableOpacity
                   onPress={() => setShowFromPicker(true)}
@@ -879,7 +807,8 @@ const SpendingByEnvelope = () => {
               </Button>
               <Button
                 mode="text"
-                onPress={handleSetDateRange}
+                // onPress={handleSetDateRange}
+                onPress={handleSetButtonPress}
                 style={styles.setButton}
                 rippleColor={colors.gray}
                 textColor={colors.androidbluebtn}
@@ -896,7 +825,7 @@ const SpendingByEnvelope = () => {
   )
 }
 
-export default SpendingByEnvelope
+export default IncomeVsSpending
 
 const styles = StyleSheet.create({
   container: {

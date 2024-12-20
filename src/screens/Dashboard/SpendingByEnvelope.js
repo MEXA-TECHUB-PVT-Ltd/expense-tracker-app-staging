@@ -3,6 +3,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useFocusEffect } from '@react-navigation/native';
 import { Appbar, Modal, Portal, Button, TextInput, RadioButton, IconButton, Menu } from 'react-native-paper';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import colors from '../../constants/colors';
 import Images from '../../constants/images';
 import dimensions from '../../constants/dimensions';
@@ -67,13 +69,12 @@ const SpendingByEnvelope = () => {
         }, [tempUserId])
     );
 
-
     // code for modal of dates
     const [visible, setVisible] = useState(false);
-    const [selectedRange, setSelectedRange] = useState('thisMonth');
+    const [selectedRange, setSelectedRange] = useState('');
+    const [modalSelectedRange, setModalSelectedRange] = useState(''); // added for async scenario
     const [fromDate, setFromDate] = useState(null);
     const [toDate, setToDate] = useState(null);
-    // console.log('values of todate and from date after custom is:', fromDate, toDate);
     const [showFromPicker, setShowFromPicker] = useState(false);
     const [showToPicker, setShowToPicker] = useState(false);
     const [customFromDate, setCustomFromDate] = useState(null);
@@ -98,51 +99,6 @@ const SpendingByEnvelope = () => {
             return undefined;
         }, [])
     );
-
-    const handleSetDateRange = () => {
-        const formatDate = (date) => {
-            return moment(date).format('MMM D, YYYY');  // e.g. "Nov 1, 2024"
-        };
-
-        if (selectedRange === 'thisMonth') {
-            const startOfMonth = moment().startOf('month');
-            const endOfMonth = moment().endOf('month');
-            setFromDate(formatDate(startOfMonth));
-            setToDate(formatDate(endOfMonth));
-        } else if (selectedRange === 'lastMonth') {
-            const startOfLastMonth = moment().subtract(1, 'month').startOf('month');
-            const endOfLastMonth = moment().subtract(1, 'month').endOf('month');
-            setFromDate(formatDate(startOfLastMonth));
-            setToDate(formatDate(endOfLastMonth));
-        } else if (selectedRange === 'last30Days') {
-            const endDate = moment();
-            const startDate = moment().subtract(30, 'days');
-            setFromDate(formatDate(startDate));
-            setToDate(formatDate(endDate));
-        } else if (selectedRange === 'last90Days') {
-            const endDate = moment();
-            const startDate = moment().subtract(90, 'days');
-            setFromDate(formatDate(startDate));
-            setToDate(formatDate(endDate));
-        } else if (selectedRange === 'thisYear') {
-            const startOfYear = moment().startOf('year');
-            const endOfYear = moment().endOf('year');
-            setFromDate(formatDate(startOfYear));
-            setToDate(formatDate(endOfYear));
-        } else if (selectedRange === 'lastYear') {
-            const startOfLastYear = moment().subtract(1, 'year').startOf('year');
-            const endOfLastYear = moment().subtract(1, 'year').endOf('year');
-            setFromDate(formatDate(startOfLastYear));
-            setToDate(formatDate(endOfLastYear));
-        } else if (selectedRange === 'custom') {
-            const customFrom = moment(customFromDate);
-            const customTo = moment(customToDate);
-            setFromDate(formatDate(customFrom));
-            setToDate(formatDate(customTo));
-        }
-
-        hideModal();
-    };
 
     const onChangeFromDate = (event, selectedDate) => {
         const currentDate = selectedDate || customFromDate;
@@ -169,6 +125,118 @@ const SpendingByEnvelope = () => {
 
     // console.log(' date of formattedFromDateYearly', formattedFromDateYearly);
     // console.log(' date of formattedToDateYearly', formattedToDateYearly);
+
+    // full code for setting and getting selected range from async start for async
+    const fetchLastSelectedRange = async () => {
+        try {
+            const savedRange = await AsyncStorage.getItem('selectedRangeSBE');
+            if (savedRange) {
+                if (savedRange === 'custom') {
+                    // Default to 'thisMonth' if custom range is invalid or missing
+                    const defaultRange = 'thisMonth';
+                    setSelectedRange(defaultRange);
+                    setModalSelectedRange(defaultRange);
+                    await AsyncStorage.setItem('selectedRangeSBE', defaultRange);
+                    handleSetDateRange(defaultRange);
+                } else {
+                    setSelectedRange(savedRange);
+                    setModalSelectedRange(savedRange);
+                    handleSetDateRange(savedRange);
+                }
+            } else {
+                // Default to 'thisMonth' if no saved range
+                const defaultRange = 'thisMonth';
+                setSelectedRange(defaultRange);
+                setModalSelectedRange(defaultRange);
+                await AsyncStorage.setItem('selectedRangeSBE', defaultRange);
+                handleSetDateRange(defaultRange);
+            }
+        } catch (error) {
+            console.error('Error retrieving or setting default range:', error);
+        }
+    };
+
+    useFocusEffect(
+        React.useCallback(() => {
+            fetchLastSelectedRange();
+        }, [])
+    );
+
+    const handleModalSelection = (value) => {
+        setModalSelectedRange(value);
+    };
+
+    // i was using this in incomevsspendin
+     useEffect(() => {
+        if (!selectedRange) return;  // Don't run if selectedRange is not yet set
+    
+        const startOfMonth = moment().startOf('month');
+        const endOfMonth = moment().endOf('month');
+    
+        // Format and set the dates
+        setFromDate(formatDate(startOfMonth));
+        setToDate(formatDate(endOfMonth));
+      }, [selectedRange]);
+
+    // manually call function
+    const handleSetButtonPress = async () => {
+        try {
+            setSelectedRange(modalSelectedRange); // Update the app's main selected range
+            await AsyncStorage.setItem('selectedRangeSBE', modalSelectedRange); // Save to AsyncStorage
+            handleSetDateRange(modalSelectedRange); // Update the dates
+        } catch (error) {
+            console.error('Error saving selected range:', error);
+        }
+    };
+
+     const handleSetDateRange = (selectedRange) => {
+        // Only update if selectedRange is defined
+        if (!selectedRange) return;
+        const formatDate = (date) => {
+          return moment(date).format('MMM D, YYYY');  // e.g. "Nov 1, 2024"
+        };
+    
+        if (selectedRange === 'thisMonth') {
+          const startOfMonth = moment().startOf('month');
+          const endOfMonth = moment().endOf('month');
+          setFromDate(formatDate(startOfMonth));
+          setToDate(formatDate(endOfMonth));
+        } else if (selectedRange === 'lastMonth') {
+          const startOfLastMonth = moment().subtract(1, 'month').startOf('month');
+          const endOfLastMonth = moment().subtract(1, 'month').endOf('month');
+          setFromDate(formatDate(startOfLastMonth));
+          setToDate(formatDate(endOfLastMonth));
+        } else if (selectedRange === 'last30Days') {
+          const endDate = moment();
+          const startDate = moment().subtract(30, 'days');
+          setFromDate(formatDate(startDate));
+          setToDate(formatDate(endDate));
+        } else if (selectedRange === 'last90Days') {
+          const endDate = moment();
+          const startDate = moment().subtract(90, 'days');
+          setFromDate(formatDate(startDate));
+          setToDate(formatDate(endDate));
+        } else if (selectedRange === 'thisYear') {
+          const startOfYear = moment().startOf('year');
+          const endOfYear = moment().endOf('year');
+          setFromDate(formatDate(startOfYear));
+          setToDate(formatDate(endOfYear));
+        } else if (selectedRange === 'lastYear') {
+          const startOfLastYear = moment().subtract(1, 'year').startOf('year');
+          const endOfLastYear = moment().subtract(1, 'year').endOf('year');
+          setFromDate(formatDate(startOfLastYear));
+          setToDate(formatDate(endOfLastYear));
+        } else if (selectedRange === 'custom') {
+          const customFrom = moment(customFromDate);
+          const customTo = moment(customToDate);
+          setFromDate(formatDate(customFrom));
+          setToDate(formatDate(customTo));
+        }
+    
+        hideModal();
+      };  
+
+    // full code for setting and getting selected range from async ends here
 
     // code for selecting envelopes on basis of date range start here 
     const [envelopes, setEnvelopes] = useState([]);
@@ -223,31 +291,31 @@ const SpendingByEnvelope = () => {
     );
 
     // code to search all envelopes and to just log them
-    useFocusEffect(
-        useCallback(() => {
-            db.transaction((tx) => {
-                const fetchAllQuery = `
-            SELECT * 
-            FROM envelopes `;
+    // useFocusEffect(
+    //     useCallback(() => {
+    //         db.transaction((tx) => {
+    //             const fetchAllQuery = `
+    //         SELECT * 
+    //         FROM envelopes `;
 
-                tx.executeSql(
-                    fetchAllQuery,
-                    [],
-                    (_, { rows }) => {
-                        const allData = [];
-                        for (let i = 0; i < rows.length; i++) {
-                            allData.push(rows.item(i));
-                        }
-                        // console.log("Fetched All Data from envelopes:", allData);
-                    },
-                    (_, error) => {
-                        console.error("Error Fetching All Data:", error);
-                        return true;
-                    }
-                );
-            });
-        }, [])
-    );
+    //             tx.executeSql(
+    //                 fetchAllQuery,
+    //                 [],
+    //                 (_, { rows }) => {
+    //                     const allData = [];
+    //                     for (let i = 0; i < rows.length; i++) {
+    //                         allData.push(rows.item(i));
+    //                     }
+    //                     // console.log("Fetched All Data from envelopes:", allData);
+    //                 },
+    //                 (_, error) => {
+    //                     console.error("Error Fetching All Data:", error);
+    //                     return true;
+    //                 }
+    //             );
+    //         });
+    //     }, [])
+    // );
 
     // code to filter transactions by date
     const [transactions, setTransactions] = useState([]);
@@ -290,31 +358,31 @@ const SpendingByEnvelope = () => {
     );
 
     // code to search and just log all Transactions
-    useFocusEffect(
-        useCallback(() => {
-            db.transaction((tx) => {
-                const fetchAllQuery = `
-            SELECT * 
-            FROM Transactions`;
+    // useFocusEffect(
+    //     useCallback(() => {
+    //         db.transaction((tx) => {
+    //             const fetchAllQuery = `
+    //         SELECT * 
+    //         FROM Transactions`;
 
-                tx.executeSql(
-                    fetchAllQuery,
-                    [],
-                    (_, { rows }) => {
-                        const allData = [];
-                        for (let i = 0; i < rows.length; i++) {
-                            allData.push(rows.item(i));
-                        }
-                        // console.log("Fetched All Data from transactions:", allData);
-                    },
-                    (_, error) => {
-                        console.error("Error Fetching All Data:", error);
-                        return true;
-                    }
-                );
-            });
-        }, [])
-    );
+    //             tx.executeSql(
+    //                 fetchAllQuery,
+    //                 [],
+    //                 (_, { rows }) => {
+    //                     const allData = [];
+    //                     for (let i = 0; i < rows.length; i++) {
+    //                         allData.push(rows.item(i));
+    //                     }
+    //                     // console.log("Fetched All Data from transactions:", allData);
+    //                 },
+    //                 (_, error) => {
+    //                     console.error("Error Fetching All Data:", error);
+    //                     return true;
+    //                 }
+    //             );
+    //         });
+    //     }, [])
+    // );
 
     // code to calculate required values from filtered envelopes and transactions
 
@@ -382,9 +450,9 @@ const SpendingByEnvelope = () => {
         }));
 
         setSpendingByEnvelope(spendingByEnvelope);
-        console.log(' ========== spendByEnvelope:', spendingByEnvelope);
+        // console.log(' ========== spendByEnvelope:', spendingByEnvelope);
         setSpending(totalExpenseSpending);
-        console.log(' ========== total spendings:', totalExpenseSpending);
+        // console.log(' ========== total spendings:', totalExpenseSpending);
 
         return { totalIncome, spendingByEnvelope };
     };
@@ -650,8 +718,11 @@ const SpendingByEnvelope = () => {
                     <View style={styles.modalInnerContainer}>
                         <Text style={styles.modalTitle}>Select Dates</Text>
                         <RadioButton.Group
-                            onValueChange={value => setSelectedRange(value)}
-                            value={selectedRange}
+                            // onValueChange={value => setSelectedRange(value)}
+                            // value={selectedRange}
+
+                            onValueChange={handleModalSelection}
+                            value={modalSelectedRange}
                         >
                             <View style={styles.radioButtonContainer}>
                                 <RadioButton value="thisMonth" color={colors.androidbluebtn} uncheckedColor={colors.androidbluebtn} />
@@ -689,7 +760,7 @@ const SpendingByEnvelope = () => {
                             </View>
                         </RadioButton.Group>
 
-                        {selectedRange === 'custom' && (
+                        {modalSelectedRange === 'custom' && (
                             <View style={styles.inputContainer}>
                                 <TouchableOpacity
                                     onPress={() => setShowFromPicker(true)}
@@ -764,7 +835,8 @@ const SpendingByEnvelope = () => {
                             </Button>
                             <Button
                                 mode="text"
-                                onPress={handleSetDateRange}
+                                // onPress={handleSetDateRange}
+                                onPress={handleSetButtonPress}
                                 style={styles.setButton}
                                 rippleColor={colors.gray}
                                 textColor={colors.androidbluebtn}

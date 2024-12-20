@@ -137,8 +137,8 @@ const Transactions = ({ isSearched, setIsSearched, searchModalVisible, setSearch
                       <View style={styles.payee_amt_view}>
                         <View style={styles.payee_text_view}>
                           <Text
-                            numberOfLines={1}
-                            elellipsizeMode="tail"
+                            // numberOfLines={1}
+                            // elellipsizeMode="tail"
                             style={styles.payee_txt}>{item.payee}</Text>
                         </View>
                         <View style={styles.amount_text_view}>
@@ -264,19 +264,20 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'flex-start',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     // backgroundColor: 'blue',
   },
   payee_txt: {
     fontSize: hp('2.50%'),
     fontWeight: '500',
     color: colors.black,
+    // backgroundColor: 'blue',
   },
   amount_text_view: {
     width: hp('20%'),
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    alignItems: 'center',
+    alignItems: 'fles-start',
     // backgroundColor: 'red',
   },
   amt_txt: {

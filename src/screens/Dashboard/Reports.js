@@ -315,8 +315,8 @@ const Reports = () => {
         totalSpending += totalExpense;
       }
 
-      console.log("Spending By Envelope:", spendingByEnvelope);
-      console.log("Total Spending:", totalSpending);
+      // console.log("Spending By Envelope:", spendingByEnvelope);
+      // console.log("Total Spending:", totalSpending);
 
       // Ensure totalSpending is positive before setting the state
       const positiveTotalSpending = Math.abs(totalSpending);
