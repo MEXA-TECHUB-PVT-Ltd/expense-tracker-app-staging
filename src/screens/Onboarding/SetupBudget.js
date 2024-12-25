@@ -10,8 +10,10 @@ import Images from '../../constants/images';
 import dimensions from '../../constants/dimensions';
 import { useFocusEffect } from '@react-navigation/native';
 import DraggableFlatList from 'react-native-draggable-flatlist';
-import { db, fetchTotalIncome, fetchTotalEnvelopesAmount } from '../../database/database';
+import { db, fetchTotalIncomeSetupBudget, fetchTotalEnvelopesAmount } from '../../database/database';
 import { useSelector } from 'react-redux';
+import { formatDateSql } from '../../utils/DateFormatter';
+import moment from 'moment';
 
 const { width: screenWidth } = dimensions;
 
@@ -119,19 +121,47 @@ const SetupBudget = () => {
     // console.log('after rearrange envelopes state is: ', envelopes);
     const [totalIncome, setTotalIncome] = useState(0);
     const [remainingAmount, setRemainingAmount] = useState(0);
-    console.log('value of remainingAmount: ', remainingAmount);
+    // console.log('value of remainingAmount: ', remainingAmount);
+
+    // to get current month dates and then formate them into our sql date formate
+    const [formattedFromDate, setFormattedFromDate] = useState('');
+    const [formattedToDate, setFormattedToDate] = useState('');
+
+    // console.log('Formatted From Date in setupBudget :', formattedFromDate);
+    // console.log('Formatted To Date in setupBudget :', formattedToDate);
+
+    useFocusEffect(
+        useCallback(() => {
+            const fromDate = moment().startOf('month').format('YYYY-MM-DD');
+            const toDate = moment().endOf('month').format('YYYY-MM-DD');
+
+            // default dates set to todays date
+            setFormattedFromDate(formatDateSql(fromDate));
+            setFormattedToDate(formatDateSql(toDate));
+
+            // hardcoded dates to set and retrieve data for testing purposes
+            // setFormattedFromDate('2025-01-01');
+            // setFormattedToDate('2025-01-30');
+        }, [])
+    );
    
     useFocusEffect(
         useCallback(() => {
-            getAllEnvelopes(tempUserId, setEnvelopes);
-        }, [tempUserId])
+            getAllEnvelopes(tempUserId, setEnvelopes, formattedFromDate, formattedToDate);
+        }, [tempUserId, formattedFromDate, formattedToDate])
     );
     const getAllEnvelopes = (tempUserId, callback) => {       
         db.transaction(tx => {
-            const sqlQuery = 'SELECT * FROM envelopes WHERE user_id = ? ORDER BY orderIndex';
+            const sqlQuery = `
+            SELECT * 
+            FROM envelopes 
+            WHERE user_id = ? 
+            AND fillDate BETWEEN ? AND ?
+            ORDER BY orderIndex
+        `;
             tx.executeSql(
                 sqlQuery,
-                [tempUserId],
+                [tempUserId, formattedFromDate, formattedToDate],
                 (_, results) => {
                     if (results.rows && results.rows.length > 0) {
                         let envelopesArray = [];
@@ -180,6 +210,7 @@ const SetupBudget = () => {
     const handleEditEnvelope = (envelope) => {
         // console.log('value of usr_id is: ', envelope.user_id);
         // Check if envelope_prop exists
+        console.log('all values of envelope for editing: ', envelope);
         if (envelope_prop) {
             navigation.navigate('AddEditDeleteEnvelope', {
                 envelopeId: envelope.envelopeId,
@@ -189,6 +220,7 @@ const SetupBudget = () => {
                 dueDate: envelope.dueDate,
                 edit_Envelope: true,
                 user_id: envelope.user_id,
+                fillDate: envelope.fillDate,
                 envelope_prop: envelope_prop, // Pass envelope_prop if it exists
             });
         } else {
@@ -206,9 +238,15 @@ const SetupBudget = () => {
         }
     };
 
-    useFocusEffect(() => {
-        fetchTotalIncome(setTotalIncome, tempUserId);
-    });
+    // useFocusEffect(() => {
+    //     fetchTotalIncomeSetupBudget(setTotalIncome, formattedFromDate, formattedToDate, tempUserId);
+    // });
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchTotalIncomeSetupBudget(setTotalIncome, tempUserId, formattedFromDate, formattedToDate);
+        }, [tempUserId, formattedFromDate, formattedToDate])  // Add dependencies to re-fetch on change
+    );
 
     const calculateRemainingAmount = (totalIncome, envelopes) => {
         const totalExpenses = envelopes.reduce((sum, envelope) => sum + envelope.amount, 0);
@@ -339,10 +377,10 @@ const SetupBudget = () => {
                 ADD ENVELOPE
             </Button>
 
-            <ScrollView
+            {/* <ScrollView
                 showsVerticalScrollIndicator={false}
                 style={styles.scroll_view}
-            >
+            > */}
                 <TouchableWithoutFeedback 
                 // onPress={() => navigation.navigate('ChangeBudgetPeriod')} 
                 style={styles.budget_period_view}
@@ -352,6 +390,7 @@ const SetupBudget = () => {
                     <Text style={styles.envelope_left_txt}>8 of 10 free Envelopes left</Text> */}
                 </TouchableWithoutFeedback>
 
+                <View style={styles.flatListWrapper}>
                 <DraggableFlatList
                     data={envelopes}
                     onDragEnd={({ data }) => {
@@ -379,10 +418,12 @@ const SetupBudget = () => {
                             </TouchableOpacity>
                         </View>
                     )}
-                    scrollEnabled={false}
+                    // nestedScrollEnabled={true}
+                    scrollEnabled={true}
                     contentContainerStyle={styles.flatListContainer}
                 />
-            </ScrollView>
+                </View>
+            {/* </ScrollView> */}
 
             <View style={envelope_prop ? styles.firstView_edit : styles.firstView}>
                 <View style={styles.imageContainer}>
@@ -775,27 +816,50 @@ const styles = StyleSheet.create({
         borderBottomColor: colors.lightGray,
         justifyContent: 'space-between',
         flexDirection: 'row',
+        alignItems: 'center',  // Ensure both left and right items are aligned vertically
     },
     left_view: {
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'flex-start', // Ensure the left view stays on the left', // Ensure the left view stays on the left
+        flexWrap: 'wrap',
+        maxWidth: '70%',
+        // backgroundColor: 'red',
     },
     right_view: {
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'flex-end', // Ensure the right view stays on the right
+        maxWidth: '30%',
+        // flexWrap: 'wrap',
+        // backgroundColor: 'blue',
     },
     item_text_name: {
         fontSize: hp('2.2%'),
         color: colors.gray,
         fontWeight: '600',
         marginLeft: hp('1%'),
+        flexWrap: 'wrap',
+        overflow: 'hidden',
+        width: '86%',
+        // backgroundColor: 'green',
+        textOverflow: 'ellipsis',
+        
     },
     item_text_amount: {
         color: colors.black,
         marginRight: hp('1%'),
+        textOverflow: 'ellipsis', // Handle overflowing text
+        overflow: 'hidden',
     },
     scroll_view: {
+        // flex: 1,
+        backgroundColor: colors.black,
         marginBottom: hp('14%'),
+    },
+    flatListWrapper: {
+        flex: 1, // Makes sure the FlatList takes up all available space in the parent ScrollView
+        marginBottom: hp('14%'), // Add some space to the bottom if necessary
     },
 
     // snackbar styles

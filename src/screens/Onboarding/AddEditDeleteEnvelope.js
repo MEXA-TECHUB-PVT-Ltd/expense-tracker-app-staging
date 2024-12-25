@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View, Animated, Pressable, Image, TouchableOpacity, Keyboard, TouchableWithoutFeedback } from 'react-native'
-import React, { useState, useRef, useMemo, useEffect } from 'react'
+import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react'
 import { useFocusEffect } from '@react-navigation/native';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import { Appbar, TextInput, Menu, Button, Snackbar } from 'react-native-paper';
@@ -28,31 +28,95 @@ const AddEditDeleteEnvelope = () => {
     const [budgetAmountFocused, setBudgetAmountFocused] = useState(false);
     const [envelopeName, setEnvelopeName] = useState('');
     const [amount, setAmount] = useState('');
+    console.log('value of amount is: ', amount);
     const [menuVisible, setMenuVisible] = useState(false);
     const [budgetPeriod, setBudgetPeriod] = useState('Monthly');
+
+    // const [date, setDate] = useState(new Date());
+    const [optionalDate, setOptionalDate] = useState(null);
+    console.log('optional date is ========----====: ', optionalDate);
+
     const [dueDate, setDueDate] = useState(new Date());
+    const [formattedFromDate, setFormattedFromDate] = useState('');
 
-    const formattedFromDate = formatDateSql(dueDate);
+    console.log('value of dueDate: ' + dueDate);
+    console.log('value of formattedFromDate: ' + formattedFromDate);
 
-    console.log('Formatted Due Date:', formattedFromDate);
+    React.useEffect(() => {
+        if (dueDate) {
+            setFormattedFromDate(formatDateSql(dueDate));
+        }
+    }, [dueDate]);
+
     useFocusEffect(
-        React.useCallback(() => {
+        useCallback(() => {
             const currentDate = new Date();
-            const isoDate = currentDate.toISOString();
+            setDueDate(currentDate.toISOString());
 
-            setDueDate(isoDate);
+            // For testing purposes, hardcoded due date
+            // setDueDate('2025-01-01'); // Hardcoded due date
         }, [])
     );
 
-    // console.log('value of dueDate in addeditdeleteenvelope', dueDate);
+    // for calculating number of months const calculateMonthsDifference = (dueDate) => {
+    const calculateMonthsDifference = (optionalDate) => {
+        console.log('value of optionalDate ========: ' + optionalDate);
+        if (!optionalDate) {
+            return 0; // No dueDate means no months difference
+        }
+
+        const currentDate = new Date(); // Current date
+        const dueDateObj = new Date(optionalDate); // Parse optionalDate if provided
+
+        if (isNaN(dueDateObj)) {
+            console.warn('Invalid optionalDate:', optionalDate);
+            return 0; // Invalid date fallback
+        }
+
+        const dueMonth = dueDateObj.getMonth(); // Get month from optionalDate
+        const dueYear = dueDateObj.getFullYear(); // Get year from optionalDate
+
+        const currentMonth = currentDate.getMonth();
+        const currentYear = currentDate.getFullYear();
+
+        // Calculate the difference in months
+        const monthsDifference =
+            (dueYear - currentYear) * 12 + (dueMonth - currentMonth);
+
+        return monthsDifference;
+    };
+
+    const monthsDifference = calculateMonthsDifference(optionalDate);
+
+    // Determine the amount to display based on the logic
+    const displayAmount = (() => {
+        if (!optionalDate) {
+            return budgetPeriod === 'Every Year' ? amount / 12 : 0; // Default case for no optionalDate
+        }
+        if (monthsDifference <= 1) {
+            return amount; // Full amount for current month or next month
+        }
+        if (monthsDifference > 1) {
+            return amount / monthsDifference; // Divide by monthsDifference for future dates
+        }
+        return 0; // Fallback for any unexpected case
+    })();
+
+    // Ensure displayAmount is always a valid number
+    const safeDisplayAmount = isNaN(displayAmount) ? 0 : displayAmount;
+
+    // code for optionalDate ends here
+
+
+    // console.log('value of optionalDate in addeditdeleteenvelope', optionalDate);
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [snackbarVisible, setSnackbarVisible] = useState(false);
 
     const isAuthenticated = useSelector((state) => state.user.isAuthenticated);
     const user_id = useSelector(state => state.user.user_id);
-    console.log('vlaue fo user_id in SetupBudget', user_id);
+    // console.log('vlaue of user_id in SetupBudget', user_id);
     const temp_user_id = useSelector(state => state.user.temp_user_id);
-    console.log('value of temp_user_id in SetupBudget', temp_user_id);
+    // console.log('value of temp_user_id in SetupBudget', temp_user_id);
     const [tempUserId, setTempUserId] = useState(temp_user_id);
     // const temporayUserId = tempUserId.toString();
     // console.log('value of tempUserId in SetupBudget', tempUserId);
@@ -77,6 +141,7 @@ const AddEditDeleteEnvelope = () => {
             setEnvelopeName(route.params.envelopeName);
             setAmount(route.params.amount.toString());
             setBudgetPeriod(route.params.budgetPeriod);
+            setDueDate(route.params.fillDate);
         }
     }, [envelopeId, route.params]);
 
@@ -93,7 +158,7 @@ const AddEditDeleteEnvelope = () => {
 
     const handleSave = () => {
         if (envelopeId) {
-            editEnvelope(envelopeId, envelopeName, parseFloat(amount), budgetPeriod, tempUserId);
+            editEnvelope(envelopeId, envelopeName, parseFloat(amount), budgetPeriod, tempUserId, formattedFromDate);
         } else {
             if (!envelopeName || !amount || !budgetPeriod || !tempUserId) {
                 setSnackbarVisible(true);
@@ -147,15 +212,37 @@ const AddEditDeleteEnvelope = () => {
 
     const handleDateChange = (event, selectedDate) => {
         if (selectedDate) {
-            setDueDate(selectedDate);
+            setOptionalDate(selectedDate);
+            // setDueDate(selectedDate);
         }
         setShowDatePicker(false);
     };
 
     const formatDueDate = (date) => {
-        const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
-        return date.toLocaleDateString(undefined, options);
+        // If the input is a string, convert it to a Date object
+        if (typeof date === 'string') {
+            date = new Date(date);
+        }
+
+        if (date === null) {
+            // console.warn('Date is null');
+            return true; // Allow null to pass through since it's valid initially
+        }
+        // Ensure that the input is a Date object
+        if (!(date instanceof Date) || isNaN(date)) {
+            console.error('Invalid date object');
+            return;
+        }
+
+        // Get month, day, and year from the Date object
+        const month = String(date.getMonth() + 1).padStart(2, '0');  // Add 1 to get correct month (0-based index)
+        const day = String(date.getDate()).padStart(2, '0');  // Ensure 2-digit day
+        const year = date.getFullYear();  // Get the full year
+
+        // Return the formatted date string as MM/DD/YYYY
+        return `${month}/${day}/${year}`;
     };
+
 
     const handleMenuToggle = useMemo(
         () => debounce(() => setMenuVisible(prev => !prev), 10),
@@ -238,11 +325,20 @@ const AddEditDeleteEnvelope = () => {
                 <View style={styles.txt_view}>
                     <Text style={styles.label}>Budget Period</Text>
                 </View>
-                <View style={styles.amt_view}>
+                {/* <View style={styles.amt_view}>
                     {budgetPeriod === 'Every Year' ? (
-                        <Text style={styles.amountText}>{(amount / 12)}</Text>
+                        <Text style={styles.amountText}>
+                            {monthsDifference > 0 ? (amount / safeMonthsDifference).toFixed(2) : 0.00}
+                        </Text>
                     ) : budgetPeriod === 'Goal' ? (
-                        <Text style={styles.amountText}>0.00</Text>
+                            <Text style={styles.amountText}>
+                                {monthsDifference > 0 ? (amount / safeMonthsDifference).toFixed(2) : 0.00}
+                            </Text>
+                    ) : null}
+                </View> */}
+                <View style={styles.amt_view}>
+                    {budgetPeriod === 'Every Year' || budgetPeriod === 'Goal' ? (
+                        <Text style={styles.amountText}>{safeDisplayAmount}</Text>
                     ) : null}
                 </View>
             </View>
@@ -261,8 +357,8 @@ const AddEditDeleteEnvelope = () => {
                         contentStyle={styles.menuContentStyle}
                     >
                         <Menu.Item onPress={() => { setBudgetPeriod('Monthly'); setMenuVisible(false); }} title="Monthly" titleStyle={{ color: colors.black }} />
-                        {/* <Menu.Item onPress={() => { setBudgetPeriod('Every Year'); setMenuVisible(false); }} title="Every Year" titleStyle={{ color: colors.black }} /> */}
-                        {/* <Menu.Item onPress={() => { setBudgetPeriod('Goal'); setMenuVisible(false); }} title="Goal" titleStyle={{ color: colors.black }} /> */}
+                        <Menu.Item onPress={() => { setBudgetPeriod('Every Year'); setMenuVisible(false); }} title="Every Year" titleStyle={{ color: colors.black }} /> 
+                        <Menu.Item onPress={() => { setBudgetPeriod('Goal'); setMenuVisible(false); }} title="Goal" titleStyle={{ color: colors.black }} />
                     </Menu>
                 </View>
                 <View style={styles.amt_view}>
@@ -280,14 +376,15 @@ const AddEditDeleteEnvelope = () => {
                         style={styles.dueDateInput}
                         onPress={() => setShowDatePicker(true)}
                     >
-                        <Text style={styles.dateText}>{formatDueDate(dueDate)}</Text>
+                        <Text style={styles.dateText}>{formatDueDate(optionalDate)}</Text>
                     </TouchableOpacity>
                 </View>
             )}
 
             {showDatePicker && (
                 <DateTimePicker
-                    value={dueDate}
+                    // value={optionalDate}
+                    value={optionalDate ? new Date(optionalDate) : new Date()} // Use current date as fallback if optionalDate is null or invalid
                     mode="date"
                     display="default"
                     onChange={handleDateChange}

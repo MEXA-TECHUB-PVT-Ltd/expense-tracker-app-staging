@@ -160,73 +160,10 @@ const SpendingByEnvelope = () => {
     const clearFromDate = () => setCustomFromDate('');
     const clearToDate = () => setCustomToDate('');
 
-    // irfan code for getting income from envelopes table and spending from transactions table but no date filter
-    // useFocusEffect(
-    //     useCallback(() => {
-    //         db.transaction((tx) => {
-    //             // console.log('value of tempUserId in spendignByEnvelope inside transaction', tempUserId);
-
-    //             // Query for total income filtered by user_id
-    //             const incomeQuery = `
-    //             SELECT SUM(amount) as totalIncome 
-    //             FROM envelopes
-    //             WHERE user_id = ?`;
-
-    //             tx.executeSql(
-    //                 incomeQuery,
-    //                 [tempUserId],
-    //                 (_, { rows }) => {
-    //                     const totalIncome = rows.item(0).totalIncome || 0;
-    //                     console.log("Income Query Success:", incomeQuery, rows.item(0));
-    //                     setIncome(totalIncome);
-    //                 },
-    //                 (_, error) => {
-    //                     console.error("Income Query Error:", incomeQuery, error);
-    //                     return true;
-    //                 }
-    //             );
-
-    //             // Query for spending by envelope filtered by user_id
-    //             const spendingQuery = `
-    //             SELECT envelopeName, 
-    //             SUM(CASE WHEN transactionType = 'Expense' THEN transactionAmount ELSE 0 END) -
-    //             SUM(CASE WHEN transactionType = 'Credit' THEN transactionAmount ELSE 0 END) AS envelopeSpending
-    //             FROM Transactions
-    //             WHERE user_id = ?
-    //             GROUP BY envelopeName`;
-
-    //             tx.executeSql(
-    //                 spendingQuery,
-    //                 [tempUserId],
-    //                 (_, { rows }) => {
-    //                     const envelopeData = [];
-    //                     let totalSpending = 0;
-
-    //                     // Loop over rows to get individual envelope spending
-    //                     for (let i = 0; i < rows.length; i++) {
-    //                         const { envelopeName, envelopeSpending } = rows.item(i);
-    //                         const spending = envelopeSpending || 0; // Handle null values
-    //                         envelopeData.push({ envelopeName, envelopeSpending: spending });
-    //                         totalSpending += spending;
-    //                     }
-
-    //                     console.log("Spending Query Success:", spendingQuery, envelopeData);
-    //                     setSpendingByEnvelope(envelopeData); // Set individual envelope spending
-    //                     setSpending(totalSpending); // Set total spending
-    //                 },
-    //                 (_, error) => {
-    //                     console.error("Spending Query Error:", spendingQuery, error);
-    //                     return true;
-    //                 }
-    //             );
-    //         });
-    //     }, [])
-    // );
-
-    // faisal code start here 
+    // code for selecting envelopes on basis of date range start here 
     const [envelopes, setEnvelopes] = useState([]);
 
-    // faisal code filter envelopes with date
+    // code to filter envelopes with date
     const fetchRecordsWithinDateRange = (fromDate, toDate) => {
         const formattedFromDate = formatDateSql(fromDate);
         const formattedToDate = formatDateSql(toDate);
@@ -263,7 +200,7 @@ const SpendingByEnvelope = () => {
         }, [fromDate, toDate])
     );
 
-    // faisal code to search all envelopes and log them
+    // code to search all envelopes and log them
     useFocusEffect(
         useCallback(() => {
             db.transaction((tx) => {
@@ -291,7 +228,7 @@ const SpendingByEnvelope = () => {
     );
 
 
-    // faisal code to filter transactions by date
+    // code to filter transactions by date
     const [transactions, setTransactions] = useState([]);
     const filterTransactions = (fromDate, toDate) => {
 
@@ -331,7 +268,7 @@ const SpendingByEnvelope = () => {
         }, [fromDate, toDate])
     );
 
-    // faisal code to search and log all Transactions
+    // code to search and log all Transactions
     useFocusEffect(
         useCallback(() => {
             db.transaction((tx) => {
@@ -358,7 +295,7 @@ const SpendingByEnvelope = () => {
         }, [])
     );
 
-    // faisal code end here
+    // code to calculate required values from filtered envelopes and transactions
 
     const [income, setIncome] = useState(0);
     const [spending, setSpending] = useState(0);
@@ -410,8 +347,8 @@ const SpendingByEnvelope = () => {
         console.log("Spending by Envelope:", spendingByEnvelope);
         console.log("Total Expense Spending:", totalExpenseSpending);
 
-        setSpendingByEnvelope(spendingByEnvelope); // Set individual envelope spending
-        setSpending(totalExpenseSpending); // Set total expense spending
+        setSpendingByEnvelope(spendingByEnvelope);
+        setSpending(totalExpenseSpending);
 
         return { totalIncome, spendingByEnvelope };
     };
@@ -444,6 +381,7 @@ const SpendingByEnvelope = () => {
     // full code and logic to filter and calculate values end here
     
 
+    // code to generate data for pie graph
     const [pieData, setPieData] = useState([]);
 
     // This function generates pie chart data and ensures consistent envelope colors
@@ -470,25 +408,6 @@ const SpendingByEnvelope = () => {
 
         generatePieData();
     }, [spendingByEnvelope]);  // Re-run when spendingByEnvelope changes
-
-    // const generatePieData = () => {
-    //     return spendingByEnvelope
-    //         .filter(item => (item.envelopeSpending || 0) > 0)  // Filter out negative spending
-    //         .map((item, index) => {
-    //             const envelopeSpending = item.envelopeSpending || 0;
-    //             const envelopeColor = randomColor();
-
-    //             return {
-    //                 name: item.envelopeName,
-    //                 population: envelopeSpending,
-    //                 color: envelopeColor,
-    //                 legendFontColor: "#7F7F7F",
-    //                 legendFontSize: 15
-    //             };
-    //         });
-    // };
-
-    // const pieData = generatePieData();
 
     const pieChartConfig = {
         backgroundGradientFrom: "#1E2923",
@@ -545,21 +464,7 @@ const SpendingByEnvelope = () => {
             <View style={styles.txt_amt_view}>
                 <Text style={styles.txt_amt_texts}>Total Spending: {spending}.00</Text>
             </View>
-            {/*<View>
-                <Text style={{ color: 'black' }}>Envelopes within Date Range:</Text>
-                {envelopes.length > 0 ? (
-                    envelopes.map((envelope, index) => (
-                        <View key={index}>
-                            <Text style={{color: 'black'}}>{`Envelope Name: ${envelope.envelopeName}`}</Text>
-                            <Text style={{ color: 'black' }}>{`Amount: ${envelope.amount}`}</Text>
-                            <Text style={{ color: 'black' }}>{`Fill Date: ${envelope.fillDate}`}</Text>
-                        </View>
-                    ))
-                ) : (
-                        <Text style={{ color: 'black' }}>No envelopes found within the selected date range.</Text>
-                )}
-            </View>
-                 */}
+       
             <ScrollView style={{ flex: 1 }}>
                 <View style={styles.envelope_txt_amt_parent_view}>
                     {spendingByEnvelope
@@ -776,6 +681,7 @@ export default SpendingByEnvelope
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+        backgroundColor: colors.white,
     },
     appBar: {
         backgroundColor: colors.brightgreen,

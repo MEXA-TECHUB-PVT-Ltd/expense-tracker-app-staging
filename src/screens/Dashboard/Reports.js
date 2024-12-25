@@ -19,39 +19,37 @@ const { width: screenWidth } = dimensions;
 const Reports = () => {
   const navigation = useNavigation();
 
-  const [fromDate, setFromDate] = useState(null);
-  const [toDate, setToDate] = useState(null);
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [formattedFromDate, setFormattedFromDate] = useState('');
+  const [formattedToDate, setFormattedToDate] = useState('');
 
-  const [formattedFromDate, setFormattedFromDate] = useState(null);
-  const [formattedToDate, setFormattedToDate] = useState(null);
+  // Update formatted dates whenever fromDate or toDate changes
+  React.useEffect(() => {
+    if (fromDate) {
+      setFormattedFromDate(formatDateSql(fromDate));
+    }
+    if (toDate) {
+      setFormattedToDate(formatDateSql(toDate));
+    }
+  }, [fromDate, toDate]);
 
-  console.log('value of formattedFromDate: ', formattedFromDate);
-  console.log('value of formattedToDate: ', formattedToDate);
-
-  // formate fromDate and toDate just to show on UI like this Nov 1, 2024
+  // Set initial dates and format them
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
       const startOfMonth = moment().startOf('month').format('MMM D, YYYY'); // e.g., "Nov 1, 2024"
       const endOfMonth = moment().endOf('month').format('MMM D, YYYY');     // e.g., "Nov 30, 2024"
+
+      // default dates
       setFromDate(startOfMonth);
       setToDate(endOfMonth);
-      return undefined; // No cleanup required
+
+      // For testing purposes, hardcoded dates
+      // Uncomment the next two lines if you need these for testing
+      // setFromDate('2025-01-01');
+      // setToDate('2025-01-31');
     }, [])
   );
-
-  // Format the dates after fromDate and toDate have been updated
-  useEffect(() => {
-    if (fromDate && toDate) {
-      // const formattedFrom = moment(fromDate, 'MMM D, YYYY').format('ddd MMM DD YYYY HH:mm:ss [GMT]Z');
-      // const formattedTo = moment(toDate, 'MMM D, YYYY').format('ddd MMM DD YYYY HH:mm:ss [GMT]Z');
-
-      const formattedFromDate = formatDateSql(fromDate);
-      const formattedToDate = formatDateSql(toDate);
-
-      setFormattedFromDate(formattedFromDate);
-      setFormattedToDate(formattedToDate);
-    }
-  }, [fromDate, toDate]); 
 
   // code to get user id from redux
   const isAuthenticated = useSelector((state) => state.user.isAuthenticated);
@@ -67,25 +65,29 @@ const Reports = () => {
     }
   }, [isAuthenticated, user_id]);
 
-  console.log('value of tempUserId in SpendingByEnvelope', tempUserId);
+  // console.log('value of tempUserId in SpendingByEnvelope', tempUserId);
 
   // No need to manage tempUserId state manually
   useFocusEffect(
     useCallback(() => {
       // Log or handle tempUserId usage whenever the screen gains focus
-      console.log('useFocusEffect triggered with tempUserId:', tempUserId);
+      // console.log('useFocusEffect triggered with tempUserId:', tempUserId);
     }, [tempUserId])
   );
 
   // full faisal code start here
 
-  // faisal code start here for filtering and fetching all data from envelopes and transactions
+  // code for filtering and fetching all data from envelopes and transactions
   const [envelopes, setEnvelopes] = useState([]);
 
   // faisal code filter envelopes with date
-  const fetchRecordsWithinDateRange = (fromDate, toDate) => {
-    const formattedFromDate = formatDateSql(fromDate);
-    const formattedToDate = formatDateSql(toDate);
+  const fetchRecordsWithinDateRange = (formattedFromDate, formattedToDate) => {
+
+    // console.log('formattedFromDate inside fetchRecordsWithinDateRange', formattedFromDate);
+    // console.log('formattedToDate inside fetchRecordsWithinDateRange', formattedToDate);
+
+    // const formattedFromDate = formatDateSql(fromDate);
+    // const formattedToDate = formatDateSql(toDate);
 
     db.transaction((tx) => {
       const fetchQuery = `
@@ -113,13 +115,13 @@ const Reports = () => {
 
   useFocusEffect(
     React.useCallback(() => {
-      if (fromDate && toDate) {
-        fetchRecordsWithinDateRange(fromDate, toDate);
+      if (formattedFromDate && formattedToDate) {
+        fetchRecordsWithinDateRange(formattedFromDate, formattedToDate);
       }
-    }, [fromDate, toDate])
+    }, [formattedFromDate, formattedToDate])
   );
 
-  // faisal code to search all envelopes and log them
+  // code to search all envelopes and log them
   useFocusEffect(
     useCallback(() => {
       db.transaction((tx) => {
@@ -147,12 +149,15 @@ const Reports = () => {
   );
 
 
-  // faisal code to filter transactions by date
+  // code to filter transactions by date
   const [transactions, setTransactions] = useState([]);
-  const filterTransactions = (fromDate, toDate) => {
+  const filterTransactions = (formattedFromDate, formattedToDate) => {
 
-    const formattedFromDate = formatDateSql(fromDate);
-    const formattedToDate = formatDateSql(toDate);
+    // console.log('formattedFromDate inside filterTransactions', formattedFromDate);
+    // console.log('formattedToDate inside filterTransactions', formattedToDate);
+
+    // const formattedFromDate = formatDateSql(fromDate);
+    // const formattedToDate = formatDateSql(toDate);
 
     db.transaction((tx) => {
       const fetchQuery = `
@@ -181,13 +186,13 @@ const Reports = () => {
 
   useFocusEffect(
     React.useCallback(() => {
-      if (fromDate && toDate) {
-        filterTransactions(fromDate, toDate);
+      if (formattedFromDate && formattedToDate) {
+        filterTransactions(formattedFromDate, formattedToDate);
       }
-    }, [fromDate, toDate])
+    }, [formattedFromDate, formattedToDate])
   );
 
-  // faisal code to search and log all Transactions
+  // code to search and log all Transactions
   useFocusEffect(
     useCallback(() => {
       db.transaction((tx) => {
@@ -214,10 +219,9 @@ const Reports = () => {
     }, [])
   );
 
-  // faisal code for filtering and fetching all data end here
+  // code for filtering and fetching all data end here
 
   // code for calculating data from filtered envelopes and transactions
-
   useFocusEffect(
     useCallback(() => {
       if (!envelopes || !transactions) return;
@@ -226,7 +230,7 @@ const Reports = () => {
       const totalIncome = envelopes.reduce((sum, envelope) => {
         return envelope.user_id === tempUserId ? sum + (envelope.amount || 0) : sum;
       }, 0);
-      console.log("Total Income:", totalIncome);
+      // console.log("Total Income:", totalIncome);
       setIncome(totalIncome);
 
       // Calculate spending by envelope
@@ -257,89 +261,22 @@ const Reports = () => {
         totalSpending += envelopeSpending;
       }
 
-      console.log("Spending By Envelope:", spendingByEnvelope);
-      console.log("Total Spending:", totalSpending);
+      // console.log("Spending By Envelope:", spendingByEnvelope);
+      // console.log("Total Spending:", totalSpending);
 
-      setSpendingByEnvelope(spendingByEnvelope); // Set spending by envelope
-      setSpending(totalSpending); // Set total spending
-    }, [envelopes, transactions, tempUserId]) // Dependencies
+      // Ensure totalSpending is positive before setting the state
+      const positiveTotalSpending = Math.abs(totalSpending);
+
+      setSpendingByEnvelope(spendingByEnvelope);
+      setSpending(positiveTotalSpending);
+    }, [envelopes, transactions, tempUserId])
   );
 
-
-  // full faisal code end here
-
   // code for getting values
-
   const [income, setIncome] = useState(0);
   const [spending, setSpending] = useState(0);
   const [netTotal, setNetTotal] = useState(0);
   const [spendingByEnvelope, setSpendingByEnvelope] = useState([]);
-
-
-  // irfan code for getting income from envelopes table and spending from transactions table but no date filter
-  // useFocusEffect(
-  //   useCallback(() => {
-  //     db.transaction((tx) => {
-  //       // console.log('value of tempUserId in reports inside transaction', tempUserId);
-
-  //       // Query for total income filtered by user_id
-  //       const incomeQuery = `
-  //       SELECT SUM(amount) as totalIncome 
-  //       FROM envelopes
-  //       WHERE user_id = ?`;
-
-  //       tx.executeSql(
-  //         incomeQuery,
-  //         [tempUserId],
-  //         (_, { rows }) => {
-  //           const totalIncome = rows.item(0).totalIncome || 0;
-  //           console.log("Income Query Success:", incomeQuery, rows.item(0));
-  //           setIncome(totalIncome);
-  //         },
-  //         (_, error) => {
-  //           console.error("Income Query Error:", incomeQuery, error);
-  //           return true;
-  //         }
-  //       );
-
-  //       // Query for spending by envelope filtered by user_id
-  //       const spendingQuery = `
-  //       SELECT envelopeName, 
-  //         SUM(CASE WHEN transactionType = 'Expense' THEN transactionAmount ELSE 0 END) -
-  //         SUM(CASE WHEN transactionType = 'Credit' THEN transactionAmount ELSE 0 END) AS envelopeSpending
-  //       FROM Transactions
-  //       WHERE user_id = ?
-  //       GROUP BY envelopeName`;
-
-  //       tx.executeSql(
-  //         spendingQuery,
-  //         [tempUserId],
-  //         (_, { rows }) => {
-  //           const envelopeData = [];
-  //           let totalSpending = 0;
-
-  //           // Loop over rows to get individual envelope spending
-  //           for (let i = 0; i < rows.length; i++) {
-  //             const { envelopeName, envelopeSpending } = rows.item(i);
-  //             const spending = envelopeSpending || 0; // Handle null values
-  //             envelopeData.push({ envelopeName, envelopeSpending: spending });
-  //             totalSpending += spending;
-  //           }
-
-  //           console.log("Spending Query Success:", spendingQuery, envelopeData);
-  //           setSpendingByEnvelope(envelopeData); // Set individual envelope spending
-  //           setSpending(totalSpending); // Set total spending
-  //         },
-  //         (_, error) => {
-  //           console.error("Spending Query Error:", spendingQuery, error);
-  //           return true;
-  //         }
-  //       );
-  //     });
-  //   }, []) // Removed dependency on dates since it's a general query
-  // );
-
-
 
   // Net total effect calculation based on income and spending also same so need to change again and again
   useFocusEffect(
@@ -348,6 +285,7 @@ const Reports = () => {
     }, [income, spending])
   );
 
+  // code to generate pie graph data
   const [pieData, setPieData] = useState([]);
 
   // This function generates pie chart data and ensures consistent envelope colors
@@ -387,27 +325,36 @@ const Reports = () => {
   };
 
   
-
-  // for bar graph
+  // code to generate bar graph data
   // const maxValue = Math.max(income, spending);
   // const maxYAxisValue = Math.ceil(maxValue / 100) * 100;
 
+  const [month, setMonth] = useState('');
+
+  useFocusEffect(
+    useCallback(() => {
+      if (fromDate) {
+        // Extract the month from fromDate
+        const extractedMonth = fromDate.split(' ')[0]; // Assuming the format is "Dec 1, 2024"
+        setMonth(extractedMonth);
+      }
+    }, [fromDate]) // Add fromDate as a dependency
+  );
+
   const data = {
-    labels: [fromDate],
+    labels: [" ",month, " "],
     datasets: [
       {
-        data: [income, spending],
+        data: [income, 0, spending],
         colors: [
           (opacity = 1) => colors.brightgreen,
+          (opacity = 1) => 'transparent',
           (opacity = 1) => colors.danger,
         ],
       },
     ],
   };
 
-  const maxValue = Math.max(income, spending); // Get the maximum value between income and spending
-  const roundedMaxValue = Math.ceil(maxValue / 1000) * 1000; // Round it up to the nearest 1000
-  const yInterval = roundedMaxValue / 5; // Divide the max value by 5 to get the interval for Y-axis labels
 
   const barChartConfig = {
     backgroundColor: "transparent",
@@ -418,22 +365,15 @@ const Reports = () => {
     color: (opacity = 1) => `#000000`,
     barPercentage: 0.2,
     propsForBackgroundLines: {
-      stroke: "#000000",
-      strokeWidth: 1,
+      stroke: "#808080",
+      strokeWidth: 0.5,
       strokeDasharray: "",
     },
     propsForVerticalLabels: {
       fontSize: 12,
     },
-    // formatYLabel: (yValue) => `${Math.ceil(yValue / 100) * 100}`,
-    formatYLabel: (yValue) => {
-      // Format the Y-axis labels based on the interval
-      return `${Math.ceil(yValue / yInterval) * yInterval}`;
-    },
+    formatYLabel: (yValue) => parseInt(yValue, 10).toString(), // Remove decimals
   };
-
-
-
 
 
   return (
@@ -460,13 +400,13 @@ const Reports = () => {
                   },
                 ]
             }
-            width={hp("10%")}
-            height={hp("10%")}
+            width={hp("14%")}
+            height={hp("14%")}
             chartConfig={pieChartConfig}
             accessor={"population"}
             backgroundColor={"transparent"}
             paddingLeft={"5"}
-            center={[10, 5]}
+            center={[15, 5]}
             hasLegend={false}
           />
         </View>
@@ -525,13 +465,13 @@ const Reports = () => {
         <View style={styles.bar_graph_view}>
           <BarChart
             data={data}
-            width={hp("20%")} // Matches parent width
+            width={hp("18%")} // Matches parent width
             height={hp("23%")} // Matches parent height
             chartConfig={barChartConfig}
             yAxisSuffix=" " // No extra space for suffix
             fromZero={true}
             withHorizontalLabels={true}
-            withInnerLines={false}
+            withInnerLines={true}
             withCustomBarColorFromData={true}
             flatColor={true}
             showBarTops={false}
@@ -579,6 +519,7 @@ export default Reports;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.white,
   },
   name_percent_amt: {
     color: colors.black,
@@ -604,15 +545,17 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   graph_view: {
-    width: hp('14%'),
+    width: hp('19%'),
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: hp('1%'),
+    // backgroundColor: 'yellow',
   },
   bar_graph_view: {
     flexDirection: 'row',
     width: hp('20%'),
     height: hp('23%'),
-    justifyContent: 'flex-start',
+    justifyContent: 'center',
     alignItems: 'center',
     marginRight: hp('1.5%'),
     overflow: 'hidden',
