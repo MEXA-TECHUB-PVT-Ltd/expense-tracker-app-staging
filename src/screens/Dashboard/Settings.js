@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View, Animated, Pressable, TouchableOpacity, TouchableWithoutFeedback } from 'react-native'
+import { StyleSheet, Text, View, Animated, Pressable, TouchableOpacity, TouchableWithoutFeedback } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useState, useRef } from 'react'
 import colors from '../../constants/colors';
 import { Appbar, Divider, Checkbox, Dialog, Portal, Modal, Button } from 'react-native-paper';
@@ -66,9 +67,31 @@ const About = () => {
     const showLogoutModal = () => setLogoutModalVisible(true);
     const hideLogoutModal = () => setLogoutModalVisible(false);
 
+    // clear check of copying months...
+    const clearLastCopyMonth = async () => {
+        try {
+            await AsyncStorage.removeItem('lastCopyMonth');
+            console.log('lastCopyMonth cleared from AsyncStorage.');
+        } catch (error) {
+            console.error('Error clearing lastCopyMonth:', error);
+        }
+    };
+    // clear check of copying year....
+    const clearLastCopyYear = async () => {
+        try {
+            await AsyncStorage.removeItem('lastCopyYear');
+            console.log('lastCopyYear cleared from AsyncStorage.');
+        } catch (error) {
+            console.error('Error clearing lastCopyYear:', error);
+        }
+    };
+
     const handleLogoutOkPress = async () => {
         await removeUserData();
-        dropTables(); // drop all tables
+        // for now we can comment them means dont drop tables
+        // dropTables(); // drop all tables // conflicted functionality for forgot password we will discuss later
+        // await clearLastCopyMonth();  // conflicted functionality for forgot password we will discuss later
+        // await clearLastCopyYear();  // conflicted functionality for forgot password we will discuss later
         dispatch(logout());
         navigation.navigate('Onboarding');  // this is for cross confirmation although it navigates on basis of isAuthenticated state in redux
         setLogoutModalVisible(false);
@@ -319,6 +342,7 @@ export default About
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+        backgroundColor: colors.white,
     },
     appBar: {
         backgroundColor: colors.brightgreen,

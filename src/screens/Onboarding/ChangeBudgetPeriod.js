@@ -52,7 +52,7 @@ const ChangeBudgetPeriod = () => {
     };
 
     return (
-        <Pressable style={{ flex: 1 }} onPress={handleOutsidePress}>
+        <Pressable style={{ flex: 1, backgroundColor: colors.white }} onPress={handleOutsidePress}>
             <View>
                 <Appbar.Header style={styles.appBar}>
                     <Appbar.BackAction onPress={handleLeftIconPress} size={24} color={colors.white} />

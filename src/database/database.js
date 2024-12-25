@@ -26,6 +26,13 @@ const initializeDatabase = () => {
         //     (_, error) => console.error('Error dropping income table:', error)
         // );
 
+        // tx.executeSql(
+        //     "DROP TABLE IF EXISTS Income;",
+        //     [],
+        //     () => console.log('Table dropped'),
+        //     (_, error) => console.error('Error dropping income table:', error)
+        // );
+
         // creates the Users table
         tx.executeSql(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='Users';",
@@ -72,6 +79,8 @@ const initializeDatabase = () => {
         );
 
         // create Income table if not exists
+        // budgetAmount can change as it was already being updated wen adding or updating or deleting transaction
+        // but monthlyAmount can't be changed and you are only using it in Income Vs Spending report...
         tx.executeSql(
             `CREATE TABLE IF NOT EXISTS Income (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -126,7 +135,7 @@ const initializeDatabase = () => {
         );`,
                 [],
                 () => {
-                    console.log("Payees table created successfully");
+                    // console.log("Payees table created successfully");
 
                     let payeesAdded = 0; // Counter to track added payees
 
@@ -138,7 +147,7 @@ const initializeDatabase = () => {
                                 payeesAdded++;
                                 // Once all payees are added, log a single success message
                                 if (payeesAdded === DEFAULT_PAYEES.length) {
-                                    console.log("Default payees added successfully");
+                                    // console.log("Default payees added successfully");
                                 }
                             },
                             (tx, error) => console.error(`Error adding default payee "${payee}"`, error)
@@ -433,11 +442,19 @@ const fetchAllIncomes = (callback) => {
 
 //for filled envelopes screen fill all or individual
 // for total sum of all envelopes amount as single sumup amount
-const fetchTotalEnvelopesAmount = (callback, tempUserId, formattedFromDate, formattedToDate) => {
+const fetchTotalEnvelopesAmount = (callback, tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly) => {
     db.transaction(tx => {
         tx.executeSql(
-            'SELECT SUM(filledIncome) AS totalAmount FROM envelopes WHERE user_id = ? AND fillDate BETWEEN ? AND ?;',
-            [tempUserId, formattedFromDate, formattedToDate],
+            // 'SELECT SUM(filledIncome) AS totalAmount FROM envelopes WHERE user_id = ? AND fillDate BETWEEN ? AND ?;',
+            `SELECT SUM(filledIncome) AS totalAmount 
+             FROM envelopes 
+             WHERE user_id = ? 
+             AND (
+                 (budgetPeriod IN ('Monthly', 'Goal') AND fillDate BETWEEN ? AND ?)
+                 OR
+                 (budgetPeriod = 'Every Year' AND fillDate BETWEEN ? AND ?)
+             );`,
+            [tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly],
             (_, results) => {
                 const totalAmount = results.rows.item(0).totalAmount || 0;
                 callback(totalAmount);
@@ -473,7 +490,7 @@ const fetchTotalEnvelopesAmountMonthly = (callback, tempUserId, formattedFromDat
 };
 
 // for every year
-const fetchTotalEnvelopesAmountYearly = (callback, tempUserId, formattedFromDate, formattedToDate) => {
+const fetchTotalEnvelopesAmountYearly = (callback, tempUserId, formattedFromDateYearly, formattedToDateYearly) => {
     db.transaction(tx => {
         tx.executeSql(
             `SELECT SUM(filledIncome) AS totalAmount 
@@ -481,7 +498,7 @@ const fetchTotalEnvelopesAmountYearly = (callback, tempUserId, formattedFromDate
              WHERE user_id = ? 
                AND fillDate BETWEEN ? AND ? 
                AND budgetPeriod = ?;`,
-            [tempUserId, formattedFromDate, formattedToDate, "Every Year"],
+            [tempUserId, formattedFromDateYearly, formattedToDateYearly, "Every Year"],
             (_, results) => {
                 const totalAmount = results.rows.item(0).totalAmount || 0;
                 callback(totalAmount);

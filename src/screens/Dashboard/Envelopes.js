@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useFocusEffect } from '@react-navigation/native';
-import { StyleSheet, Text, View, TouchableOpacity, StatusBar, SectionList, ImageBackground } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, StatusBar, SectionList, ImageBackground, RefreshControl } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Divider } from 'react-native-paper';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import colors from '../../constants/colors';
+import { useNavigationState } from '@react-navigation/native';
 import { VectorIcon } from '../../constants/vectoricons';
 import { useNavigation } from '@react-navigation/native'
 import { db, fetchTotalEnvelopesAmount, fetchTotalEnvelopesAmountYearly, fetchTotalEnvelopesAmountMonthly, fetchTotalEnvelopesAmountGoal } from '../../database/database'
@@ -26,6 +27,7 @@ const Envelopes = () => {
   // console.log('value of tempUserId in state inside envelopes', tempUserId);
   useFocusEffect(
     useCallback(() => {
+      // console.log(' ^^^^^^^ useFocusEffect of tempUserId called ^^^^^^^^ ');
       if (isAuthenticated) {
         setTempUserId(user_id);
       } else {
@@ -42,6 +44,7 @@ const Envelopes = () => {
 
   useFocusEffect(
     useCallback(() => {
+      // console.log(' DDDDDDDDDDD useFocusEffect of dates called DDDDDDDDDDDD ');
       const fromDate = moment().startOf('month').format('YYYY-MM-DD');
       const toDate = moment().endOf('month').format('YYYY-MM-DD');
 
@@ -55,7 +58,18 @@ const Envelopes = () => {
     }, [])
   );
 
+  // for yearly filtering of envelopes
+  const startOfYear = moment().startOf('year').toISOString();
+  const endOfYear = moment().endOf('year').toISOString();
+  // Format the dates using the formatDateSql function
+  const formattedFromDateYearly = formatDateSql(startOfYear);
+  const formattedToDateYearly = formatDateSql(endOfYear);
 
+  // console.log('++++++++++++++++       formattedFromDateYearly in envelopes screen: ', formattedFromDateYearly);
+  // console.log('++++++++++++++++       formattedToDateYearly in envelopes screen: ', formattedToDateYearly);
+
+
+  // for now we are not showing it but if we need to show i already have it, below i have view may be commented out in which showing this
   const [totalIncome, setTotalIncome] = useState(0);
   useEffect(
     useCallback(() => {
@@ -72,11 +86,12 @@ const Envelopes = () => {
   );
 
   // for showing total sum of all envelopes incomes single sumup of all for every year
+  // modify its dates to yearly if necessary
   const [yearlyIncome, setYearlyIncome] = useState(0);
   useEffect(
     useCallback(() => {
-      fetchTotalEnvelopesAmountYearly(setYearlyIncome, tempUserId, formattedFromDate, formattedToDate);
-    }, [tempUserId, formattedFromDate, formattedToDate])
+      fetchTotalEnvelopesAmountYearly(setYearlyIncome, tempUserId, formattedFromDateYearly, formattedToDateYearly);
+    }, [tempUserId, formattedFromDateYearly, formattedToDateYearly])
   );
 
   // for showing total sum of all envelopes incomes single sumup of all for goals
@@ -91,7 +106,7 @@ const Envelopes = () => {
   const [filledIncomes, setFilledIncomes] = useState([]);
 
   const [envelopes, setEnvelopes] = useState([]);
-  console.log('state of envelopes in envelopes screen-=-=-=-=--=-=-=: ', envelopes); 
+  // console.log('state of envelopes in envelopes screen-=-=-=-=--=-=-=: ', envelopes); 
 
   // Group the envelopes by budgetPeriod for section list to show data by Month year and goal
   const groupedEnvelopes = [
@@ -100,31 +115,81 @@ const Envelopes = () => {
     { title: 'Goal', data: envelopes.filter(item => item.budgetPeriod === 'Goal') },
   ];
 
-  const fetchEnvelopes = useCallback(() => {
-    // console.log('Fetching envelopes with:', tempUserId, formattedFromDate, formattedToDate);
-    getAllEnvelopes(setEnvelopes, tempUserId, formattedFromDate, formattedToDate);
-    fetchAndLogFilledIncomes(tempUserId);
-  }, [tempUserId, formattedFromDate, formattedToDate]);
+  // const fetchEnvelopes = useCallback(() => {
+  //   // console.log('Fetching envelopes with:', tempUserId, formattedFromDate, formattedToDate);
+  //   getAllEnvelopes(setEnvelopes, tempUserId, formattedFromDate, formattedToDate);
+  //   fetchAndLogFilledIncomes(tempUserId);
+  // }, [tempUserId, formattedFromDate, formattedToDate]);
 
-  // Use useFocusEffect to call the function when the screen comes into focus
+  // useFocusEffect(
+  //   useCallback(() => {
+  //     fetchEnvelopes();
+  //   }, [fetchEnvelopes])
+  // );
+
   useFocusEffect(
     useCallback(() => {
-      fetchEnvelopes();
-    }, [fetchEnvelopes]) // Ensure fetchEnvelopes is a dependency
+      getAllEnvelopes(setEnvelopes, tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly);
+      fetchAndLogFilledIncomes(tempUserId);
+    }, [tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly])
   );
 
   // function to get all envelopes their rows
-  const getAllEnvelopes = (callback, tempUserId, formattedFromDate, formattedToDate) => {
+  // const getAllEnvelopes = (callback, tempUserId, formattedFromDate, formattedToDate) => {
+  //   // console.log('running getAllEnvelopes...');
+  //   db.transaction(tx => {
+  //     const sqlQuery = `
+  //     SELECT * FROM envelopes 
+  //     WHERE user_id = ? AND fillDate BETWEEN ? AND ? 
+  //     ORDER BY orderIndex
+  //   `;
+  //     tx.executeSql(
+  //       sqlQuery,
+  //       [tempUserId, formattedFromDate, formattedToDate],
+  //       (_, results) => {
+  //         // console.log('SQL Results:', results.rows);
+  //         if (results.rows && results.rows.length > 0) {
+  //           let envelopesArray = [];
+  //           for (let i = 0; i < results.rows.length; i++) {
+  //             envelopesArray.push(results.rows.item(i));
+  //           }
+  //           callback(envelopesArray);
+  //         } else {
+  //           callback([]);
+  //         }
+  //       },
+  //       (_, error) => {
+  //         console.log('Error getting envelopes:', error);
+  //         return true;
+  //       }
+  //     );
+  //   }, (error) => {
+  //     console.log('Transaction Error:', error);
+  //   }, () => {
+  //     // console.log('Transaction Success');
+  //   });
+  // };
+
+
+  // modify this not to filter Every Year envelopes on basis of fillDate...
+  // for now it works for copy but duplicated..just copy yearly at new year...keep showing yearly envelopes..
+
+  const getAllEnvelopes = (setEnvelopes, tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly) => {
     // console.log('running getAllEnvelopes...');
     db.transaction(tx => {
       const sqlQuery = `
       SELECT * FROM envelopes 
-      WHERE user_id = ? AND fillDate BETWEEN ? AND ? 
-      ORDER BY orderIndex
+      WHERE user_id = ? 
+      AND (
+        (budgetPeriod IN ('Monthly', 'Goal') AND fillDate BETWEEN ? AND ?)
+        OR (budgetPeriod = 'Every Year' AND fillDate BETWEEN ? AND ?)
+      )
+      ORDER BY orderIndex;
     `;
+
       tx.executeSql(
         sqlQuery,
-        [tempUserId, formattedFromDate, formattedToDate],
+        [tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly],
         (_, results) => {
           // console.log('SQL Results:', results.rows);
           if (results.rows && results.rows.length > 0) {
@@ -132,22 +197,77 @@ const Envelopes = () => {
             for (let i = 0; i < results.rows.length; i++) {
               envelopesArray.push(results.rows.item(i));
             }
-            callback(envelopesArray);
+            setEnvelopes(envelopesArray);
           } else {
-            callback([]);
+            setEnvelopes([]);
           }
         },
         (_, error) => {
           console.log('Error getting envelopes:', error);
+          setEnvelopes([]); // Handle errors by setting an empty state
           return true;
         }
       );
     }, (error) => {
       console.log('Transaction Error:', error);
+      setEnvelopes([]); // Handle transaction errors
     }, () => {
       // console.log('Transaction Success');
     });
   };
+
+
+  // works perfectly fine and filter monthly and yearly but once it is new year it still shows all yearly envelopes
+//   const getAllEnvelopes = (setEnvelopes, tempUserId, formattedFromDate, formattedToDate) => {
+//     // console.log('running getAllEnvelopes...');
+//     db.transaction(tx => {
+//       const sqlQuery = `
+//   SELECT * FROM envelopes 
+//   WHERE user_id = ? 
+//   AND (
+//     (budgetPeriod IN ('Monthly', 'Goal') AND fillDate BETWEEN ? AND ?) 
+//     OR (budgetPeriod = 'Every Year')
+//   )
+//   ORDER BY orderIndex;
+// `;
+
+//       tx.executeSql(
+//         sqlQuery,
+//         [tempUserId, formattedFromDate, formattedToDate],
+//         (_, results) => {
+//           // console.log('SQL Results:', results.rows);
+//           if (results.rows && results.rows.length > 0) {
+//             let envelopesArray = [];
+//             for (let i = 0; i < results.rows.length; i++) {
+//               envelopesArray.push(results.rows.item(i));
+//             }
+//             setEnvelopes(envelopesArray);
+//           } else {
+//             setEnvelopes([]);
+//           }
+//         },
+//         (_, error) => {
+//           console.log('Error getting envelopes:', error);
+//           setEnvelopes([]);  // Handle errors by setting an empty state
+//           return true;
+//         }
+//       );
+//     }, (error) => {
+//       console.log('Transaction Error:', error);
+//       setEnvelopes([]);  // Handle transaction errors
+//     }, () => {
+//       // console.log('Transaction Success');
+//     });
+//   };
+
+  // Pull-to-refresh handler
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = () => {
+    setRefreshing(true);
+    getAllEnvelopes(setEnvelopes, tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly);
+    setRefreshing(false);
+  };
+
 
   // this logs all envelopes in table no date range
   const fetchAndLogFilledIncomes = (tempUserId) => {
@@ -501,155 +621,614 @@ const Envelopes = () => {
 
  // Function to copy and insert envelopes for the next month version 3 checks applied dont duplicate and if there is delay like user
  // opens app after few days later then start of new month
-  const copyAndInsertNextMonthEnvelopesAndIncome = (tempUserId) => {
-    // Calculate date ranges
-    const startOfPreviousMonth = moment().subtract(1, 'month').startOf('month');
-    const endOfPreviousMonth = moment().subtract(1, 'month').endOf('month');
-    const startOfCurrentMonth = moment().startOf('month'); // Updated for clarity
+  
+//   let functionRunCount = 0;
+//  const copyAndInsertNextMonthEnvelopesAndIncome = async (tempUserId) => {
 
-    // Format dates for SQL
-    const formattedStartOfPreviousMonth = formatDateSql(startOfPreviousMonth);
-    const formattedEndOfPreviousMonth = formatDateSql(endOfPreviousMonth);
-    const formattedStartOfCurrentMonth = formatDateSql(startOfCurrentMonth);
+//    functionRunCount += 1;  // Increment the counter each time the function is called
+//    console.log(`Function copyAndInsertNextMonthEnvelopesAndIncome run count: ${functionRunCount}`);
 
-    console.log('--- COPY & INSERT TASK STARTED ---');
-    console.log('Formatted Start of Previous Month:', formattedStartOfPreviousMonth);
-    console.log('Formatted End of Previous Month:', formattedEndOfPreviousMonth);
-    console.log('Formatted Start of Current Month:', formattedStartOfCurrentMonth);
+//    console.log('Function is running for the first time.');
+//     // Calculate date ranges
+//     const startOfPreviousMonth = moment().subtract(1, 'month').startOf('month');
+//     const endOfPreviousMonth = moment().subtract(1, 'month').endOf('month');
+//     const startOfCurrentMonth = moment().startOf('month'); // Updated for clarity
 
-    db.transaction(tx => {
-      /*** ENVELOPES LOGIC ***/
-      const envelopesSelectQuery = `
-      SELECT envelopeId, envelopeName, amount, budgetPeriod, orderIndex, user_id 
-      FROM envelopes 
-      WHERE user_id = ? AND fillDate BETWEEN ? AND ? 
-      ORDER BY orderIndex;
-    `;
+//     // Format dates for SQL
+//     const formattedStartOfPreviousMonth = formatDateSql(startOfPreviousMonth);
+//     const formattedEndOfPreviousMonth = formatDateSql(endOfPreviousMonth);
+//     const formattedStartOfCurrentMonth = formatDateSql(startOfCurrentMonth);
 
-      console.log('Executing envelopes SELECT query...');
-      tx.executeSql(
-        envelopesSelectQuery,
-        [tempUserId, formattedStartOfPreviousMonth, formattedEndOfPreviousMonth],
-        (_, results) => {
-          if (results.rows.length > 0) {
-            let newEnvelopes = [];
-            for (let i = 0; i < results.rows.length; i++) {
-              const item = results.rows.item(i);
-              newEnvelopes.push([
-                item.envelopeName,
-                item.amount,
-                item.budgetPeriod,
-                formattedStartOfCurrentMonth, // Set fill date to the current month start
-                0, // Reset filledIncome
-                item.user_id,
-                item.orderIndex
-              ]);
-            }
+//     console.log('--- COPY & INSERT TASK STARTED ---');
+//     console.log('Formatted Start of Previous Month:', formattedStartOfPreviousMonth);
+//     console.log('Formatted End of Previous Month:', formattedEndOfPreviousMonth);
+//     console.log('Formatted Start of Current Month:', formattedStartOfCurrentMonth);
 
-            const envelopesInsertQuery = `
-            INSERT INTO envelopes (envelopeName, amount, budgetPeriod, fillDate, filledIncome, user_id, orderIndex)
-            VALUES (?, ?, ?, ?, ?, ?, ?);
-          `;
-            newEnvelopes.forEach(env => {
-              tx.executeSql(
-                envelopesInsertQuery,
-                env,
-                () => console.log('Envelope inserted successfully:', env),
-                (_, error) => console.error('Error inserting envelope:', env, error)
-              );
-            });
-          } else {
-            console.log('No envelopes found for the previous month.');
-          }
-        },
-        (_, error) => console.error('Error fetching previous month envelopes:', error)
-      );
+//     db.transaction(tx => {
+//       /*** ENVELOPES LOGIC ***/
+//       const envelopesSelectQuery = `
+//       SELECT envelopeId, envelopeName, amount, budgetPeriod, orderIndex, user_id 
+//       FROM envelopes 
+//       WHERE user_id = ? AND fillDate BETWEEN ? AND ? 
+//       ORDER BY orderIndex;
+//     `;
 
-      /*** INCOME LOGIC ***/
-      const incomeSelectQuery = `
-      SELECT accountName, monthlyAmount, budgetAmount, budgetPeriod, user_id 
-      FROM Income 
-      WHERE user_id = ? AND incomeDate BETWEEN ? AND ?;
-    `;
+//       console.log('Executing envelopes SELECT query...');
+//       tx.executeSql(
+//         envelopesSelectQuery,
+//         [tempUserId, formattedStartOfPreviousMonth, formattedEndOfPreviousMonth],
+//         (_, results) => {
+//           if (results.rows.length > 0) {
+//             let newEnvelopes = [];
+//             for (let i = 0; i < results.rows.length; i++) {
+//               const item = results.rows.item(i);
+//               newEnvelopes.push([
+//                 item.envelopeName,
+//                 item.amount,
+//                 item.budgetPeriod,
+//                 formattedStartOfCurrentMonth, // Set fill date to the current month start
+//                 0, // Reset filledIncome
+//                 item.user_id,
+//                 item.orderIndex
+//               ]);
+//             }
 
-      console.log('Executing income SELECT query...');
-      tx.executeSql(
-        incomeSelectQuery,
-        [tempUserId, formattedStartOfPreviousMonth, formattedEndOfPreviousMonth],
-        (_, results) => {
-          if (results.rows.length > 0) {
-            let newIncomeRecords = [];
-            for (let i = 0; i < results.rows.length; i++) {
-              const item = results.rows.item(i);
-              newIncomeRecords.push([
-                item.accountName,
-                item.monthlyAmount,
-                item.monthlyAmount, // budgetAmount = monthlyAmount
-                item.budgetPeriod,
-                formattedStartOfCurrentMonth, // Set incomeDate to current month start
-                item.user_id
-              ]);
-            }
+//             const envelopesInsertQuery = `
+//             INSERT INTO envelopes (envelopeName, amount, budgetPeriod, fillDate, filledIncome, user_id, orderIndex)
+//             VALUES (?, ?, ?, ?, ?, ?, ?);
+//           `;
+//             newEnvelopes.forEach(env => {
+//               tx.executeSql(
+//                 envelopesInsertQuery,
+//                 env,
+//                 () => console.log('Envelope inserted successfully:', env),
+//                 (_, error) => console.error('Error inserting envelope:', env, error)
+//               );
+//             });
+//           } else {
+//             console.log('No envelopes found for the previous month.');
+//           }
+//         },
+//         (_, error) => console.error('Error fetching previous month envelopes:', error)
+//       );
 
-            const incomeInsertQuery = `
-            INSERT INTO Income (accountName, monthlyAmount, budgetAmount, budgetPeriod, incomeDate, user_id)
-            VALUES (?, ?, ?, ?, ?, ?);
-          `;
-            newIncomeRecords.forEach(income => {
-              tx.executeSql(
-                incomeInsertQuery,
-                income,
-                () => console.log('Income record inserted successfully:', income),
-                (_, error) => console.error('Error inserting income record:', income, error)
-              );
-            });
-          } else {
-            console.log('No income records found for the previous month.');
-          }
-        },
-        (_, error) => console.error('Error fetching previous month income records:', error)
-      );
-    });
-  };
+//       /*** INCOME LOGIC ***/
+//       const incomeSelectQuery = `
+//       SELECT accountName, monthlyAmount, budgetAmount, budgetPeriod, user_id 
+//       FROM Income 
+//       WHERE user_id = ? AND incomeDate BETWEEN ? AND ?;
+//     `;
 
-  const checkAndTriggerStartOfMonthTask = async (tempUserId) => {
-    const now = moment();
-    const startOfCurrentMonth = moment().startOf('month');
+//       console.log('Executing income SELECT query...');
+//       tx.executeSql(
+//         incomeSelectQuery,
+//         [tempUserId, formattedStartOfPreviousMonth, formattedEndOfPreviousMonth],
+//         (_, results) => {
+//           if (results.rows.length > 0) {
+//             let newIncomeRecords = [];
+//             for (let i = 0; i < results.rows.length; i++) {
+//               const item = results.rows.item(i);
+//               newIncomeRecords.push([
+//                 item.accountName,
+//                 item.monthlyAmount,
+//                 item.monthlyAmount, // budgetAmount = monthlyAmount
+//                 item.budgetPeriod,
+//                 formattedStartOfCurrentMonth, // Set incomeDate to current month start
+//                 item.user_id
+//               ]);
+//             }
 
-    console.log('Current Date in triggering function:', now.format('YYYY-MM-DD HH:mm:ss'));
-    console.log('Start of Current Month in triggering function:', startOfCurrentMonth.format('YYYY-MM-DD HH:mm:ss'));
+//             const incomeInsertQuery = `
+//             INSERT INTO Income (accountName, monthlyAmount, budgetAmount, budgetPeriod, incomeDate, user_id)
+//             VALUES (?, ?, ?, ?, ?, ?);
+//           `;
+//             newIncomeRecords.forEach(income => {
+//               tx.executeSql(
+//                 incomeInsertQuery,
+//                 income,
+//                 () => console.log('Income record inserted successfully:', income),
+//                 (_, error) => console.error('Error inserting income record:', income, error)
+//               );
+//             });
+//           } else {
+//             console.log('No income records found for the previous month.');
+//           }
+//         },
+//         (_, error) => console.error('Error fetching previous month income records:', error)
+//       );
+//     });
+//   };
 
-    // Get the last copy month from AsyncStorage
-    const lastCopyMonth = await AsyncStorage.getItem('lastCopyMonth');
+  // const checkAndTriggerStartOfMonthTask = async (tempUserId) => {
+  //   const now = moment();
+  //   const startOfCurrentMonth = moment().startOf('month');
 
-    // Check if the last copy month is different from the current month
-    if (!lastCopyMonth || lastCopyMonth !== startOfCurrentMonth.format('YYYY-MM')) {
-      // If today is the first day of the current month
-      if (now.isSame(startOfCurrentMonth, 'day')) {
-        console.log('It is the start of the current month. Running tasks immediately...');
-        await copyAndInsertNextMonthEnvelopesAndIncome(tempUserId);
-        // Save the current month as the last copied month
-        await AsyncStorage.setItem('lastCopyMonth', startOfCurrentMonth.format('YYYY-MM'));
-      } else {
-        // If the task hasn't been run yet, trigger it based on the next month
-        const timeLeft = startOfCurrentMonth.add(1, 'month').diff(now);
-        console.log('Setting timeout to trigger at the start of the next month...');
-        setTimeout(async () => {
-          console.log('New month started! Running the copy and insert tasks...');
-          await copyAndInsertNextMonthEnvelopesAndIncome(tempUserId);
-          // Save the current month as the last copied month
-          await AsyncStorage.setItem('lastCopyMonth', startOfCurrentMonth.format('YYYY-MM'));
-        }, timeLeft);
-      }
-    } else {
-      console.log('Data already copied for this month. Skipping the task.');
-    }
-  };
+  //   console.log('Current Date in triggering function:', now.format('YYYY-MM-DD HH:mm:ss'));
+  //   console.log('Start of Current Month in triggering function:', startOfCurrentMonth.format('YYYY-MM-DD HH:mm:ss'));
 
-  useEffect(() => {
-    // Trigger check at the start of the month
-    checkAndTriggerStartOfMonthTask(tempUserId);
-  }, [tempUserId]);
+  //   // Get the last copy month from AsyncStorage
+  //   const lastCopyMonth = await AsyncStorage.getItem('lastCopyMonth');
+  //   console.log('Last Copy Month from AsyncStorage:', lastCopyMonth);
+
+  //   // Trigger tasks if lastCopyMonth is null, undefined, or different from the current month
+  //   if (!lastCopyMonth || lastCopyMonth !== startOfCurrentMonth.format('YYYY-MM')) {
+  //     console.log('lastCopyMonth is null or outdated. Triggering tasks...');
+
+  //     // If today is the first day of the current month
+  //     if (now.isSame(startOfCurrentMonth, 'day')) {
+  //       console.log('It is the start of the current month. Running tasks immediately...');
+  //       await copyAndInsertNextMonthEnvelopesAndIncome(tempUserId);
+  //     } else {
+  //       // Calculate time until the next month's start if not on the first day
+  //       const timeLeft = startOfCurrentMonth.add(1, 'month').diff(now);
+  //       console.log('Setting timeout to trigger at the start of the next month...');
+  //       setTimeout(async () => {
+  //         console.log('New month started! Running the copy and insert tasks...');
+  //         await copyAndInsertNextMonthEnvelopesAndIncome(tempUserId);
+  //       }, timeLeft);
+  //     }
+  //     // Save the current month as the last copied month after successfully running tasks
+  //     await AsyncStorage.setItem('lastCopyMonth', startOfCurrentMonth.format('YYYY-MM'));
+  //   } else {
+  //     console.log('Data already copied for this month. Skipping the task.');
+  //   }
+  // };
+
+  // const checkAndTriggerStartOfMonthTask = async (tempUserId) => {
+  //   const now = moment();
+  //   const startOfCurrentMonth = moment().startOf('month');
+
+  //   console.log('Current Date in triggering function:', now.format('YYYY-MM-DD HH:mm:ss'));
+  //   console.log('Start of Current Month in triggering function:', startOfCurrentMonth.format('YYYY-MM-DD HH:mm:ss'));
+
+  //   // Get the last copy month from AsyncStorage
+  //   const lastCopyMonth = await AsyncStorage.getItem('lastCopyMonth');
+  //   console.log('Last Copy Month from AsyncStorage:', lastCopyMonth);
+
+  //   // Check if the task needs to be run
+  //   if (!lastCopyMonth || lastCopyMonth !== startOfCurrentMonth.format('YYYY-MM')) {
+  //     console.log('lastCopyMonth is null or outdated. Triggering tasks...');
+
+  //     try {
+  //       // Run the copy and insert tasks
+  //       await copyAndInsertNextMonthEnvelopesAndIncome(tempUserId);
+  //       console.log('Tasks completed successfully.');
+
+  //       // Update the flag after successful completion
+  //       await AsyncStorage.setItem('lastCopyMonth', startOfCurrentMonth.format('YYYY-MM'));
+  //       console.log('Updated lastCopyMonth in AsyncStorage:', startOfCurrentMonth.format('YYYY-MM'));
+  //     } catch (error) {
+  //       // Handle errors in task execution
+  //       console.error('Error occurred during copy and insert tasks:', error);
+  //     }
+  //   } else {
+  //     console.log('Data already copied for this month. Skipping the task.');
+  //   }
+  // };
+
+  // useEffect(() => {
+  //   checkAndTriggerStartOfMonthTask(tempUserId);
+  // }, [tempUserId]);
+
+// version 4
+
+  // let functionRunCount = 0;
+
+  // const copyAndInsertNextMonthEnvelopesAndIncome = async (tempUserId) => {
+  //   try {
+  //     functionRunCount += 1;
+  //     console.log(`Function copyAndInsertNextMonthEnvelopesAndIncome run count: ${functionRunCount}`);
+
+  //     const startOfPreviousMonth = moment().subtract(1, 'month').startOf('month');
+  //     const endOfPreviousMonth = moment().subtract(1, 'month').endOf('month');
+  //     const startOfCurrentMonth = moment().startOf('month');
+
+  //     const formattedStartOfPreviousMonth = formatDateSql(startOfPreviousMonth);
+  //     const formattedEndOfPreviousMonth = formatDateSql(endOfPreviousMonth);
+  //     const formattedStartOfCurrentMonth = formatDateSql(startOfCurrentMonth);
+
+  //     console.log('--- COPY & INSERT TASK STARTED ---');
+  //     console.log('Formatted Start of Previous Month:', formattedStartOfPreviousMonth);
+  //     console.log('Formatted End of Previous Month:', formattedEndOfPreviousMonth);
+  //     console.log('Formatted Start of Current Month:', formattedStartOfCurrentMonth);
+
+  //     db.transaction(tx => {
+  //       // Fetch previous month's envelopes
+  //       const envelopesSelectQuery = `
+  //       SELECT envelopeId, envelopeName, amount, budgetPeriod, orderIndex, user_id 
+  //       FROM envelopes 
+  //       WHERE user_id = ? AND fillDate BETWEEN ? AND ? 
+  //       ORDER BY orderIndex;
+  //     `;
+
+  //       tx.executeSql(
+  //         envelopesSelectQuery,
+  //         [tempUserId, formattedStartOfPreviousMonth, formattedEndOfPreviousMonth],
+  //         (_, results) => {
+  //           if (results.rows.length > 0) {
+  //             let newEnvelopes = results.rows.map(item => ([
+  //               item.envelopeName,
+  //               item.amount,
+  //               item.budgetPeriod,
+  //               formattedStartOfCurrentMonth,
+  //               0,
+  //               item.user_id,
+  //               item.orderIndex
+  //             ]));
+
+  //             const envelopesInsertQuery = `
+  //             INSERT INTO envelopes (envelopeName, amount, budgetPeriod, fillDate, filledIncome, user_id, orderIndex)
+  //             VALUES (?, ?, ?, ?, ?, ?, ?);
+  //           `;
+
+  //             newEnvelopes.forEach(env => {
+  //               tx.executeSql(
+  //                 envelopesInsertQuery,
+  //                 env,
+  //                 () => console.log('Envelope inserted successfully:', env),
+  //                 (_, error) => console.error('Error inserting envelope:', env, error)
+  //               );
+  //             });
+  //           }
+  //         },
+  //         (_, error) => console.error('Error fetching previous month envelopes:', error)
+  //       );
+
+  //       // Fetch previous month's income
+  //       const incomeSelectQuery = `
+  //       SELECT accountName, monthlyAmount, budgetAmount, budgetPeriod, user_id 
+  //       FROM Income 
+  //       WHERE user_id = ? AND incomeDate BETWEEN ? AND ?;
+  //     `;
+
+  //       tx.executeSql(
+  //         incomeSelectQuery,
+  //         [tempUserId, formattedStartOfPreviousMonth, formattedEndOfPreviousMonth],
+  //         (_, results) => {
+  //           if (results.rows.length > 0) {
+  //             let newIncomeRecords = results.rows.map(item => ([
+  //               item.accountName,
+  //               item.monthlyAmount,
+  //               item.monthlyAmount,
+  //               item.budgetPeriod,
+  //               formattedStartOfCurrentMonth,
+  //               item.user_id
+  //             ]));
+
+  //             const incomeInsertQuery = `
+  //             INSERT INTO Income (accountName, monthlyAmount, budgetAmount, budgetPeriod, incomeDate, user_id)
+  //             VALUES (?, ?, ?, ?, ?, ?);
+  //           `;
+
+  //             newIncomeRecords.forEach(income => {
+  //               tx.executeSql(
+  //                 incomeInsertQuery,
+  //                 income,
+  //                 () => console.log('Income record inserted successfully:', income),
+  //                 (_, error) => console.error('Error inserting income record:', income, error)
+  //               );
+  //             });
+  //           }
+  //         },
+  //         (_, error) => console.error('Error fetching previous month income records:', error)
+  //       );
+  //     });
+  //   } catch (error) {
+  //     console.error('Error copying envelopes and income:', error);
+  //   }
+  // };
+
+
+  // const checkAndTriggerStartOfMonthTask = async (tempUserId) => {
+  //   const now = moment();
+  //   const startOfCurrentMonth = moment().startOf('month');
+  //   const formattedStartOfCurrentMonth = startOfCurrentMonth.format('YYYY-MM');
+
+  //   console.log('Current Date:', now.format('YYYY-MM-DD HH:mm:ss'));
+  //   console.log('Start of Current Month:', formattedStartOfCurrentMonth);
+
+  //   try {
+  //     // Fetch the last copied month from AsyncStorage
+  //     const lastCopyMonth = await AsyncStorage.getItem('lastCopyMonth');
+  //     console.log('========= Last copied month:', lastCopyMonth);
+
+  //     // Explicitly check for null or mismatch with the current month
+  //     if (lastCopyMonth === null || lastCopyMonth !== formattedStartOfCurrentMonth) {
+  //       console.log('Data is outdated or missing. Triggering copy task...');
+
+  //       // Trigger the copy task
+  //       const success = await copyAndInsertNextMonthEnvelopesAndIncome(tempUserId);
+
+  //       if (success) {
+  //         // Only update the flag if the copy task was successful
+  //         await AsyncStorage.setItem('lastCopyMonth', formattedStartOfCurrentMonth);
+  //         console.log('Data copied successfully. Updated lastCopyMonth flag.');
+  //       } else {
+  //         console.log('Data copy failed. lastCopyMonth flag not updated.');
+  //       }
+  //     } else {
+  //       console.log('Data already copied for this month. No action needed.');
+  //     }
+  //   } catch (error) {
+  //     console.error('Error in checkAndTriggerStartOfMonthTask:', error);
+  //   }
+  // };
+
+
+  // useEffect(() => {
+  //   if (tempUserId) {
+  //     checkAndTriggerStartOfMonthTask(tempUserId);
+  //   }
+  // }, [tempUserId]);
+
+
+  // again copied from github last commit from thurday late night it is working but duplicate
+  // const copyAndInsertNextMonthEnvelopesAndIncome = async (tempUserId) => {
+  //   // Calculate date ranges
+  //   const startOfPreviousMonth = moment().subtract(1, 'month').startOf('month');
+  //   const endOfPreviousMonth = moment().subtract(1, 'month').endOf('month');
+  //   const startOfCurrentMonth = moment().startOf('month'); // Updated for clarity
+
+  //   // Format dates for SQL
+  //   const formattedStartOfPreviousMonth = formatDateSql(startOfPreviousMonth);
+  //   const formattedEndOfPreviousMonth = formatDateSql(endOfPreviousMonth);
+  //   const formattedStartOfCurrentMonth = formatDateSql(startOfCurrentMonth);
+
+  //   console.log('--- COPY & INSERT TASK STARTED ---');
+  //   console.log('Formatted Start of Previous Month:', formattedStartOfPreviousMonth);
+  //   console.log('Formatted End of Previous Month:', formattedEndOfPreviousMonth);
+  //   console.log('Formatted Start of Current Month:', formattedStartOfCurrentMonth);
+
+  //   db.transaction(tx => {
+  //     /*** ENVELOPES LOGIC ***/
+  //     const envelopesSelectQuery = `
+  //     SELECT envelopeId, envelopeName, amount, budgetPeriod, orderIndex, user_id 
+  //     FROM envelopes 
+  //     WHERE user_id = ? AND fillDate BETWEEN ? AND ? 
+  //     ORDER BY orderIndex;
+  //   `;
+
+  //     console.log('Executing envelopes SELECT query...');
+  //     tx.executeSql(
+  //       envelopesSelectQuery,
+  //       [tempUserId, formattedStartOfPreviousMonth, formattedEndOfPreviousMonth],
+  //       (_, results) => {
+  //         if (results.rows.length > 0) {
+  //           let newEnvelopes = [];
+  //           for (let i = 0; i < results.rows.length; i++) {
+  //             const item = results.rows.item(i);
+  //             newEnvelopes.push([
+  //               item.envelopeName,
+  //               item.amount,
+  //               item.budgetPeriod,
+  //               formattedStartOfCurrentMonth, // Set fill date to the current month start
+  //               0, // Reset filledIncome
+  //               item.user_id,
+  //               item.orderIndex
+  //             ]);
+  //           }
+
+  //           const envelopesInsertQuery = `
+  //           INSERT INTO envelopes (envelopeName, amount, budgetPeriod, fillDate, filledIncome, user_id, orderIndex)
+  //           VALUES (?, ?, ?, ?, ?, ?, ?);
+  //         `;
+  //           newEnvelopes.forEach(env => {
+  //             tx.executeSql(
+  //               envelopesInsertQuery,
+  //               env,
+  //               () => console.log('Envelope inserted successfully:', env),
+  //               (_, error) => console.error('Error inserting envelope:', env, error)
+  //             );
+  //           });
+  //         } else {
+  //           console.log('No envelopes found for the previous month.');
+  //         }
+  //       },
+  //       (_, error) => console.error('Error fetching previous month envelopes:', error)
+  //     );
+
+  //     /*** INCOME LOGIC ***/
+  //     const incomeSelectQuery = `
+  //     SELECT accountName, monthlyAmount, budgetAmount, budgetPeriod, user_id 
+  //     FROM Income 
+  //     WHERE user_id = ? AND incomeDate BETWEEN ? AND ?;
+  //   `;
+
+  //     console.log('Executing income SELECT query...');
+  //     tx.executeSql(
+  //       incomeSelectQuery,
+  //       [tempUserId, formattedStartOfPreviousMonth, formattedEndOfPreviousMonth],
+  //       (_, results) => {
+  //         if (results.rows.length > 0) {
+  //           let newIncomeRecords = [];
+  //           for (let i = 0; i < results.rows.length; i++) {
+  //             const item = results.rows.item(i);
+  //             newIncomeRecords.push([
+  //               item.accountName,
+  //               item.monthlyAmount,
+  //               item.monthlyAmount, // budgetAmount = monthlyAmount
+  //               item.budgetPeriod,
+  //               formattedStartOfCurrentMonth, // Set incomeDate to current month start
+  //               item.user_id
+  //             ]);
+  //           }
+
+  //           const incomeInsertQuery = `
+  //           INSERT INTO Income (accountName, monthlyAmount, budgetAmount, budgetPeriod, incomeDate, user_id)
+  //           VALUES (?, ?, ?, ?, ?, ?);
+  //         `;
+  //           newIncomeRecords.forEach(income => {
+  //             tx.executeSql(
+  //               incomeInsertQuery,
+  //               income,
+  //               () => console.log('Income record inserted successfully:', income),
+  //               (_, error) => console.error('Error inserting income record:', income, error)
+  //             );
+  //           });
+  //         } else {
+  //           console.log('No income records found for the previous month.');
+  //         }
+  //       },
+  //       (_, error) => console.error('Error fetching previous month income records:', error)
+  //     );
+  //   });
+  // };
+
+  // const copyAndInsertNextMonthEnvelopesAndIncome = async (tempUserId) => {
+  //   const startOfPreviousMonth = moment().subtract(1, 'month').startOf('month');
+  //   const endOfPreviousMonth = moment().subtract(1, 'month').endOf('month');
+  //   const startOfCurrentMonth = moment().startOf('month');
+
+  //   // for Every Year envelopes
+  //   const startOfCurrentYear = moment().startOf('year');
+  //   const isNewYear = moment().isSame(startOfCurrentYear, 'year') && moment().isSame(startOfCurrentYear, 'day');
+  //   console.log('=================   isNewYear =======', isNewYear)
+
+  //   const formattedStartOfPreviousMonth = formatDateSql(startOfPreviousMonth);
+  //   const formattedEndOfPreviousMonth = formatDateSql(endOfPreviousMonth);
+  //   const formattedStartOfCurrentMonth = formatDateSql(startOfCurrentMonth);
+
+  //   console.log('--- COPY & INSERT TASK STARTED ---');
+
+  //   db.transaction(tx => {
+  //     /*** ENVELOPES LOGIC ***/
+  //     const envelopesSelectQuery = `
+  //     SELECT envelopeId, envelopeName, amount, budgetPeriod, orderIndex, user_id 
+  //     FROM envelopes 
+  //     WHERE user_id = ? AND fillDate BETWEEN ? AND ?
+  //     ORDER BY orderIndex;
+  //   `;
+
+  //     console.log('Executing envelopes SELECT query...');
+  //     tx.executeSql(
+  //       envelopesSelectQuery,
+  //       [tempUserId, formattedStartOfPreviousMonth, formattedEndOfPreviousMonth],
+  //       (_, results) => {
+  //         if (results.rows.length > 0) {
+  //           let newEnvelopes = [];
+
+  //           for (let i = 0; i < results.rows.length; i++) {
+  //             const item = results.rows.item(i);
+
+  //             // Filter based on budgetPeriod
+  //             if (
+  //               (item.budgetPeriod === 'Monthly' || item.budgetPeriod === 'Goal') ||
+  //               (item.budgetPeriod === 'Every Year' && isNewYear)
+  //             ) {
+  //               newEnvelopes.push([
+  //                 item.envelopeName,
+  //                 item.amount,
+  //                 item.budgetPeriod,
+  //                 formattedStartOfCurrentMonth, // Set fill date to the current month start
+  //                 0, // Reset filledIncome
+  //                 item.user_id,
+  //                 item.orderIndex
+  //               ]);
+  //             }
+  //           }
+
+  //           const envelopesInsertQuery = `
+  //           INSERT INTO envelopes (envelopeName, amount, budgetPeriod, fillDate, filledIncome, user_id, orderIndex)
+  //           VALUES (?, ?, ?, ?, ?, ?, ?);
+  //         `;
+
+  //           newEnvelopes.forEach(env => {
+  //             tx.executeSql(
+  //               envelopesInsertQuery,
+  //               env,
+  //               () => console.log('Envelope inserted successfully:', env),
+  //               (_, error) => console.error('Error inserting envelope:', env, error)
+  //             );
+  //           });
+  //         } else {
+  //           console.log('No envelopes found for the previous month.');
+  //         }
+  //       },
+  //       (_, error) => console.error('Error fetching previous month envelopes:', error)
+  //     );
+
+  //     /*** INCOME LOGIC ***/
+  //     const incomeSelectQuery = `
+  //     SELECT accountName, monthlyAmount, budgetAmount, budgetPeriod, user_id 
+  //     FROM Income 
+  //     WHERE user_id = ? AND incomeDate BETWEEN ? AND ?;
+  //   `;
+
+  //     console.log('Executing income SELECT query...');
+  //     tx.executeSql(
+  //       incomeSelectQuery,
+  //       [tempUserId, formattedStartOfPreviousMonth, formattedEndOfPreviousMonth],
+  //       (_, results) => {
+  //         if (results.rows.length > 0) {
+  //           let newIncomeRecords = [];
+
+  //           for (let i = 0; i < results.rows.length; i++) {
+  //             const item = results.rows.item(i);
+
+  //             newIncomeRecords.push([
+  //               item.accountName,
+  //               item.monthlyAmount,
+  //               item.monthlyAmount,
+  //               item.budgetPeriod,
+  //               formattedStartOfCurrentMonth,
+  //               item.user_id
+  //             ]);
+  //           }
+
+  //           const incomeInsertQuery = `
+  //           INSERT INTO Income (accountName, monthlyAmount, budgetAmount, budgetPeriod, incomeDate, user_id)
+  //           VALUES (?, ?, ?, ?, ?, ?);
+  //         `;
+
+  //           newIncomeRecords.forEach(income =>
+  //             tx.executeSql(
+  //               incomeInsertQuery,
+  //               income,
+  //               () => console.log('Income record inserted successfully:', income),
+  //               (_, error) => console.error('Error inserting income record:', income, error)
+  //             )
+  //           );
+  //         } else {
+  //           console.log('No income records found for the previous month.');
+  //         }
+  //       },
+  //       (_, error) => console.error('Error fetching previous month income records:', error)
+  //     );
+  //   });
+  // };
+
+// this was working fine like copy correctly but till here we had duplication error
+  // const checkAndTriggerStartOfMonthTask = async (tempUserId) => {
+  //   const now = moment();
+  //   const startOfCurrentMonth = moment().startOf('month');
+
+  //   console.log('Current Date in triggering function:', now.format('YYYY-MM-DD HH:mm:ss'));
+  //   console.log('Start of Current Month in triggering function:', startOfCurrentMonth.format('YYYY-MM-DD HH:mm:ss'));
+
+  //   // Get the last copy month from AsyncStorage
+  //   const lastCopyMonth = await AsyncStorage.getItem('lastCopyMonth');
+
+  //   if (!lastCopyMonth) {
+  //     // If lastCopyMonth is null, run the task immediately
+  //     console.log('No record of lastCopyMonth. Running tasks immediately...');
+  //     await copyAndInsertNextMonthEnvelopesAndIncome(tempUserId);
+  //     // Save the current month as the last copied month
+  //     await AsyncStorage.setItem('lastCopyMonth', startOfCurrentMonth.format('YYYY-MM'));
+  //   } else if (lastCopyMonth !== startOfCurrentMonth.format('YYYY-MM')) {
+  //     // If lastCopyMonth is not the current month, ensure the task is completed for the new month
+  //     console.log('Detected a new month. Checking if tasks need to be run...');
+  //     await copyAndInsertNextMonthEnvelopesAndIncome(tempUserId);
+  //     // Save the current month as the last copied month
+  //     await AsyncStorage.setItem('lastCopyMonth', startOfCurrentMonth.format('YYYY-MM'));
+  //   } else {
+  //     console.log('Data already copied for this month. Skipping the task.');
+  //   }
+  // };
+
+  // useEffect(() => {
+  //   console.log("Calling checkAndTriggerStartOfMonthTask in useEffect  ________________");
+  //   checkAndTriggerStartOfMonthTask(tempUserId);
+  // }, [tempUserId]); // if user switch account within same month then i would need to trigger function of copy paste envelopes and income for that user
 
 
 
@@ -814,6 +1393,12 @@ const Envelopes = () => {
           );
         }}
         ListFooterComponent={<View style={styles.footerSpacing} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+          />
+        }
       />
 
 

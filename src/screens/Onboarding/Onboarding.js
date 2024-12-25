@@ -199,16 +199,18 @@ const Onboarding = () => {
       if (response.data.success) {
         console.log('OTP sent to your email.');
         setForgotPasswordModal(false);
-        setConfirmationModal(true);
+        setIsOtpModalVisible(true);
+        // setConfirmationModal(true);
       } else {
         console.log(response.data.message || 'Failed to send OTP.');
       }
     } catch (error) {
-      console.error('Network Error:', error.response || error.message || error);
-      console.log('Something went wrong while sending OTP.');
+      // console.error('Network Error:', error.response || error.message || error);
+      console.log('Something went wrong while sending OTP or Network Error.');
+      // setForgotPasswordModal(false);
+      // setIsOtpModalVisible(true);
     }
   };
-
 
 
   // second api call it on verify otp button after inpputing otp sent in email, if otp verified then show modal reset password...
@@ -238,8 +240,8 @@ const Onboarding = () => {
         setSnackbarVisibleInvalidPassword(true);
       }
     } catch (error) {
-      console.error('Error verifying OTP:', error);
-      console.log('Failed to verify OTP.');
+      // console.error('Error verifying OTP:', error);
+      console.log('Failed to verify OTP. or AxiosError: Network Error');
     }
   };
 
@@ -404,6 +406,8 @@ const Onboarding = () => {
                     // value={email}
                     // onChangeText={setEmail}
                     mode="flat"
+                    autoCapitalize='none'
+                    keyboardType='email-address'
                     style={[
                       styles.input,
                       focusedInput === 'email' ? styles.focusedInput : {}
@@ -598,6 +602,8 @@ const Onboarding = () => {
                     style={styles.fp_input}
                     underlineColor="transparent"
                     dense={true}
+                    autoCapitalize='none'
+                    keyboardType='email-address'
                   />
 
                   {/* Show validation error if email is incorrect */}
@@ -792,6 +798,7 @@ const Onboarding = () => {
                     secureTextEntry={true}
                     dense={true}
                     placeholder="New Password"
+                    placeholderTextColor={colors.gray}
                     onFocus={() => setFocusedInput('rPassword')}
                   />
                   {touched.rPassword && errors.rPassword && (
@@ -809,6 +816,7 @@ const Onboarding = () => {
                     secureTextEntry={true}
                     dense={true}
                     placeholder="Confirm Password"
+                    placeholderTextColor={colors.gray}
                     onFocus={() => setFocusedInput('rConfirmPassword')}
                   />
                   {touched.rConfirmPassword && errors.rConfirmPassword && (

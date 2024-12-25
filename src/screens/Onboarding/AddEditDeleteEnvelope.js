@@ -103,7 +103,11 @@ const AddEditDeleteEnvelope = () => {
     })();
 
     // Ensure displayAmount is always a valid number
-    const safeDisplayAmount = isNaN(displayAmount) ? 0 : displayAmount;
+    // const safeDisplayAmount = isNaN(displayAmount) ? 0 : displayAmount; // normal all decimals
+    // const safeDisplayAmount = isNaN(displayAmount) ? 0 : Math.ceil(displayAmount); // round to uppder close integer
+    const safeDisplayAmount = isNaN(displayAmount) ? 0 : Math.round(displayAmount * 100) / 100;  // rounds to two decodeURIComponent
+
+
 
     // code for optionalDate ends here
 
@@ -250,7 +254,7 @@ const AddEditDeleteEnvelope = () => {
     );
 
     return (
-        <Pressable style={{ flex: 1 }} 
+        <Pressable style={{ flex: 1, backgroundColor: colors.white }} 
             onPress={() => {
                 setBudgetAmountFocused(false);
                 handleOutsidePress();

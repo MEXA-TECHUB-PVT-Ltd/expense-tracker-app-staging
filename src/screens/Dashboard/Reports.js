@@ -218,20 +218,55 @@ const Reports = () => {
       });
     }, [])
   );
-
   // code for filtering and fetching all data end here
+
+  // code for calculating income from Income table
+  const fetchIncomeWithinDateRange = (fromDate, toDate) => {
+    const formattedFromDate = formatDateSql(fromDate);
+    const formattedToDate = formatDateSql(toDate);
+
+    db.transaction((tx) => {
+      const fetchQuery = `
+      SELECT SUM(monthlyAmount) as totalIncome
+      FROM Income
+      WHERE incomeDate BETWEEN ? AND ? AND user_id = ?;
+    `;
+
+      tx.executeSql(
+        fetchQuery,
+        [formattedFromDate, formattedToDate, tempUserId],
+        (_, { rows }) => {
+          const totalIncome = rows.item(0)?.totalIncome || 0;
+          setIncome(totalIncome);  // Set the sum of incomes to state
+        },
+        (_, error) => {
+          console.error("Error Fetching Income Data:", error);
+          return true;
+        }
+      );
+    });
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (fromDate && toDate) {
+        fetchIncomeWithinDateRange(fromDate, toDate);
+      }
+    }, [fromDate, toDate])
+  );
+
 
   // code for calculating data from filtered envelopes and transactions
   useFocusEffect(
     useCallback(() => {
       if (!envelopes || !transactions) return;
 
-      // Calculate total income
-      const totalIncome = envelopes.reduce((sum, envelope) => {
-        return envelope.user_id === tempUserId ? sum + (envelope.amount || 0) : sum;
-      }, 0);
-      // console.log("Total Income:", totalIncome);
-      setIncome(totalIncome);
+      // // Calculate total income
+      // const totalIncome = envelopes.reduce((sum, envelope) => {
+      //   return envelope.user_id === tempUserId ? sum + (envelope.amount || 0) : sum;
+      // }, 0);
+      // // console.log("Total Income:", totalIncome);
+      // setIncome(totalIncome);
 
       // Calculate spending by envelope
       const spendingByEnvelope = [];
@@ -431,7 +466,7 @@ const Reports = () => {
               .map((item, index) => {
                 const envelopeName = item.envelopeName;
                 const envelopeSpending = item.envelopeSpending || 0;
-                console.log('value of individual envelope spending is: ', envelopeSpending);
+                // console.log('value of individual envelope spending is: ', envelopeSpending);
 
                 // const envelopeColor = pieData[index]?.color || randomColor();
                 const envelopeColor = pieData[index]?.color || randomColor();

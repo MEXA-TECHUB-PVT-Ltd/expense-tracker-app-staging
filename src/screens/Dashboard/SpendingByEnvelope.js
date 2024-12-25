@@ -344,8 +344,8 @@ const SpendingByEnvelope = () => {
             envelopeSpending,
         }));
 
-        console.log("Spending by Envelope:", spendingByEnvelope);
-        console.log("Total Expense Spending:", totalExpenseSpending);
+        // console.log("Spending by Envelope:", spendingByEnvelope);
+        // console.log("Total Expense Spending:", totalExpenseSpending);
 
         setSpendingByEnvelope(spendingByEnvelope);
         setSpending(totalExpenseSpending);
@@ -354,10 +354,10 @@ const SpendingByEnvelope = () => {
     };
 
     useEffect(() => {
-        console.log("Final Results: ", { transactions, envelopes });
+        // console.log("Final Results: ", { transactions, envelopes });
 
         if (!transactions || !transactions.length || !envelopes || !envelopes.length) {
-            console.log("No transactions or envelopes data to process.");
+            // console.log("No transactions or envelopes data to process.");
             setIncome(0);
             setSpendingByEnvelope([]);
             setSpending(0);
@@ -367,7 +367,7 @@ const SpendingByEnvelope = () => {
         const results = calculateIncomeAndSpending(transactions, envelopes, user_id);
         if (results) {
             const { totalIncome, spendingByEnvelope } = results;
-            console.log("Calculated Results: ", { totalIncome, spendingByEnvelope });
+            // console.log("Calculated Results: ", { totalIncome, spendingByEnvelope });
         }
     }, [transactions, envelopes]);
 
@@ -480,7 +480,11 @@ const SpendingByEnvelope = () => {
                                 .reduce((sum, item) => sum + (item.envelopeSpending || 0), 0);
 
                             // Calculate the percentage for the current envelope
-                            const percentage = Math.round((envelopeSpending / totalEnvelopeSpending) * 100);
+                            // no decimal
+                            // const percentage = Math.round((envelopeSpending / totalEnvelopeSpending) * 100);
+                            // one decimal
+                            const percentage = Math.round(((envelopeSpending / totalEnvelopeSpending) * 100) * 10) / 10;
+
 
                             return (
                                 <View style={styles.envelope_text_amount_view} key={index}>
