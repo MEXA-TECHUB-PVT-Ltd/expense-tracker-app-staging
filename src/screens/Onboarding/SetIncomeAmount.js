@@ -73,7 +73,7 @@ const SetIncomeAmount = () => {
     // code for setting date for each income we add...in income table column incomeDate
     const [dueDate, setDueDate] = useState(new Date());
     const [formattedIncomeDate, setFormattedIncomeDate] = useState('');
-    console.log('value of formattedIncomeDate in setIncomeAmount :', formattedIncomeDate);
+    // console.log('value of formattedIncomeDate in setIncomeAmount :', formattedIncomeDate);
 
     useEffect(() => {
         // default date for setIncomeAmount
@@ -107,7 +107,7 @@ const SetIncomeAmount = () => {
         }
     }, [user_id, temp_user_id]);
 
-    console.log('value of tempUserId in SetIncomeAmount is : ', tempUserId);
+    // console.log('value of tempUserId in SetIncomeAmount is : ', tempUserId);
 
     // to get current month dates and then formate them into our sql date formate
     const [formattedFromDate, setFormattedFromDate] = useState(() =>
@@ -117,8 +117,8 @@ const SetIncomeAmount = () => {
         formatDateSql(moment().endOf('month').format('YYYY-MM-DD'))
     );
 
-    console.log('Formatted From Date in SetIncomeAmount:', formattedFromDate);
-    console.log('Formatted To Date in SetIncomeAmount:', formattedToDate);
+    // console.log('Formatted From Date in SetIncomeAmount:', formattedFromDate);
+    // console.log('Formatted To Date in SetIncomeAmount:', formattedToDate);
 
     useFocusEffect(
         useCallback(() => {
@@ -262,7 +262,7 @@ const SetIncomeAmount = () => {
                 'SELECT * FROM Income WHERE incomeDate BETWEEN ? AND ?',
                  [formattedFromDate, formattedToDate],
                 (tx, results) => {
-                console.log('Income Table with all filtered values: ', results.rows.raw());
+                // console.log('Income Table with all filtered values: ', results.rows.raw());
             });
         });
     };

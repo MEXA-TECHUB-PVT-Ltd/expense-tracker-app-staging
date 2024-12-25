@@ -118,7 +118,7 @@ const SetupBudget = () => {
     const [isTooltipVisible, setIsTooltipVisible] = useState(false);
     const slideAnim = useRef(new Animated.Value(screenWidth)).current;
     const [envelopes, setEnvelopes] = useState([]);
-    console.log('after rearrange envelopes state is: ', envelopes);
+    // console.log('after rearrange envelopes state is: ', envelopes);
     const [totalIncome, setTotalIncome] = useState(0);
     const [remainingAmount, setRemainingAmount] = useState(0);
     // console.log('value of remainingAmount: ', remainingAmount);
@@ -152,8 +152,8 @@ const SetupBudget = () => {
     const formattedFromDateYearly = formatDateSql(startOfYear);
     const formattedToDateYearly = formatDateSql(endOfYear);
 
-    console.log(' date of formattedFromDateYearly', formattedFromDateYearly);
-    console.log(' date of formattedToDateYearly', formattedToDateYearly);
+    // console.log(' date of formattedFromDateYearly', formattedFromDateYearly);
+    // console.log(' date of formattedToDateYearly', formattedToDateYearly);
 
     useFocusEffect(
         useCallback(() => {
@@ -173,8 +173,8 @@ const SetupBudget = () => {
     )
     ORDER BY orderIndex
 `;
-            console.log('Executing Query:', sqlQuery);
-            console.log('Params:', tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly);
+            // console.log('Executing Query:', sqlQuery);
+            // console.log('Params:', tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly);
             tx.executeSql(
                 sqlQuery,
                 [tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly],
