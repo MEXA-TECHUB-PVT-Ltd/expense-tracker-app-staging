@@ -85,13 +85,36 @@ const About = () => {
             console.error('Error clearing lastCopyYear:', error);
         }
     };
+    // clear selected range of income vs spending
+    const clearSelectedRange = async () => {
+        try {
+            await AsyncStorage.removeItem('selectedRange');
+            console.log('Selected range cleared from AsyncStorage');
+        } catch (error) {
+            console.error('Error clearing selected range:', error);
+        }
+    };
+    // clear selected range of spending by envelope
+    const clearSelectedRangeSBE = async () => {
+        try {
+            await AsyncStorage.removeItem('selectedRangeSBE');
+            console.log('Selected range cleared from AsyncStorage');
+        } catch (error) {
+            console.error('Error clearing selected range:', error);
+        }
+    };
 
     const handleLogoutOkPress = async () => {
         await removeUserData();
-        // for now we can comment them means dont drop tables
-        // dropTables(); // drop all tables // conflicted functionality for forgot password we will discuss later
-        // await clearLastCopyMonth();  // conflicted functionality for forgot password we will discuss later
-        // await clearLastCopyYear();  // conflicted functionality for forgot password we will discuss later
+        // for now we can comment them means dont drop tables as we discussed these are 
+        // conflicted either we drop them or either keep forgot password functionality
+
+        // dropTables();
+        // await clearLastCopyMonth(); 
+        // await clearLastCopyYear();  
+        // await clearSelectedRange();
+        // await clearSelectedRangeSBE();
+
         dispatch(logout());
         navigation.navigate('Onboarding');  // this is for cross confirmation although it navigates on basis of isAuthenticated state in redux
         setLogoutModalVisible(false);

@@ -114,12 +114,11 @@ const Envelopes = () => {
         [userId],
         (_, result) => {
           const totalUnallocatedIncome = result.rows.item(0)?.totalUnallocatedIncome || 0;
-          console.log('Total Unallocated Income:', totalUnallocatedIncome);
+          // console.log('Total Unallocated Income:', totalUnallocatedIncome);
           setUnallocatedIncome(totalUnallocatedIncome);
         },
         (_, error) => {
           console.log('Error fetching Unallocated income:', error);
-          Alert.alert('Error', 'Failed to fetch unallocated income data.');
           return true;
         }
       );

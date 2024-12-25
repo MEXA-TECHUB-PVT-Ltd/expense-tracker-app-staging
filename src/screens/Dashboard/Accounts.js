@@ -140,26 +140,35 @@ const Accounts = () => {
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor={colors.munsellgreen} />
-      <View style={styles.all_accounts_txt_amt}>
-        {/* <Text style={styles.aa_amt_txt}>All Accounts : {totalIncome}.00</Text> */}
-        <Text style={styles.aa_amt_txt}>Total Monthly Income : {totalMonthlyAmount}.00</Text>
 
+      <View style={styles.monthly_text_view}>
+        <View style={styles.monthly_view_left}>
+          <Text style={styles.monthly_txt}>Total Monthly Income</Text>
+        </View>
+        <View style={styles.monthly_view_right}>
+          <Text style={styles.monthly_amt}>{totalMonthlyAmount}.00</Text>
+        </View>
       </View>
-      <View style={styles.account_amt_view}>
-        {/* <Text style={styles.account_amt_txt}>My Account</Text>
-        <Text style={styles.account_amt_txt}>{totalIncome}.00</Text> */}
 
-        <Text style={styles.account_amt_txt}>Spent Income</Text>
-        <Text style={styles.account_amt_txt}>{spentIncome}.00</Text>
+      <View style={styles.spent_income_view}>
+        <View style={styles.spent_view_left}>
+          <Text style={styles.spent_txt}>Spent Income</Text>
+        </View>
+        <View style={styles.spent_view_right}>
+          <Text style={styles.spent_amt}>{spentIncome}.00</Text>
+        </View>
       </View>
-      <View style={styles.subtotal_amt_view}>
-        {/* <Text style={styles.subtotal_txt}>Subtotal:</Text>
-        <Text style={styles.subtotal_amt_txt}>{totalIncome}.00</Text> */}
 
-        <Text style={styles.subtotal_txt}>Remaining Income:</Text>
-        <Text style={styles.subtotal_amt_txt}>{remainingIncome}.00</Text>
+      <View style={styles.remaining_income_view}>
+        <View style={styles.remaining_view_left}>
+          <Text style={styles.remaining_txt}>Remaining Income</Text>
+        </View>
+        <View style={styles.remaining_view_right}>
+          <Text style={styles.remaining_amt}>{remainingIncome}.00</Text>
+        </View>
       </View>
     </View>
+
   )
 }
 
@@ -170,45 +179,106 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.white,
   },
-  all_accounts_txt_amt: {
-    marginHorizontal: hp('1.5%'),
+
+  // for monthly income
+  monthly_text_view: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
     paddingTop: hp('1%'),
     borderBottomColor: colors.lightGray,
     borderBottomWidth: 1,
     paddingBottom: hp('3.2%'),
+    marginHorizontal: hp('2%'),
   },
-  aa_amt_txt: {
-    fontSize: hp('1.8%'),
+  monthly_view_left: {
+    flex: 1,
+    justifyContent: 'flex-start',
+    alignItems: 'fles-start',
+    // backgroundColor: 'magenta',
+  },
+  monthly_view_right: {
+    flex: 1,
+    justifyContent: 'flex-start',
+    alignItems: 'flex-end',
+    // backgroundColor: 'yellow',
+  },
+  monthly_txt: {
+    fontSize: hp('2.1%'),
+    fontWeight: '600',
+    color: colors.black,
+    flexWrap: 'wrap',
+  },
+  monthly_amt: {
+    fontSize: hp('2.1%'),
     fontWeight: '500',
     color: colors.gray,
-    paddingRight: wp('5%'),
+    flexWrap: 'wrap',
   },
-  account_amt_view: {
-    marginHorizontal: hp('2%'),
+
+  // for spent income
+  spent_income_view: {
+    marginTop: hp('1.5%'),
+    marginHorizontal: hp('1.5%'),
     flexDirection: 'row',
-    justifyContent:'space-between',
+    justifyContent: 'space-between',
   },
-  account_amt_txt: {
-    fontSize: hp('2.5%'),
-    fontWeight: '400',
+  spent_view_left: {
+    flex: 1,
+    justifyContent: 'flex-start',
+    alignItems: 'fles-start',
+    // backgroundColor: 'magenta',
+  },
+  spent_view_right: {
+    flex: 1,
+    justifyContent: 'flex-start',
+    alignItems: 'flex-end',
+    // backgroundColor: 'yellow',
+  },
+  spent_txt: {
+    fontSize: hp('2.1%'),
+    fontWeight: '600',
+    color: colors.black,
+    flexWrap: 'wrap',
+  },
+  spent_amt: {
+    fontSize: hp('2.1%'),
+    fontWeight: '500',
     color: colors.gray,
+    flexWrap: 'wrap',
   },
-  subtotal_amt_view: {
-    marginHorizontal: hp('3%'),
+
+  // for remaining income
+  remaining_income_view: {
+    marginTop: hp('1.5%'),
+    marginHorizontal: hp('1.5%'),
     flexDirection: 'row',
-    justifyContent:'flex-end',
+    justifyContent: 'space-between',
   },
-  subtotal_txt: {
-    fontSize: hp('2.3%'),
+  remaining_view_left: {
+    flex: 1,
+    justifyContent: 'flex-start',
+    alignItems: 'fles-start',
+    // backgroundColor: 'magenta',
+  },
+  remaining_view_right: {
+    flex: 1,
+    justifyContent: 'flex-start',
+    alignItems: 'flex-end',
+    // backgroundColor: 'yellow',
+  },
+  remaining_txt: {
+    fontSize: hp('2.1%'),
     fontWeight: '600',
     color: colors.black,
+    flexWrap: 'wrap',
   },
-  subtotal_amt_txt: {
-    fontSize: hp('2.3%'),
-    fontWeight: '600',
-    color: colors.black,
-    marginLeft: hp('6%'),
+  remaining_amt: {
+    fontSize: hp('2.1%'),
+    fontWeight: '500',
+    color: colors.gray,
+    flexWrap: 'wrap',
   },
+
+ 
+
 })

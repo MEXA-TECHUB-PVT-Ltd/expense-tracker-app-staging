@@ -74,7 +74,7 @@ const SingleEnvelopeDetails = ({ route }) => {
   const handleTooltipPress = () => {
     toggleTooltip();
     // console.log('tooltip pressed');
-    navigation.navigate('Help', {from_singleenvelopedetails: true});
+    navigation.navigate('Help', { from_singleenvelopedetails: true });
   };
   // code for tooltip end here
 
@@ -183,27 +183,32 @@ const SingleEnvelopeDetails = ({ route }) => {
           imageStyle={styles.imageStyle}
           source={showBackground ? Images.goalbackgroundimage : null}
         >
-        <View style={styles.envelope_details_view}>
-          <View style={styles.name_amount_view}>
-            <Text style={styles.envelope_name}>{envelope.envelopeName}</Text>
-            <Text style={styles.filledIncome_text}>{envelope.filledIncome}.00</Text>
-          </View>
-          <View style={styles.bar_amount_view}>
-            <View style={styles.bar_view}>
-              <CustomProgressBar filledIncome={envelope.filledIncome} amount={envelope.amount} />
+          <View style={styles.envelope_details_view}>
+            <View style={styles.name_amount_view}>
+              <Text style={styles.envelope_name}>{envelope.envelopeName}</Text>
+              <Text style={styles.filledIncome_text}>{envelope.filledIncome}.00</Text>
             </View>
-            <View style={styles.amount_view}>
-              <Text style={styles.amount_text}>{envelope.amount}.00</Text>
+            <View style={styles.bar_amount_view}>
+              <View style={styles.bar_view}>
+                {envelope.envelopeId !== -100000 && (
+                  <CustomProgressBar filledIncome={envelope.filledIncome} amount={envelope.amount} />
+                )}
+              </View>
+              <View style={styles.amount_view}>
+                {envelope.envelopeId !== -100000 && (
+                <Text style={styles.amount_text}>{envelope.amount}.00</Text>
+                )}
+              </View>
             </View>
-          </View>
-          <View style={styles.text_image_view}>
-            {/* apply different logic in this view to show relevent text msg and amount */}
+            <View style={styles.text_image_view}>
+              {/* apply different logic in this view to show relevent text msg and amount */}
               <View style={styles.emotional_text_view}>
+                {envelope.envelopeId !== -100000 && (
                 <Text style={styles.emotional_text}>
                   {(() => {
                     if (envelope.filledIncome < 0) {
                       return "Hmm, negative money. Interesting...";
-                    } 
+                    }
                     else if (envelope.filledIncome === envelope.amount) {
                       return envelope.budgetPeriod === "Goal"
                         ? "Hooray! You have reached your set goal."
@@ -211,7 +216,7 @@ const SingleEnvelopeDetails = ({ route }) => {
                     }
                     else if (envelope.amount === 0) {
                       return "No budget set yet!";
-                    } 
+                    }
                     else if (
                       envelope.filledIncome > 0 &&
                       envelope.amount > 0 &&
@@ -230,24 +235,25 @@ const SingleEnvelopeDetails = ({ route }) => {
                       return envelope.budgetPeriod === "Goal"
                         ? "You have not started saving yet. Time to fill?"
                         : "Time to refill Envelope!";
-                    } 
+                    }
                   })()}
                 </Text>
+                )}
               </View>
-            {/* <View style={styles.emotional_text_view}>
+              {/* <View style={styles.emotional_text_view}>
               <Text style={styles.emotional_text}>
                 {envelope.filledIncome < 0 ? "Hmm, negative money. Interesting..." : `You are spending ${envelope.filledIncome - envelope.amount} more than your budget.`}
               </Text>
             </View> */}
 
-            <View style={styles.image_view}>
-              <Image
-                style={styles.image}
-                source={envelope.filledIncome < 0 ? Images.expenseplannerimagegray : Images.expenseplannerimage}
-              />
+              <View style={styles.image_view}>
+                <Image
+                  style={styles.image}
+                  source={envelope.filledIncome < 0 ? Images.expenseplannerimagegray : Images.expenseplannerimage}
+                />
+              </View>
             </View>
           </View>
-        </View>
         </ImageBackground>
       )}
       {isSearched && (
@@ -261,50 +267,50 @@ const SingleEnvelopeDetails = ({ route }) => {
       <View style={styles.flatlist_view}>
         {!isSearched && (
           envelopeTransactions.length > 0 ? (
-          <FlatList
-            data={envelopeTransactions}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => {
-              return (
-                <View style={styles.item_view}>
-                  <TouchableOpacity onPress={() => handleEditTransaction(item)} style={styles.touchable_view}>
-                    <View style={styles.date_view}>
-                      <Text style={styles.date_txt}>{formatDate(item.transactionDate)}</Text>
-                    </View>
-                    <View style={styles.name_payee_amt_view}>
-                      <View style={styles.payee_amt_view}>
-                        <View style={styles.payee_text_view}>
-                          <Text
-                            numberOfLines={1}
-                            elellipsizeMode="tail"
-                            style={styles.payee_txt}>{item.payee}</Text>
-                        </View>
-                        <View style={styles.amount_text_view}>
-                          <Text
-                            numberOfLines={1}
-                            elellipsizeMode="tail"
-                            style={[styles.amt_txt, { color: item.transactionType === 'Credit' ? colors.brightgreen : colors.black }]}>
-                            {item.transactionType === 'Credit' ? `+ ${item.transactionAmount}` : item.transactionAmount}
-                          </Text>
-                        </View>
+            <FlatList
+              data={envelopeTransactions}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => {
+                return (
+                  <View style={styles.item_view}>
+                    <TouchableOpacity onPress={() => handleEditTransaction(item)} style={styles.touchable_view}>
+                      <View style={styles.date_view}>
+                        <Text style={styles.date_txt}>{formatDate(item.transactionDate)}</Text>
                       </View>
-                      <View style={styles.envelope_account_txt_view}>
-                        <View style={styles.txt_amt_view}>
-                          <View style={styles.envelope_account_texts_view}>
-                            <Text style={styles.envelope_name_txt}>{item.envelopeName}</Text>
-                            <Text style={styles.account_name_txt}> | My Account</Text>
+                      <View style={styles.name_payee_amt_view}>
+                        <View style={styles.payee_amt_view}>
+                          <View style={styles.payee_text_view}>
+                            <Text
+                              numberOfLines={1}
+                              elellipsizeMode="tail"
+                              style={styles.payee_txt}>{item.payee}</Text>
                           </View>
-                          <View style={styles.amt_txt_view}>
-                            <Text style={styles.account_amount_txt}>{item.envelopeRemainingIncome}</Text>
+                          <View style={styles.amount_text_view}>
+                            <Text
+                              numberOfLines={1}
+                              elellipsizeMode="tail"
+                              style={[styles.amt_txt, { color: item.transactionType === 'Credit' ? colors.brightgreen : colors.black }]}>
+                              {item.transactionType === 'Credit' ? `+ ${item.transactionAmount}` : item.transactionAmount}
+                            </Text>
                           </View>
                         </View>
+                        <View style={styles.envelope_account_txt_view}>
+                          <View style={styles.txt_amt_view}>
+                            <View style={styles.envelope_account_texts_view}>
+                              <Text style={styles.envelope_name_txt}>{item.envelopeName}</Text>
+                              <Text style={styles.account_name_txt}> | My Account</Text>
+                            </View>
+                            <View style={styles.amt_txt_view}>
+                              <Text style={styles.account_amount_txt}>{item.envelopeRemainingIncome}</Text>
+                            </View>
+                          </View>
+                        </View>
                       </View>
-                    </View>
-                  </TouchableOpacity>
-                </View>
-              );
-            }}
-          />
+                    </TouchableOpacity>
+                  </View>
+                );
+              }}
+            />
           ) : (
             <View style={styles.emptyState}>
               <Image source={Images.expenseplannerimagegray} style={styles.emptyImage} />
@@ -317,55 +323,55 @@ const SingleEnvelopeDetails = ({ route }) => {
 
         {isSearched && (
           searchedTransactions.length > 0 ? (
-          <FlatList
-            data={searchedTransactions}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => {
-              return (
-                <View style={styles.item_view}>
-                  <TouchableOpacity onPress={() => handleEditTransaction(item)} style={styles.touchable_view}>
-                    <View style={styles.date_view}>
-                      <Text style={styles.date_txt}>{formatDate(item.transactionDate)}</Text>
-                    </View>
-                    <View style={styles.name_payee_amt_view}>
-                      <View style={styles.payee_amt_view}>
-                        <View style={styles.payee_text_view}>
-                          <Text
-                            numberOfLines={1}
-                            elellipsizeMode="tail"
-                            style={styles.payee_txt}>{item.payee}</Text>
-                        </View>
-                        <View style={styles.amount_text_view}>
-                          <Text
-                            numberOfLines={1}
-                            elellipsizeMode="tail"
-                            style={[styles.amt_txt, { color: item.transactionType === 'Credit' ? colors.brightgreen : colors.black }]}>
-                            {item.transactionType === 'Credit' ? `+ ${item.transactionAmount}` : item.transactionAmount}
-                          </Text>
-                        </View>
+            <FlatList
+              data={searchedTransactions}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => {
+                return (
+                  <View style={styles.item_view}>
+                    <TouchableOpacity onPress={() => handleEditTransaction(item)} style={styles.touchable_view}>
+                      <View style={styles.date_view}>
+                        <Text style={styles.date_txt}>{formatDate(item.transactionDate)}</Text>
                       </View>
-                      <View style={styles.envelope_account_txt_view}>
-                        <View style={styles.txt_amt_view}>
-                          <View style={styles.envelope_account_texts_view}>
-                            <Text style={styles.envelope_name_txt}>{item.envelopeName}</Text>
-                            <Text style={styles.account_name_txt}> | My Account</Text>
+                      <View style={styles.name_payee_amt_view}>
+                        <View style={styles.payee_amt_view}>
+                          <View style={styles.payee_text_view}>
+                            <Text
+                              numberOfLines={1}
+                              elellipsizeMode="tail"
+                              style={styles.payee_txt}>{item.payee}</Text>
                           </View>
-                          <View style={styles.amt_txt_view}>
-                            <Text style={styles.account_amount_txt}>{item.envelopeRemainingIncome}</Text>
+                          <View style={styles.amount_text_view}>
+                            <Text
+                              numberOfLines={1}
+                              elellipsizeMode="tail"
+                              style={[styles.amt_txt, { color: item.transactionType === 'Credit' ? colors.brightgreen : colors.black }]}>
+                              {item.transactionType === 'Credit' ? `+ ${item.transactionAmount}` : item.transactionAmount}
+                            </Text>
                           </View>
                         </View>
+                        <View style={styles.envelope_account_txt_view}>
+                          <View style={styles.txt_amt_view}>
+                            <View style={styles.envelope_account_texts_view}>
+                              <Text style={styles.envelope_name_txt}>{item.envelopeName}</Text>
+                              <Text style={styles.account_name_txt}> | My Account</Text>
+                            </View>
+                            <View style={styles.amt_txt_view}>
+                              <Text style={styles.account_amount_txt}>{item.envelopeRemainingIncome}</Text>
+                            </View>
+                          </View>
+                        </View>
                       </View>
-                    </View>
-                  </TouchableOpacity>
-                </View>
-              );
-            }}
-          />
+                    </TouchableOpacity>
+                  </View>
+                );
+              }}
+            />
           ) : (
             <View style={styles.emptyState}>
               <Image source={Images.expenseplannerimagegray} style={styles.emptyImage} />
               <View style={styles.emptyTextContainer}>
-                  <Text style={styles.emptyText}>No transactions found for your search.</Text>
+                <Text style={styles.emptyText}>No transactions found for your search.</Text>
               </View>
             </View>
           )
@@ -377,7 +383,7 @@ const SingleEnvelopeDetails = ({ route }) => {
         style={styles.fab}
         onPress={() => navigation.navigate('AddEditDeleteTransaction')}
       />
-      
+
       <Animated.View style={[styles.tooltipContainer, { transform: [{ translateX: slideAnim }] }]}>
         <TouchableOpacity onPress={handleTooltipPress}>
           <Text style={styles.tooltipText}>Help</Text>
@@ -425,7 +431,7 @@ export default SingleEnvelopeDetails
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.white,  
+    backgroundColor: colors.white,
   },
   appBar: {
     backgroundColor: colors.brightgreen,
@@ -619,13 +625,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     // backgroundColor: 'green',
     justifyContent: 'space-between',
-    alignItems: 'center',           
-    flex: 1,                
+    alignItems: 'center',
+    flex: 1,
   },
   envelope_account_texts_view: {
     flexDirection: 'row',
     // backgroundColor: 'pink',
-    alignItems: 'center',    
+    alignItems: 'center',
   },
   envelope_name_txt: {
     fontSize: hp('2%'),
@@ -638,14 +644,14 @@ const styles = StyleSheet.create({
     color: colors.gray,
   },
   amt_txt_view: {
-    justifyContent: 'flex-end', 
-    backgroundColor: 'transparent', 
+    justifyContent: 'flex-end',
+    backgroundColor: 'transparent',
   },
   account_amount_txt: {
     fontSize: hp('2%'),
     fontWeight: '400',
     color: colors.gray,
-    alignSelf: 'flex-end',     
+    alignSelf: 'flex-end',
     // backgroundColor: 'red',
   },
 
