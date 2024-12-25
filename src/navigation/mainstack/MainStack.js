@@ -16,6 +16,7 @@ import RegisterAccount from '../../screens/Onboarding/RegisterAccount';
 import TermsOfUse from '../../screens/Onboarding/TermsOfUse';
 import AddEditDeleteTransaction from '../../screens/Dashboard/AddEditDeleteTransaction';
 import TopTab from '../topTab/TopTab';
+import FillEnvelopesAuthenticated from '../../screens/Dashboard/FillEnvelopesAuthenticated';
 import TransactionsSearch from '../../screens/Dashboard/TransactionSearch';
 import SingleEnvelopeDetails from '../../screens/Dashboard/SingleEnvelopeDetails';
 import Settings from '../../screens/Dashboard/Settings';
@@ -425,7 +426,7 @@ const MainStack = () => {
                     <Stack.Screen name="SetupBudget" component={SetupBudget} options={{ headerShown: false }} />
                     <Stack.Screen name="AddEditDeleteEnvelope" component={AddEditDeleteEnvelope} options={{ headerShown: false }} />
                     <Stack.Screen name="SetIncomeAmount" component={SetIncomeAmount} options={{ headerShown: false }} />
-                    <Stack.Screen name="FillEnvelopes" component={FillEnvelopes} options={{ headerShown: false }} />
+                    <Stack.Screen name="FillEnvelopesAuthenticated" component={FillEnvelopesAuthenticated} options={{ headerShown: false }} />
                     <Stack.Screen name="Settings" component={Settings} options={{ headerShown: false }} />
                     <Stack.Screen name="TransactionsSearch" component={TransactionsSearch} options={{ headerShown: false }} />
                     <Stack.Screen name="SpendingByEnvelope" component={SpendingByEnvelope} options={{ headerShown: false }} />

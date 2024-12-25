@@ -328,7 +328,7 @@ const SpendingByEnvelope = () => {
     }, [fromDate, toDate])
   );
 
-  // code to search and log all Transactions
+  // code to search and only log all Transactions
   useFocusEffect(
     useCallback(() => {
       db.transaction((tx) => {
@@ -416,12 +416,19 @@ const SpendingByEnvelope = () => {
 
   const groupByMonth = (data, dateKey) => {
     return data.reduce((acc, item) => {
-      const month = new Date(item[dateKey]).toLocaleString("default", { month: "short" });
-      if (!acc[month]) acc[month] = [];
-      acc[month].push(item);
+      const date = new Date(item[dateKey]);
+      const month = date.toLocaleString("default", { month: "short" });
+      const year = date.getFullYear();  // e.g., 2024
+
+      const monthYearKey = `${month} , ${year}`;
+
+      if (!acc[monthYearKey]) acc[monthYearKey] = [];
+      acc[monthYearKey].push(item);
+
       return acc;
     }, {});
   };
+
 
   // Process data month-by-month
   // const envelopesByMonth = groupByMonth(envelopes, "fillDate");
@@ -487,7 +494,7 @@ const SpendingByEnvelope = () => {
   const envelopesByMonth = groupByMonth(envelopes, "fillDate");
   const transactionsByMonth = groupByMonth(transactions, "transactionDate");
   const incomeByMonth = groupByMonth(incomeRecord, "incomeDate");
-  console.log('  ============   incomeByMonth   ============', incomeByMonth);
+  // console.log('  ============   incomeByMonth   ============', incomeByMonth);
 
   // older code working fine and taking income from envelopes 
   // const monthlyData = Object.keys({ ...envelopesByMonth, ...transactionsByMonth }).map((month) => {
@@ -518,9 +525,17 @@ const SpendingByEnvelope = () => {
     const monthIncomes = incomeByMonth[month] || [];
 
     const income = monthIncomes.reduce((sum, income) => sum + (income.monthlyAmount || 0), 0);
+
+    // older code in which it was also considering credit type transactions for calculating spending
+    // const spending = monthTransactions.reduce((sum, transaction) => {
+    //   if (transaction.transactionType === "Expense") return sum + transaction.transactionAmount;
+    //   if (transaction.transactionType === "Credit") return sum - transaction.transactionAmount;
+    //   return sum;
+    // }, 0);
+
+    // new code in which it's considering only expense type transactions for calculating spending latest
     const spending = monthTransactions.reduce((sum, transaction) => {
       if (transaction.transactionType === "Expense") return sum + transaction.transactionAmount;
-      if (transaction.transactionType === "Credit") return sum - transaction.transactionAmount;
       return sum;
     }, 0);
 
@@ -528,7 +543,6 @@ const SpendingByEnvelope = () => {
 
     return { month, income, spending, netTotal };
   });
-
 
 
   // for bar graph dynamically extract the months and their corresponding income and spending
@@ -539,11 +553,17 @@ const SpendingByEnvelope = () => {
   };
 
   // Create labels for months
-  const labels = monthlyData.flatMap((item) => ["", item.month, ""]);
+  // const labels = monthlyData.flatMap((item) => ["", item.month, ""]);
+  const labels = monthlyData.flatMap((item) => ["", item.month.split(' ')[0], ""]);
   // console.log('labels are : ', labels);
 
   // Create bar values (income and spending)
-  const barValues = monthlyData.flatMap(item => [item.income, 0, item.spending]);
+  // const barValues = monthlyData.flatMap(item => [item.income, 0, item.spending]);
+  const barValues = monthlyData.flatMap(item => [
+    Math.abs(item.income), // Always positive for graph
+    0,                    // Separator (if needed)
+    Math.abs(item.spending) // Always positive for graph
+  ]);
   // console.log('barValues are : ', barValues);
 
   // Create bar colors

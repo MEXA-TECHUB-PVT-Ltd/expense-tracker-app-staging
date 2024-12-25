@@ -365,7 +365,7 @@ const SingleEnvelopeDetails = ({ route }) => {
             <View style={styles.emptyState}>
               <Image source={Images.expenseplannerimagegray} style={styles.emptyImage} />
               <View style={styles.emptyTextContainer}>
-                <Text style={styles.emptyText}>You have not made any transaction yet</Text>
+                  <Text style={styles.emptyText}>No transactions found for your search.</Text>
               </View>
             </View>
           )

@@ -70,6 +70,7 @@ const Transactions = ({ isSearched, setIsSearched, searchModalVisible, setSearch
       transactionAmount: transaction.transactionAmount,
       transactionType: transaction.transactionType, // 
       envelopeName: transaction.envelopeName, // 
+      // envelopeRemainingIncome: transaction.envelopeRemainingIncome, // check this if it is properly passed
       envelopeId: transaction.envelopeId,
       accountName: transaction.accountName, //
       transactionDate: transaction.transactionDate, //
@@ -142,8 +143,8 @@ const Transactions = ({ isSearched, setIsSearched, searchModalVisible, setSearch
                         </View>
                         <View style={styles.amount_text_view}>
                           <Text
-                            numberOfLines={1}
-                            elellipsizeMode="tail"
+                            // numberOfLines={1}
+                            // elellipsizeMode="tail"
                             style={[styles.amt_txt, { color: item.transactionType === 'Credit' ? colors.brightgreen : colors.black }]}>
                             {item.transactionType === 'Credit' ? `+ ${item.transactionAmount}` : item.transactionAmount}.00
                           </Text>
@@ -272,7 +273,7 @@ const styles = StyleSheet.create({
     color: colors.black,
   },
   amount_text_view: {
-    width: hp('10%'),
+    width: hp('20%'),
     flexDirection: 'row',
     justifyContent: 'flex-end',
     alignItems: 'center',

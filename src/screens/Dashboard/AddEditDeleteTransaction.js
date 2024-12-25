@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { StyleSheet, Text, View, Pressable, Animated, TouchableOpacity, StatusBar, Image, FlatList, ScrollView, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
-import { Appbar, Button, Checkbox, TextInput, RadioButton, Modal, Portal, Provider, Menu, Divider, Card, ProgressBar, Snackbar } from 'react-native-paper';
+import { Appbar, TextInput, Menu, Snackbar } from 'react-native-paper';
 import { debounce } from 'lodash';
 import Images from '../../constants/images';
 import { useFocusEffect } from '@react-navigation/native';
@@ -68,7 +68,7 @@ const AddEditDeleteTransaction = () => {
   const [transactionId, setTransactionId] = useState(null);
   const edit_transaction = route.params;
   const id = route.params?.id;
-  
+
   // const envelopeID = route.params?.envelopeId;
   // console.log('envelopeID from route for edit transaction: ', envelopeID);
 
@@ -80,6 +80,7 @@ const AddEditDeleteTransaction = () => {
         setTransactionAmount(route.params.transactionAmount.toString());
         setTransactionType(route.params.transactionType);
         setSelectedEnvelope(route.params.envelopeName);
+        // setSelectedEnvelopeFilledIncome(route.params.envelopeRemainingIncome); // this is for remaining income of envelope
         setSelectedEnvelopeId(route.params.envelopeId);
 
         if (route.params.transactionDate) {
@@ -105,6 +106,7 @@ const AddEditDeleteTransaction = () => {
   const [envelopeMenuVisible, setEnvelopeMenuVisible] = useState(false);
   const [selectedEnvelope, setSelectedEnvelope] = useState(false); // selectedEnvelope holds envelopeName for transaction
   const [selectedEnvelopeId, setSelectedEnvelopeId] = useState(null);
+  const [selectedEnvelopeFilledIncome, setSelectedEnvelopeFilledIncome] = useState(null);
   // console.log('selectedEnvelopeId', selectedEnvelopeId);
   const handleEnvelopeMenuToggle = useMemo(
     () => debounce(() => setEnvelopeMenuVisible(prev => !prev), 10),
@@ -211,6 +213,7 @@ const AddEditDeleteTransaction = () => {
 
   // code for getting all envelopes from envelopes table
   const [envelopes, setEnvelopes] = useState([]);
+  // console.log('all envelopes', envelopes);
   if (edit_transaction) {
     // console.log('Editing transaction, envelopes state: ', envelopes);
   } else {
@@ -265,7 +268,7 @@ const AddEditDeleteTransaction = () => {
   // code for getting total income from income table which is default account for now
   const incomes = [{ accountName: "My Account" },]; // later on when adding multiple accounts replace it with accounts table
   const [accountName, setAccountName] = useState('My Account'); // for now you can use totalIncome to be filled in accountName
-  
+
   const [budgetAmount, setBudgetAmount] = useState(0);
   // useFocusEffect(
   //   useCallback(() => {
@@ -281,8 +284,6 @@ const AddEditDeleteTransaction = () => {
     }, [tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly])
   );
 
-
-
   // code for setting data in a single object for adding transaction
   const handleAddTransaction = () => {
     if (
@@ -297,14 +298,14 @@ const AddEditDeleteTransaction = () => {
       setSnackbarVisible(true);
       return;
     }
-    
+
     const transaction = {
       payee: payee,
       transactionAmount: transactionAmount,
       transactionType: transactionType,
       envelopeName: selectedEnvelope,
-      envelopeId: selectedEnvelopeId,    
-      envelopeRemainingIncome: envelopeRemainingIncome, // now added
+      envelopeId: selectedEnvelopeId,
+      envelopeRemainingIncome: envelopeRemainingIncome, // added to count for at time of transaction what was it remaining filledIncome
       accountName: accountName,
       transactionDate: formattedTransactionDate,
       transactionNote: note,
@@ -439,6 +440,7 @@ const AddEditDeleteTransaction = () => {
               [amount, envelopeId],
               (_, updateResult) => {
                 console.log('Envelope updated successfully for credit:', updateResult);
+                navigation.goBack(); // added this to navigate user back
               },
               (_, error) => {
                 console.error('Error updating envelope for credit:', error.message);
@@ -451,6 +453,7 @@ const AddEditDeleteTransaction = () => {
               [amount, envelopeId],
               (_, updateResult) => {
                 console.log('Envelope updated successfully for expense:', updateResult);
+                navigation.goBack(); // added this to navigate user back
               },
               (_, error) => {
                 console.error('Error updating envelope for expense:', error.message);
@@ -459,70 +462,71 @@ const AddEditDeleteTransaction = () => {
           }
 
           // Fetch ids from Income table and update the selected id
-          tx.executeSql(
-            `SELECT id FROM Income WHERE incomeDate BETWEEN ? AND ? AND id IS NOT NULL;`,
-            [formattedFromDate, formattedToDate],
-            (_, result) => {
-              // Log all ids found within the date range
-              const ids = [];
-              for (let i = 0; i < result.rows.length; i++) {
-                const row = result.rows.item(i);
-                ids.push(row.id);
-                // console.log('Found id:', row.id); // Log each found id
-              }
+          // commented becaue we no more need it in app...like it has no impact..not being used anywhere
+          // tx.executeSql(
+          //   `SELECT id FROM Income WHERE incomeDate BETWEEN ? AND ? AND id IS NOT NULL;`,
+          //   [formattedFromDate, formattedToDate],
+          //   (_, result) => {
+          //     // Log all ids found within the date range
+          //     const ids = [];
+          //     for (let i = 0; i < result.rows.length; i++) {
+          //       const row = result.rows.item(i);
+          //       ids.push(row.id);
+          //       // console.log('Found id:', row.id); // Log each found id
+          //     }
 
-              // If there are any ids, randomly select one
-              if (ids.length > 0) {
-                const randomIndex = Math.floor(Math.random() * ids.length); // Get a random index
-                const incomeId = ids[randomIndex]; // Select the incomeId
-                // console.log('Selected incomeId:', incomeId); // Log the selected incomeId
+          //     // If there are any ids, randomly select one
+          //     if (ids.length > 0) {
+          //       const randomIndex = Math.floor(Math.random() * ids.length); // Get a random index
+          //       const incomeId = ids[randomIndex]; // Select the incomeId
+          //       // console.log('Selected incomeId:', incomeId); // Log the selected incomeId
 
-                // Now perform the update on Income table for either Credit or Expense
+          //       // Now perform the update on Income table for either Credit or Expense
 
-                if (transactionType === 'Credit') {
-                  // Credit: Update Income table (increase budgetAmount)
-                  tx.executeSql(
-                    `UPDATE Income SET budgetAmount = budgetAmount + ? 
-                   WHERE accountName = 'My Account' 
-                   AND budgetPeriod = 'Monthly' 
-                   AND incomeDate BETWEEN ? AND ? 
-                   AND id = ?;`,
-                    [amount, formattedFromDate, formattedToDate, incomeId], // Pass amount, date range, and incomeId
-                    (_, updateResult) => {
-                      console.log('Income table updated successfully for credit:', updateResult);
-                      navigation.goBack(); // Go back after the update
-                    },
-                    (_, error) => {
-                      console.error('Error updating Income table for credit:', error.message);
-                    }
-                  );
-                } else if (transactionType === 'Expense') {
-                  // Expense: Update Income table (decrease budgetAmount)
-                  tx.executeSql(
-                    `UPDATE Income SET budgetAmount = budgetAmount - ? 
-                   WHERE accountName = 'My Account' 
-                   AND budgetPeriod = 'Monthly' 
-                   AND incomeDate BETWEEN ? AND ? 
-                   AND id = ?;`,
-                    [amount, formattedFromDate, formattedToDate, incomeId], // Pass amount, date range, and incomeId
-                    (_, updateResult) => {
-                      console.log('Income table updated successfully for expense:', updateResult);
-                      navigation.goBack(); // Go back after the update
-                    },
-                    (_, error) => {
-                      console.error('Error updating Income table for expense:', error.message);
-                    }
-                  );
-                }
+          //       if (transactionType === 'Credit') {
+          //         // Credit: Update Income table (increase budgetAmount)
+          //         tx.executeSql(
+          //           `UPDATE Income SET budgetAmount = budgetAmount + ? 
+          //          WHERE accountName = 'My Account' 
+          //          AND budgetPeriod = 'Monthly' 
+          //          AND incomeDate BETWEEN ? AND ? 
+          //          AND id = ?;`,
+          //           [amount, formattedFromDate, formattedToDate, incomeId], // Pass amount, date range, and incomeId
+          //           (_, updateResult) => {
+          //             console.log('Income table updated successfully for credit:', updateResult);
+          //             navigation.goBack(); // Go back after the update
+          //           },
+          //           (_, error) => {
+          //             console.error('Error updating Income table for credit:', error.message);
+          //           }
+          //         );
+          //       } else if (transactionType === 'Expense') {
+          //         // Expense: Update Income table (decrease budgetAmount)
+          //         tx.executeSql(
+          //           `UPDATE Income SET budgetAmount = budgetAmount - ? 
+          //          WHERE accountName = 'My Account' 
+          //          AND budgetPeriod = 'Monthly' 
+          //          AND incomeDate BETWEEN ? AND ? 
+          //          AND id = ?;`,
+          //           [amount, formattedFromDate, formattedToDate, incomeId], // Pass amount, date range, and incomeId
+          //           (_, updateResult) => {
+          //             console.log('Income table updated successfully for expense:', updateResult);
+          //             navigation.goBack(); // Go back after the update
+          //           },
+          //           (_, error) => {
+          //             console.error('Error updating Income table for expense:', error.message);
+          //           }
+          //         );
+          //       }
 
-              } else {
-                console.log('No valid income records found within the specified date range.');
-              }
-            },
-            (_, error) => {
-              console.error('Error fetching ids from Income table:', error.message);
-            }
-          );
+          //     } else {
+          //       console.log('No valid income records found within the specified date range.');
+          //     }
+          //   },
+          //   (_, error) => {
+          //     console.error('Error fetching ids from Income table:', error.message);
+          //   }
+          // );
 
         },
         (_, error) => {
@@ -849,13 +853,14 @@ const AddEditDeleteTransaction = () => {
                   const incomeId = rows.item(0).id; // Set the incomeId to the first matched result
 
                   // Step 4: Revert impact on the Income table based on the old type
-                  let revertIncomeAmount = oldType === 'Credit' ? -oldAmount : oldAmount;
-                  tx.executeSql(
-                    `UPDATE Income SET budgetAmount = budgetAmount + ? WHERE id = ?;`,
-                    [revertIncomeAmount, incomeId],
-                    () => console.log('Reverted impact on Income table successfully'),
-                    (error) => console.error('Error reverting Income table', error)
-                  );
+                  // commented because no need as it is not being used anywhere in app.. like it has no impact
+                  // let revertIncomeAmount = oldType === 'Credit' ? -oldAmount : oldAmount;
+                  // tx.executeSql(
+                  //   `UPDATE Income SET budgetAmount = budgetAmount + ? WHERE id = ?;`,
+                  //   [revertIncomeAmount, incomeId],
+                  //   () => console.log('Reverted impact on Income table successfully'),
+                  //   (error) => console.error('Error reverting Income table', error)
+                  // );
 
                   // Step 5: Apply impact on the new or updated envelope based on new transaction details
                   let newAmountImpact = transactionType === 'Credit' ? transactionAmount : -transactionAmount;
@@ -867,13 +872,15 @@ const AddEditDeleteTransaction = () => {
                   );
 
                   // Step 6: Update the Income table based on the new transaction type
-                  let newIncomeAmount = transactionType === 'Credit' ? transactionAmount : -transactionAmount;
-                  tx.executeSql(
-                    `UPDATE Income SET budgetAmount = budgetAmount + ? WHERE id = ?;`,
-                    [newIncomeAmount, incomeId],
-                    () => console.log('Updated impact on Income table successfully'),
-                    (error) => console.error('Error updating Income table', error)
-                  );
+                  // commented because no need as it is not being used anywhere in app.. like it has no impact
+                  // let newIncomeAmount = transactionType === 'Credit' ? transactionAmount : -transactionAmount;
+                  // tx.executeSql(
+                  //   `UPDATE Income SET budgetAmount = budgetAmount + ? WHERE id = ?;`,
+                  //   [newIncomeAmount, incomeId],
+                  //   () => console.log('Updated impact on Income table successfully'),
+                  //   (error) => console.error('Error updating Income table', error)
+                  // );
+
                 } else {
                   console.error('No matching income record found for the given period');
                 }
@@ -972,21 +979,68 @@ const AddEditDeleteTransaction = () => {
   };
 
   // function to search payees
-  const handleSearch = (text) => {
-    if (text.trim().length >= 1) {
-      searchPayees(text, (matchingPayees) => {
-        setPayees(matchingPayees); // Update with matching payees
-        setShowMenu(matchingPayees.length > 0); // Show menu if matches exist
-      });
-    } else {
-      setPayees([]); // Clear payee list
-      setShowMenu(false); // Hide menu if input is empty
-    }
-  };
-
+  // const handleSearch = (text) => {
+  //   if (text.trim().length >= 1) {
+  //     searchPayees(text, (matchingPayees) => {
+  //       setPayees(matchingPayees); // Update with matching payees
+  //       setShowMenu(matchingPayees.length > 0); // Show menu if matches exist
+  //     });
+  //   } else {
+  //     setPayees([]); // Clear payee list
+  //     setShowMenu(false); // Hide menu if input is empty
+  //   }
+  // };
 
   // const [selectedPayee, setSelectedPayee] = useState([]);
 
+  // this is used to get envelopeId from transactions and relevent envelope from envelopes and thus set state that shows envelope current filledIncome
+  const [isDataReady, setIsDataReady] = useState(false);
+
+  useEffect(() => {
+    // console.log('Checking if route.params and envelopes are available...');
+
+    if (route.params?.envelopeName) {
+      console.log('Envelope Name found:', route.params.envelopeName);
+    } else {
+      console.log('Envelope Name not found in route.params');
+    }
+
+    if (envelopes.length > 0) {
+      console.log('Envelopes array is populated:');
+    } else {
+      console.log('Envelopes array is empty or not yet populated');
+    }
+
+    if (route.params?.envelopeName && envelopes.length > 0) {
+      // console.log('Both envelopeId and envelopes are available. Marking data as ready.');
+      setIsDataReady(true);
+    } else {
+      console.log('Data is not ready yet.');
+    }
+  }, [route.params, envelopes]);
+
+  useFocusEffect(
+    useCallback(() => {
+      // console.log('useFocusEffect triggered.');
+
+      if (isDataReady) {
+        // console.log('Data is ready. Searching for the selected envelope...');
+        const selectedEnvelope = envelopes.find(
+          envelope => envelope.envelopeName === route.params.envelopeName
+        );
+
+        if (selectedEnvelope) {
+          // console.log('Selected envelope found:', selectedEnvelope);
+          setSelectedEnvelopeFilledIncome(selectedEnvelope.filledIncome);
+          // console.log('Envelope filled income set:', selectedEnvelope.filledIncome);
+        } else {
+          console.log('No envelope matches the provided envelopeName:', route.params.envelopeName);
+        }
+      } else {
+        console.log('Data is not ready. Skipping envelope selection logic.');
+      }
+    }, [isDataReady, route.params?.envelopeName, envelopes])
+  );
 
   return (
     <Pressable style={{ flex: 1, backgroundColor: colors.white }} onPress={handleOutsidePress}>
@@ -1011,11 +1065,11 @@ const AddEditDeleteTransaction = () => {
             color={colors.white}
           />
           {edit_transaction && (
-            <Appbar.Action 
-            // onPress={handleDeleteTransaction} 
-            onPress={() => handleDeleteTransaction(formattedFromDate, formattedToDate)}
-            icon="delete" 
-            color={colors.white} 
+            <Appbar.Action
+              // onPress={handleDeleteTransaction} 
+              onPress={() => handleDeleteTransaction(formattedFromDate, formattedToDate)}
+              icon="delete"
+              color={colors.white}
             />
           )}
           <Appbar.Action onPress={handleRightIconPress} icon="dots-vertical" color={colors.white} />
@@ -1056,8 +1110,7 @@ const AddEditDeleteTransaction = () => {
                   setFocusedInputAmount(false);
                   if (!payeesMenuVisible) setPayee(payee); // Set the typed value if menu is not open
                 }}
-                onFocus={() => 
-                {
+                onFocus={() => {
                   setFocusedInput('payee');
                   setFocusedInputAmount(false);
                   setPayeesMenuVisible(payees.length > 0);
@@ -1158,7 +1211,11 @@ const AddEditDeleteTransaction = () => {
               onDismiss={() => setEnvelopeMenuVisible(false)}
               anchor={
                 <TouchableOpacity style={styles.envelope_txt_icon_view} onPress={handleEnvelopeMenuToggle}>
-                  <Text style={styles.selectionText}>{selectedEnvelope || '-Select Envelope-'}</Text>
+                  <Text style={styles.selectionText}>
+                    {selectedEnvelope
+                      ? `${selectedEnvelope} (${selectedEnvelopeFilledIncome || 0} left)`
+                      : '-Select Envelope-'}
+                  </Text>
                   <VectorIcon name="arrow-drop-down" size={24} color={colors.gray} type="mi" />
                 </TouchableOpacity>
               }
@@ -1174,6 +1231,7 @@ const AddEditDeleteTransaction = () => {
                     onPress={() => {
                       setSelectedEnvelope(item.envelopeName);
                       setSelectedEnvelopeId(item.envelopeId);
+                      setSelectedEnvelopeFilledIncome(item.filledIncome);
                       setEnvelopeMenuVisible(false);
                       setEnvelopeRemainingIncome(item.filledIncome);
                     }}
@@ -1194,9 +1252,9 @@ const AddEditDeleteTransaction = () => {
               visible={accountMenuVisible}
               onDismiss={() => setAccountMenuVisible(false)}
               anchor={
-                <TouchableOpacity 
-                style={styles.envelope_txt_icon_view} 
-                // onPress={handleAccountMenuToggle}
+                <TouchableOpacity
+                  style={styles.envelope_txt_icon_view}
+                  // onPress={handleAccountMenuToggle}
                   onPress={() => {
                     handleAccountMenuToggle();
                     setFocusedInputAmount(false);
@@ -1303,31 +1361,32 @@ const AddEditDeleteTransaction = () => {
           onClose={() => setCalculatorVisible(false)}
         />
 
-        <Snackbar
-          visible={snackbarVisible}
-          onDismiss={() => setSnackbarVisible(false)}
-          duration={1000}
-          style={[
-            styles.snack_bar,
-            {
-              position: 'absolute',
-              bottom: 20,
-              left: 20,
-              right: 20,
-              zIndex: 1000,
-            }
-          ]}
-        >
-          <View style={styles.img_txt_view}>
-            <Image
-              source={Images.expenseplannerimage}
-              style={styles.snack_bar_img}
-            />
-            <Text style={styles.snack_bar_text}>All fields are required!</Text>
-          </View>
-        </Snackbar>
-
       </ScrollView>
+
+      <Snackbar
+        visible={snackbarVisible}
+        onDismiss={() => setSnackbarVisible(false)}
+        duration={1000}
+        style={[
+          styles.snack_bar,
+          {
+            position: 'absolute',
+            bottom: 20,
+            left: 20,
+            right: 20,
+            zIndex: 1000,
+          }
+        ]}
+      >
+        <View style={styles.img_txt_view}>
+          <Image
+            source={Images.expenseplannerimage}
+            style={styles.snack_bar_img}
+          />
+          <Text style={styles.snack_bar_text}>All fields are required!</Text>
+        </View>
+      </Snackbar>
+
     </Pressable>
   );
 };

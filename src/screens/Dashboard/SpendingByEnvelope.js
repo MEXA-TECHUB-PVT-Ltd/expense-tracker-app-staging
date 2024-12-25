@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, StatusBar, TouchableOpacity, ScrollView } from 'react-native'
+import { StyleSheet, Text, View, StatusBar, TouchableOpacity, ScrollView, Image, } from 'react-native'
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useFocusEffect } from '@react-navigation/native';
 import { Appbar, Modal, Portal, Button, TextInput, RadioButton, IconButton, Menu } from 'react-native-paper';
@@ -91,8 +91,8 @@ const SpendingByEnvelope = () => {
             // Set default dates to "thisMonth" range
             const startOfMonth = moment().startOf('month');
             const endOfMonth = moment().endOf('month');
-            setFromDate(formatDate(startOfMonth));
-            setToDate(formatDate(endOfMonth));
+            setFromDate(formatDate(startOfMonth)); // initially set from date as current month start date
+            setToDate(formatDate(endOfMonth));     // set to date as current month end date
 
             // No cleanup needed, so we return undefined
             return undefined;
@@ -160,23 +160,45 @@ const SpendingByEnvelope = () => {
     const clearFromDate = () => setCustomFromDate('');
     const clearToDate = () => setCustomToDate('');
 
+    // code for getting current year start and end date for yearly envelopes filtering
+    const startOfYear = moment().startOf('year').toISOString();
+    const endOfYear = moment().endOf('year').toISOString();
+    // Format the dates using the formatDateSql function
+    const formattedFromDateYearly = formatDateSql(startOfYear);
+    const formattedToDateYearly = formatDateSql(endOfYear);
+
+    // console.log(' date of formattedFromDateYearly', formattedFromDateYearly);
+    // console.log(' date of formattedToDateYearly', formattedToDateYearly);
+
     // code for selecting envelopes on basis of date range start here 
     const [envelopes, setEnvelopes] = useState([]);
+    // console.log('all envelopes in spending by envelope:', envelopes);
 
     // code to filter envelopes with date
-    const fetchRecordsWithinDateRange = (fromDate, toDate) => {
+    const fetchRecordsWithinDateRange = (fromDate, toDate, formattedFromDateYearly, formattedToDateYearly) => {
         const formattedFromDate = formatDateSql(fromDate);
         const formattedToDate = formatDateSql(toDate);
 
         db.transaction((tx) => {
-        const fetchQuery = `
-        SELECT * 
-        FROM envelopes 
-        WHERE fillDate BETWEEN ? AND ? AND user_id = ?;
-      `;
+            //         const fetchQuery = `
+            //     SELECT * 
+            //     FROM envelopes 
+            //     WHERE fillDate BETWEEN ? AND ? AND user_id = ?;
+            //   `;
+            const fetchQuery = `
+    SELECT * 
+    FROM envelopes 
+    WHERE user_id = ? 
+    AND (
+        (budgetPeriod IN ('Monthly', 'Goal') AND fillDate BETWEEN ? AND ?)
+        OR 
+        (budgetPeriod = 'Every Year' AND fillDate BETWEEN ? AND ?)
+    )
+    ORDER BY orderIndex
+`;
             tx.executeSql(
                 fetchQuery,
-                [formattedFromDate, formattedToDate, tempUserId],
+                [tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly],
                 (_, { rows }) => {
                     const allData = [];
                     for (let i = 0; i < rows.length; i++) {
@@ -194,17 +216,17 @@ const SpendingByEnvelope = () => {
 
     useFocusEffect(
         React.useCallback(() => {
-            if (fromDate && toDate) {
-                fetchRecordsWithinDateRange(fromDate, toDate);
+            if (fromDate && toDate && formattedFromDateYearly && formattedToDateYearly) {
+                fetchRecordsWithinDateRange(fromDate, toDate, formattedFromDateYearly, formattedToDateYearly);
             }
-        }, [fromDate, toDate])
+        }, [fromDate, toDate, formattedFromDateYearly, formattedToDateYearly])
     );
 
-    // code to search all envelopes and log them
+    // code to search all envelopes and to just log them
     useFocusEffect(
         useCallback(() => {
             db.transaction((tx) => {
-            const fetchAllQuery = `
+                const fetchAllQuery = `
             SELECT * 
             FROM envelopes `;
 
@@ -227,7 +249,6 @@ const SpendingByEnvelope = () => {
         }, [])
     );
 
-
     // code to filter transactions by date
     const [transactions, setTransactions] = useState([]);
     const filterTransactions = (fromDate, toDate) => {
@@ -236,7 +257,7 @@ const SpendingByEnvelope = () => {
         const formattedToDate = formatDateSql(toDate);
 
         db.transaction((tx) => {
-        const fetchQuery = `
+            const fetchQuery = `
         SELECT * 
         FROM Transactions 
         WHERE transactionDate BETWEEN ? AND ? AND user_id = ?;
@@ -268,7 +289,7 @@ const SpendingByEnvelope = () => {
         }, [fromDate, toDate])
     );
 
-    // code to search and log all Transactions
+    // code to search and just log all Transactions
     useFocusEffect(
         useCallback(() => {
             db.transaction((tx) => {
@@ -312,50 +333,65 @@ const SpendingByEnvelope = () => {
             setSpending(0);
             return null;
         }
-        // Calculate total income
+        // Calculate total income by summing up the amount value of all envelopes within that month...
         const totalIncome = envelopes
             .filter((envelope) => envelope.user_id === userId)
             .reduce((sum, envelope) => sum + (envelope.amount || 0), 0);
-        console.log("Total Income:", totalIncome);
+        // console.log("Total Income:", totalIncome);
         setIncome(totalIncome);
-        // Calculate spending by envelope
+        // Calculate spending by envelope from transactions
         const envelopeSpending = {};
         let totalExpenseSpending = 0;
-        transactions
-            .filter((transaction) => transaction.user_id === userId)
-            .forEach((transaction) => {
-                const { envelopeName, transactionAmount, transactionType } = transaction;
 
+        transactions
+            .filter((transaction) => transaction.user_id === userId && transaction.transactionType === "Expense")
+            .forEach((transaction) => {
+                const { envelopeName, transactionAmount } = transaction;
+
+                // Initialize envelope spending if not already done
                 if (!envelopeSpending[envelopeName]) {
                     envelopeSpending[envelopeName] = 0;
                 }
 
-                // to calculate total spending of all envelopes as expense
-                if (transactionType === "Expense") {
-                    envelopeSpending[envelopeName] += transactionAmount;
-                    totalExpenseSpending += transactionAmount;
-                } else if (transactionType === "Credit") {
-                    envelopeSpending[envelopeName] -= transactionAmount;
-                }
+                // Add transaction amount to the envelope's spending
+                envelopeSpending[envelopeName] += transactionAmount;
+                totalExpenseSpending += transactionAmount; // Sum up total expenses
             });
+
+        // transactions
+        //     .filter((transaction) => transaction.user_id === userId)
+        //     .forEach((transaction) => {
+        //         const { envelopeName, transactionAmount, transactionType } = transaction;
+
+        //         if (!envelopeSpending[envelopeName]) {
+        //             envelopeSpending[envelopeName] = 0;
+        //         }
+
+        //         // to calculate total spending of all envelopes as expense
+        //         if (transactionType === "Expense") {
+        //             envelopeSpending[envelopeName] += transactionAmount;
+        //             totalExpenseSpending += transactionAmount;
+        //         } else if (transactionType === "Credit") {
+        //             envelopeSpending[envelopeName] -= transactionAmount;
+        //         }
+        //     });
 
         const spendingByEnvelope = Object.entries(envelopeSpending).map(([envelopeName, envelopeSpending]) => ({
             envelopeName,
             envelopeSpending,
         }));
 
-        // console.log("Spending by Envelope:", spendingByEnvelope);
-        // console.log("Total Expense Spending:", totalExpenseSpending);
-
         setSpendingByEnvelope(spendingByEnvelope);
+        console.log(' ========== spendByEnvelope:', spendingByEnvelope);
         setSpending(totalExpenseSpending);
+        console.log(' ========== total spendings:', totalExpenseSpending);
 
         return { totalIncome, spendingByEnvelope };
     };
 
+    // just for testing only log them
     useEffect(() => {
         // console.log("Final Results: ", { transactions, envelopes });
-
         if (!transactions || !transactions.length || !envelopes || !envelopes.length) {
             // console.log("No transactions or envelopes data to process.");
             setIncome(0);
@@ -379,7 +415,7 @@ const SpendingByEnvelope = () => {
     );
 
     // full code and logic to filter and calculate values end here
-    
+
 
     // code to generate data for pie graph
     const [pieData, setPieData] = useState([]);
@@ -389,7 +425,7 @@ const SpendingByEnvelope = () => {
         const generatePieData = async () => {
             const data = await Promise.all(
                 spendingByEnvelope
-                    .filter(item => (item.envelopeSpending || 0) > 0)  // Filter out negative spending
+                    // .filter(item => (item.envelopeSpending || 0) > 0)  // Filter out negative spending
                     .map(async (item) => {
                         const envelopeSpending = item.envelopeSpending || 0;
                         const envelopeColor = await getOrAssignEnvelopeColor(item.envelopeName);  // Get or generate the color
@@ -464,27 +500,79 @@ const SpendingByEnvelope = () => {
             <View style={styles.txt_amt_view}>
                 <Text style={styles.txt_amt_texts}>Total Spending: {spending}.00</Text>
             </View>
-       
+
+            {/* <ScrollView style={{ flex: 1 }}>
+                <View style={styles.envelope_txt_amt_parent_view}>
+                    {spendingByEnvelope.some(item => (item.envelopeSpending || 0) > 0) ? (
+                        spendingByEnvelope
+                            .filter(item => (item.envelopeSpending || 0) > 0)
+                            .map((item, index) => {
+                                const envelopeName = item.envelopeName;
+                                const envelopeSpending = item.envelopeSpending || 0;
+                                const envelopeColor = pieData[index]?.color || randomColor();
+
+                                // Calculate the total of all envelope spendings
+                                const totalEnvelopeSpending = spendingByEnvelope
+                                    .filter(item => (item.envelopeSpending || 0) > 0)
+                                    .reduce((sum, item) => sum + (item.envelopeSpending || 0), 0);
+
+                                // Calculate the percentage for the current envelope
+                                // no decimal
+                                // const percentage = Math.round((envelopeSpending / totalEnvelopeSpending) * 100);
+                                // one decimal
+                                const percentage = Math.round(((envelopeSpending / totalEnvelopeSpending) * 100) * 10) / 10;
+
+
+                                return (
+                                    <View style={styles.envelope_text_amount_view} key={index}>
+                                        <View style={[styles.legendSquare, { backgroundColor: envelopeColor }]} />
+                                        <View style={styles.envelope_txt_amt_view}>
+                                            <View style={styles.envelope_column_name_legend}>
+                                                <Text style={styles.envelope_text}>{envelopeName}</Text>
+                                            </View>
+                                            <View style={styles.envelope_column}>
+                                                <Text style={styles.percentage_text}>{percentage}%</Text>
+                                            </View>
+                                            <View style={styles.envelope_column}>
+                                                <Text style={styles.envelope_amount}>{envelopeSpending}.00</Text>
+                                            </View>
+                                        </View>
+                                    </View>
+                                );
+                            })
+                    ) : (
+                        <View style={styles.emptyState}>
+                            <Image
+                                source={Images.expenseplannerimagegray}
+                                style={styles.emptyImage}
+                            />
+                            <View style={styles.emptyTextContainer}>
+                                <Text style={styles.emptyText}>No spending records found for the selected date range.</Text>
+                            </View>
+                        </View>
+                    )}
+                </View>
+
+            </ScrollView> */}
+
+            {/* this code dont calculate negative values */}
             <ScrollView style={{ flex: 1 }}>
                 <View style={styles.envelope_txt_amt_parent_view}>
-                    {spendingByEnvelope
-                        .filter(item => (item.envelopeSpending || 0) > 0)
-                        .map((item, index) => {
+                    {spendingByEnvelope.length > 0 ? (
+                        spendingByEnvelope.map((item, index) => {
                             const envelopeName = item.envelopeName;
                             const envelopeSpending = item.envelopeSpending || 0;
                             const envelopeColor = pieData[index]?.color || randomColor();
 
-                            // Calculate the total of all envelope spendings
-                            const totalEnvelopeSpending = spendingByEnvelope
-                                .filter(item => (item.envelopeSpending || 0) > 0)
-                                .reduce((sum, item) => sum + (item.envelopeSpending || 0), 0);
+                            // Calculate the total of all envelope spendings (including negative values)
+                            const totalEnvelopeSpending = spendingByEnvelope.reduce(
+                                (sum, item) => sum + (item.envelopeSpending || 0),
+                                0
+                            );
 
                             // Calculate the percentage for the current envelope
-                            // no decimal
-                            // const percentage = Math.round((envelopeSpending / totalEnvelopeSpending) * 100);
                             // one decimal
                             const percentage = Math.round(((envelopeSpending / totalEnvelopeSpending) * 100) * 10) / 10;
-
 
                             return (
                                 <View style={styles.envelope_text_amount_view} key={index}>
@@ -497,15 +585,28 @@ const SpendingByEnvelope = () => {
                                             <Text style={styles.percentage_text}>{percentage}%</Text>
                                         </View>
                                         <View style={styles.envelope_column}>
-                                            <Text style={styles.envelope_amount}>{envelopeSpending}.00</Text>
+                                            <Text style={styles.envelope_amount}>
+                                                {envelopeSpending.toFixed(2)}
+                                            </Text>
                                         </View>
                                     </View>
                                 </View>
                             );
-                        })}
+                        })
+                    ) : (
+                        <View style={styles.emptyState}>
+                            <Image
+                                source={Images.expenseplannerimagegray}
+                                style={styles.emptyImage}
+                            />
+                            <View style={styles.emptyTextContainer}>
+                                <Text style={styles.emptyText}>No spending records found for the selected date range.</Text>
+                            </View>
+                        </View>
+                    )}
                 </View>
-
             </ScrollView>
+
 
             <Portal>
                 <Modal
@@ -879,6 +980,28 @@ const styles = StyleSheet.create({
         fontSize: hp('2%'),
         color: colors.black,
         textAlign: 'right', // Align spending amount to the right
+    },
+
+    emptyState: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: hp('8%'),
+    },
+    emptyImage: {
+        width: hp('8%'),
+        height: hp('8%'),
+        marginBottom: hp('4%'),
+    },
+    emptyTextContainer: {
+        maxWidth: hp('30%'),
+        // backgroundColor: 'yellow',
+    },
+    emptyText: {
+        fontSize: hp('2.4%'),
+        color: colors.gray,
+        textAlign: 'center',
+        alignSelf: 'center',
     },
 
 

@@ -187,8 +187,6 @@ const SetIncomeAmount = () => {
         setCalculatorVisible(true);
     };
 
-
-
     useEffect(() => {
         fetchAllIncome(formattedFromDate, formattedToDate);
     }, [formattedFromDate, formattedToDate]);
