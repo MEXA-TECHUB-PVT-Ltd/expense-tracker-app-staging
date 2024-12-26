@@ -109,11 +109,11 @@ const About = () => {
         // for now we can comment them means dont drop tables as we discussed these are 
         // conflicted either we drop them or either keep forgot password functionality
 
-        // dropTables();
-        // await clearLastCopyMonth(); 
-        // await clearLastCopyYear();  
-        // await clearSelectedRange();
-        // await clearSelectedRangeSBE();
+        dropTables();
+        await clearLastCopyMonth(); 
+        await clearLastCopyYear();  
+        await clearSelectedRange();
+        await clearSelectedRangeSBE();
 
         dispatch(logout());
         navigation.navigate('Onboarding');  // this is for cross confirmation although it navigates on basis of isAuthenticated state in redux

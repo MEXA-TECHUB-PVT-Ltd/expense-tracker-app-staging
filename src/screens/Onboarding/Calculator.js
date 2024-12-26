@@ -108,6 +108,26 @@ const Calculator = ({ visible, textInputValue, onValueChange, onClose }) => {
         setDisplay(display.length > 1 ? display.slice(0, -1) : '0');
     };
 
+    // for custom background color and text color when pressed
+    const [backspacePressed, setBackspacePressed] = useState(false);
+    const [clearPressed, setClearPressed] = useState(false);
+    const [dividePressed, setDividePressed] = useState(false);
+    const [multiplyPressed, setMultiplyPressed] = useState(false);
+    const [buttonPressed7, setButtonPressed7] = useState(false);
+    const [buttonPressed8, setButtonPressed8] = useState(false);
+    const [buttonPressed9, setButtonPressed9] = useState(false);
+    const [buttonPressedMinus, setButtonPressedMinus] = useState(false);
+    const [buttonPressed4, setButtonPressed4] = useState(false);
+    const [buttonPressed5, setButtonPressed5] = useState(false);
+    const [buttonPressed6, setButtonPressed6] = useState(false);
+    const [buttonPressed1, setButtonPressed1] = useState(false);
+    const [buttonPressed2, setButtonPressed2] = useState(false);
+    const [buttonPressed3, setButtonPressed3] = useState(false);
+    const [buttonPressedPlus, setButtonPressedPlus] = useState(false);
+    const [buttonPressed0, setButtonPressed0] = useState(false);
+    const [buttonPressedDot, setButtonPressedDot] = useState(false);
+    const [buttonPressedOK, setButtonPressedOK] = useState(false);
+
     return (
         visible && (
             <View style={styles.container} onTouchEnd={onClose}>
@@ -119,76 +139,191 @@ const Calculator = ({ visible, textInputValue, onValueChange, onClose }) => {
                     />
 
                     <View style={styles.row}>
-                        <TouchableOpacity style={styles.button} onPress={handleBackspace}>
-                            <VectorIcon name="backspace" size={17} color={colors.white} type="mci" />
+                        <TouchableOpacity
+                            style={[styles.button, backspacePressed && { backgroundColor: colors.white }]}
+                            onPressIn={() => setBackspacePressed(true)}
+                            onPressOut={() => setBackspacePressed(false)}
+                            activeOpacity={1}
+                            onPress={handleBackspace}
+                        >
+                            <VectorIcon name="backspace" size={17} color={backspacePressed ? 'black' : colors.white} type="mci" />
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.button} onPress={handleClear}>
-                            <Text style={styles.buttonText}>C</Text>
+
+                        <TouchableOpacity
+                            style={[styles.button, clearPressed && { backgroundColor: colors.white }]}
+                            onPressIn={() => setClearPressed(true)}
+                            onPressOut={() => setClearPressed(false)}
+                            activeOpacity={1}
+                            onPress={handleClear}
+                        >
+                            <Text style={[styles.buttonText, clearPressed && { color: 'black' }]}>C</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.button} onPress={() => handleOperation('÷')}>
-                            <Text style={styles.buttonText}>÷</Text>
+
+                        <TouchableOpacity
+                            style={[styles.button, dividePressed && { backgroundColor: colors.white }]}
+                            onPressIn={() => setDividePressed(true)}
+                            onPressOut={() => setDividePressed(false)}
+                            activeOpacity={1}
+                            onPress={() => handleOperation('÷')}
+                        >
+                            <Text style={[styles.buttonText, dividePressed && { color: 'black' }]}>÷</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.button} onPress={() => handleOperation('×')}>
-                            <Text style={styles.buttonText}>×</Text>
+
+                        <TouchableOpacity
+                            style={[styles.button, multiplyPressed && { backgroundColor: colors.white }]}
+                            onPressIn={() => setMultiplyPressed(true)}
+                            onPressOut={() => setMultiplyPressed(false)}
+                            activeOpacity={1}
+                            onPress={() => handleOperation('×')}
+                        >
+                            <Text style={[styles.buttonText, multiplyPressed && { color: 'black' }]}>×</Text>
                         </TouchableOpacity>
                     </View>
 
                     <View style={styles.row}>
-                        <TouchableOpacity style={styles.button} onPress={() => handleInput('7')}>
-                            <Text style={styles.buttonText}>7</Text>
+                        <TouchableOpacity
+                            style={[styles.button, buttonPressed7 && { backgroundColor: colors.white }]}
+                            onPressIn={() => setButtonPressed7(true)}
+                            onPressOut={() => setButtonPressed7(false)}
+                            activeOpacity={1}
+                            onPress={() => handleInput('7')}
+                        >
+                            <Text style={[styles.buttonText, buttonPressed7 && { color: 'black' }]}>7</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.button} onPress={() => handleInput('8')}>
-                            <Text style={styles.buttonText}>8</Text>
+
+                        <TouchableOpacity
+                            style={[styles.button, buttonPressed8 && { backgroundColor: colors.white }]}
+                            onPressIn={() => setButtonPressed8(true)}
+                            onPressOut={() => setButtonPressed8(false)}
+                            activeOpacity={1}
+                            onPress={() => handleInput('8')}
+                        >
+                            <Text style={[styles.buttonText, buttonPressed8 && { color: 'black' }]}>8</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.button} onPress={() => handleInput('9')}>
-                            <Text style={styles.buttonText}>9</Text>
+
+                        <TouchableOpacity
+                            style={[styles.button, buttonPressed9 && { backgroundColor: colors.white }]}
+                            onPressIn={() => setButtonPressed9(true)}
+                            onPressOut={() => setButtonPressed9(false)}
+                            activeOpacity={1}
+                            onPress={() => handleInput('9')}
+                        >
+                            <Text style={[styles.buttonText, buttonPressed9 && { color: 'black' }]}>9</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.button} onPress={() => handleOperation('-')}>
-                            <Text style={styles.buttonText}>-</Text>
+
+                        <TouchableOpacity
+                            style={[styles.button, buttonPressedMinus && { backgroundColor: colors.white }]}
+                            onPressIn={() => setButtonPressedMinus(true)}
+                            onPressOut={() => setButtonPressedMinus(false)}
+                            activeOpacity={1}
+                            onPress={() => handleOperation('-')}
+                        >
+                            <Text style={[styles.buttonText, buttonPressedMinus && { color: 'black' }]}>-</Text>
                         </TouchableOpacity>
                     </View>
 
                     <View style={styles.row}>
                         <View style={styles.column}>
                             <View style={styles.row}>
-                                <TouchableOpacity style={styles.button} onPress={() => handleInput('4')}>
-                                    <Text style={styles.buttonText}>4</Text>
+                                <TouchableOpacity
+                                    style={[styles.button, buttonPressed4 && { backgroundColor: colors.white }]}
+                                    onPressIn={() => setButtonPressed4(true)}
+                                    onPressOut={() => setButtonPressed4(false)}
+                                    activeOpacity={1}
+                                    onPress={() => handleInput('4')}
+                                >
+                                    <Text style={[styles.buttonText, buttonPressed4 && { color: 'black' }]}>4</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity style={styles.button} onPress={() => handleInput('5')}>
-                                    <Text style={styles.buttonText}>5</Text>
+                                <TouchableOpacity
+                                    style={[styles.button, buttonPressed5 && { backgroundColor: colors.white }]}
+                                    onPressIn={() => setButtonPressed5(true)}
+                                    onPressOut={() => setButtonPressed5(false)}
+                                    activeOpacity={1}
+                                    onPress={() => handleInput('5')}
+                                >
+                                    <Text style={[styles.buttonText, buttonPressed5 && { color: 'black' }]}>5</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity style={styles.button} onPress={() => handleInput('6')}>
-                                    <Text style={styles.buttonText}>6</Text>
+                                <TouchableOpacity
+                                    style={[styles.button, buttonPressed6 && { backgroundColor: colors.white }]}
+                                    onPressIn={() => setButtonPressed6(true)}
+                                    onPressOut={() => setButtonPressed6(false)}
+                                    activeOpacity={1}
+                                    onPress={() => handleInput('6')}
+                                >
+                                    <Text style={[styles.buttonText, buttonPressed6 && { color: 'black' }]}>6</Text>
                                 </TouchableOpacity>
                             </View>
                             <View style={styles.row}>
-                                <TouchableOpacity style={styles.button} onPress={() => handleInput('1')}>
-                                    <Text style={styles.buttonText}>1</Text>
+                                <TouchableOpacity
+                                    style={[styles.button, buttonPressed1 && { backgroundColor: colors.white }]}
+                                    onPressIn={() => setButtonPressed1(true)}
+                                    onPressOut={() => setButtonPressed1(false)}
+                                    activeOpacity={1}
+                                    onPress={() => handleInput('1')}
+                                >
+                                    <Text style={[styles.buttonText, buttonPressed1 && { color: 'black' }]}>1</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity style={styles.button} onPress={() => handleInput('2')}>
-                                    <Text style={styles.buttonText}>2</Text>
+                                <TouchableOpacity
+                                    style={[styles.button, buttonPressed2 && { backgroundColor: colors.white }]}
+                                    onPressIn={() => setButtonPressed2(true)}
+                                    onPressOut={() => setButtonPressed2(false)}
+                                    activeOpacity={1}
+                                    onPress={() => handleInput('2')}
+                                >
+                                    <Text style={[styles.buttonText, buttonPressed2 && { color: 'black' }]}>2</Text>
                                 </TouchableOpacity>
-                                <TouchableOpacity style={styles.button} onPress={() => handleInput('3')}>
-                                    <Text style={styles.buttonText}>3</Text>
+                                <TouchableOpacity
+                                    style={[styles.button, buttonPressed3 && { backgroundColor: colors.white }]}
+                                    onPressIn={() => setButtonPressed3(true)}
+                                    onPressOut={() => setButtonPressed3(false)}
+                                    activeOpacity={1}
+                                    onPress={() => handleInput('3')}
+                                >
+                                    <Text style={[styles.buttonText, buttonPressed3 && { color: 'black' }]}>3</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
-                        <TouchableOpacity style={[styles.button, styles.doubleVertical]} onPress={() => handleOperation('+')}>
-                            <Text style={styles.buttonText}>+</Text>
+                        <TouchableOpacity
+                            style={[styles.button, styles.doubleVertical, buttonPressedPlus && { backgroundColor: colors.white }]}
+                            onPressIn={() => setButtonPressedPlus(true)}
+                            onPressOut={() => setButtonPressedPlus(false)}
+                            activeOpacity={1}
+                            onPress={() => handleOperation('+')}
+                        >
+                            <Text style={[styles.buttonText, buttonPressedPlus && { color: 'black' }]}>+</Text>
                         </TouchableOpacity>
                     </View>
 
                     <View style={styles.row}>
-                        <TouchableOpacity style={[styles.button, styles.doubleHorizontal]} onPress={() => handleInput('0')}>
-                            <Text style={styles.buttonText}>0</Text>
+                        <TouchableOpacity
+                            style={[styles.button, styles.doubleHorizontal, buttonPressed0 && { backgroundColor: colors.white }]}
+                            onPressIn={() => setButtonPressed0(true)}
+                            onPressOut={() => setButtonPressed0(false)}
+                            activeOpacity={1}
+                            onPress={() => handleInput('0')}
+                        >
+                            <Text style={[styles.buttonText, buttonPressed0 && { color: 'black' }]}>0</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.button} onPress={() => handleInput('.')}>
-                            <Text style={styles.buttonText}>.</Text>
+                        <TouchableOpacity
+                            style={[styles.button, buttonPressedDot && { backgroundColor: colors.white }]}
+                            onPressIn={() => setButtonPressedDot(true)}
+                            onPressOut={() => setButtonPressedDot(false)}
+                            activeOpacity={1}
+                            onPress={() => handleInput('.')}
+                        >
+                            <Text style={[styles.buttonText, buttonPressedDot && { color: 'black' }]}>.</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.button} onPress={calculate}>
-                            <Text style={styles.buttonText}>OK</Text>
+                        <TouchableOpacity
+                            style={[styles.button, buttonPressedOK && { backgroundColor: colors.white }]}
+                            onPressIn={() => setButtonPressedOK(true)}
+                            onPressOut={() => setButtonPressedOK(false)}
+                            activeOpacity={1}
+                            onPress={calculate}
+                        >
+                            <Text style={[styles.buttonText, buttonPressedOK && { color: 'black' }]}>OK</Text>
                         </TouchableOpacity>
                     </View>
+
                 </View>
             </View>
         )

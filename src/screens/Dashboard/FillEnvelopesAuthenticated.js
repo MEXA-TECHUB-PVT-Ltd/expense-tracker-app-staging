@@ -15,6 +15,8 @@ import CustomProgressBar from '../../components/CustomProgressBar';
 import { useSelector } from 'react-redux';
 import { formatDateSql } from '../../utils/DateFormatter';
 import moment from 'moment';
+import { v4 as uuidv4 } from 'uuid';
+import 'react-native-get-random-values';
 
 const { width: screenWidth } = dimensions;
 
@@ -495,31 +497,32 @@ const FillEnvelopes = () => {
     };
 
     // to clear filledIncome and fillDate in database...i think we dont need this or need to change logic
-    useFocusEffect(
-        React.useCallback(() => {
-            // Do nothing if the user is authenticated
-            if (isAuthenticated) {
-                return; // Exit early if the condition is met
-            }
-            // Check if selectedOption is "Keep Unallocated"
-            if (selectedOption === "Keep Unallocated") {
-                // Execute the SQL query to clear filledIncome and fillDate
-                db.transaction(tx => {
-                    tx.executeSql(
-                        'UPDATE envelopes SET filledIncome = 0, fillDate = NULL WHERE user_id = ?;',
-                        [tempUserId],
-                        // () => console.log('All filledIncome and fillDate values cleared successfully'),
-                        // console.log('after running fetcha and log individual in clear effect'),
-                        fetchAndLogIndividualIncomes(tempUserId),
-                        (_, error) => {
-                            console.log('Error clearing filledIncome and fillDate values:', error);
-                            return true;
-                        }
-                    );
-                });
-            }
-        }, [selectedOption, tempUserId])
-    );
+    // as this was for case where we had common screen fill envelopes 
+    // useFocusEffect(
+    //     React.useCallback(() => {
+    //         // Do nothing if the user is authenticated
+    //         if (isAuthenticated) {
+    //             return; // Exit early if the condition is met
+    //         }
+    //         // Check if selectedOption is "Keep Unallocated"
+    //         if (selectedOption === "Keep Unallocated") {
+    //             // Execute the SQL query to clear filledIncome and fillDate
+    //             db.transaction(tx => {
+    //                 tx.executeSql(
+    //                     'UPDATE envelopes SET filledIncome = 0, fillDate = NULL WHERE user_id = ?;',
+    //                     [tempUserId],
+    //                     () => console.log('All filledIncome and fillDate values cleared successfully'),
+    //                     // console.log('after running fetcha and log individual in clear effect'),
+    //                     fetchAndLogIndividualIncomes(tempUserId),
+    //                     (_, error) => {
+    //                         console.log('Error clearing filledIncome and fillDate values:', error);
+    //                         return true;
+    //                     }
+    //                 );
+    //             });
+    //         }
+    //     }, [selectedOption, tempUserId])
+    // );
 
 
     // start of new code for two buttons
@@ -528,7 +531,7 @@ const FillEnvelopes = () => {
     const [focusedInputAmount, setFocusedInputAmount] = useState(false);
     // which we want to add to envelopes or keep in unallocated table (for keep unallocated and fill each envelope scenario)
     const [unallocatedIncome, setUnallocatedIncome] = useState(0);
-    // console.log('unallocated: ' + unallocatedIncome);
+    // console.log('unallocated -0-0-0-0-0-0-0-: ' + unallocatedIncome);
 
     const [selectedButton, setSelectedButton] = useState('newIncome');
     const handleNewIncomePress = () => {
@@ -644,29 +647,34 @@ const FillEnvelopes = () => {
             if (userId && amountToFill) {
                 updateUnallocatedIncome(amountToFill, fillDate, userId); // works correctly
             }
+            handleAddTransactionKU();
+
         } else if (selectedOption === 'Fill Each Envelope') {
             if (!payee) {
                 setPayeeSnackbarVisible(true);
                 return;
             }
 
-
-            const unallocated = unallocatedIncome;
+            const unallocated = unallocatedIncome; // income we are adding as new income
             // console.log('value of unallocated when amount not set but envelopes filled', unallocated);
-            const remainingUnallocated = leftUnallocated;
+            const remainingUnallocated = leftUnallocated; // income that is leftover after filling envelopes & we want it as unallocated
             // console.log('remaining unallocated to be filled in scenario 1 set amount not filled envelope:     ', remainingUnallocated);
-            const usedthisFill = usedThisFill; // for scenario two...
+            const usedthisFill = usedThisFill; // for scenario two... amount that is one time filled in envelopes
             // console.log('used this fill: ', usedthisFill);
-            // const totalUnallocated = totalUnallocatedIncome; // for scenario two... now dont need
+            // const totalUnallocated = totalUnallocatedIncome; // for scenario two... now dont need  initially remaingin unallocated income from db
             // console.log('total unallocated: ', totalUnallocated);
             const fillDate = formattedFillDate;
             const userId = tempUserId;
 
             // Scenario 1: Set amount but don't fill envelopes (update unallocatedIncome)
-            if (remainingUnallocated && updatedEnvelopes.every(envelope => envelope.filledIncome === undefined)) {
-                // If no envelope is filled, just add the amount to the unallocatedIncome
+            if (
+                remainingUnallocated &&
+                updatedEnvelopes.every(envelope => envelope.filledIncome === undefined) &&
+                updatedEnvelopes.length === 0 // Additional condition for case when just opened app and yet state is empty to keep it at false
+            ) {
+                // If no envelope is filled and unallocatedEnvelopes is empty, just add the amount to the unallocatedIncome
                 if (userId && remainingUnallocated) {
-                    updateUnallocatedIncomeFU(remainingUnallocated, fillDate, userId); // works correctly
+                    updateUnallocatedIncomeFU(remainingUnallocated, fillDate, userId); // Works correctly
                 }
             }
 
@@ -731,7 +739,6 @@ const FillEnvelopes = () => {
         } else if (selectedButton === 'unallocated') {
 
             const remainingUnallocated = leftUnallocated;
-            // console.log('Remaining unallocated 0000000000000000000000:', remainingUnallocated);
             const fillDate = formattedFillDate;
             const userId = tempUserId;
 
@@ -759,6 +766,9 @@ const FillEnvelopes = () => {
                 if (userId && remainingUnallocated !== undefined && remainingUnallocated !== null) {
                     updateUnallocatedIncomeFU(remainingUnallocated, fillDate, userId); // works correctly
                 }
+
+                handleAddTransaction();
+
                 navigation.navigate('TopTab');
             }
         } else {
@@ -898,10 +908,716 @@ const FillEnvelopes = () => {
         });
     };
 
-
     const [payeeSnackbarVisible, setPayeeSnackbarVisible] = useState(false);
     const [optionsSnackbarVisible, setOptionsSnackbarVisible] = useState(false);
     const [howToFillSnackbarVisible, setHowToFillSnackbarVisible] = useState(false);
+
+    // all code that is to add transactions...start here
+    // From unallocated option
+    const { transaction, editOrdelete } = route.params; // when we will try to edit or delete transactions on basis of groupId
+    // console.log(editOrdelete);
+    console.log('full log of transaction that is passed in routes from transactions screen is: =-=-=-=-=-=-= ', transaction);
+    useEffect(() => {
+        if (transaction) {
+            const { payee, selectedButton, selectedOption, envelopeDetails, transactionAmount } = transaction;
+
+            setPayee(payee);
+            // Set selectedButton and selectedOption
+            setSelectedButton(selectedButton || null); // Fallback to null
+            setSelectedOption(selectedOption || null); // Fallback to null
+
+            // Parse envelopeDetails and set it in updatedEnvelopes
+            if (envelopeDetails) {
+                try {
+                    const parsedEnvelopes = JSON.parse(envelopeDetails);
+                    setUpdatedEnvelopes(parsedEnvelopes); // Set parsed envelope details
+                } catch (error) {
+                    console.error('Error parsing envelopeDetails:', error);
+                }
+            }
+
+            // Set usedThisFill with transactionAmount
+            setUsedThisFill(transactionAmount);
+        }
+    }, [transaction]);
+
+    // second last code where it was just inserting transaction when just set payee
+    // const handleAddTransaction = () => {
+    //     const transactionType = usedThisFill <= 0 ? 'Expense' : 'Credit';
+    //     const transaction = {
+    //         payee: payee,
+    //         transactionAmount: usedThisFill,
+    //         transactionType: transactionType,
+    //         envelopeName: 'Distribution',
+    //         transactionDate: formattedFillDate,  // currently selected date
+    //         user_id: tempUserId,
+    //         navigationScreen: 'fillEnvelops', 
+    //     };
+    //     // console.log('All values in transaction array while inserting transaction: ', transaction);
+    //     // Serialize the updatedEnvelopes array to store in envelopeDetails column
+    //     const envelopeDetails = JSON.stringify(updatedEnvelopes);
+    //     // console.log('All envelopes in json formate as envelopeDetails: ', envelopeDetails);
+    //     // Call the insertTransaction function and pass the serialized envelopeDetails
+    //     insertTransaction(transaction, envelopeDetails);
+    // };
+
+    // const insertTransaction = (transaction, envelopeDetails) => {
+    //     db.transaction((tx) => {
+    //         // Insert the transaction into the Transactions table, now without filledAmount
+    //         tx.executeSql(
+    //             `INSERT INTO Transactions (payee, transactionAmount, transactionType, envelopeName, transactionDate, user_id, navigationScreen, envelopeDetails) 
+    //         VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+    //             [
+    //                 transaction.payee,
+    //                 transaction.transactionAmount,
+    //                 transaction.transactionType,
+    //                 transaction.envelopeName,
+    //                 transaction.transactionDate,
+    //                 transaction.user_id,
+    //                 transaction.navigationScreen || null, // default null if navigationScreen is not provided
+    //                 envelopeDetails, // Pass the serialized envelopeDetails
+    //             ],
+    //             (_, result) => {
+    //                 console.log('Transaction inserted successfully with envelope details.');
+    //             },
+    //             (_, error) => {
+    //                 console.error('Transaction failed. Error code:', error.code, 'Error message:', error.message);
+    //             }
+    //         );
+    //     });
+    // };
+
+
+    //...all code that is to add transactions...end here
+
+
+    // latest code in which for From Unallocated add transactions for all scenarios...
+    const handleAddTransaction = () => {
+        const groupId = uuidv4(); // Generate a unique groupId for linking transactions
+
+        // Check if usedThisFill is zero or positive/negative
+        if (usedThisFill === 0) {
+            // Case 1: No envelopes filled, just set payee
+            const transaction = {
+                payee: payee,
+                transactionAmount: usedThisFill,
+                transactionType: 'Expense', // When no envelopes are filled, it's an 'Expense'
+                envelopeName: 'Distribution',
+                transactionDate: formattedFillDate,
+                user_id: tempUserId,
+                navigationScreen: 'fillEnvelops',
+                groupId: groupId,  // Group ID links the transaction
+                selectedButton: selectedButton,
+                selectedOption: selectedOption || null,
+            };
+
+            // Serialize the envelope details as empty (because no envelopes are filled)
+            const envelopeDetails = JSON.stringify([]);
+
+            // Insert the transaction
+            insertTransaction(transaction, envelopeDetails);
+
+        } else if (usedThisFill > 0 || usedThisFill < 0) {
+            // Case 2: Envelopes filled and usedThisFill > 0 or < 0
+            // Second transaction for 'Available' (Insert it first)
+            const secondTransaction = {
+                payee: payee,
+                transactionAmount: usedThisFill,
+                transactionType: usedThisFill > 0 ? 'Expense' : 'Credit', // Reverse the transaction type if negative
+                envelopeName: '(Available)',
+                transactionDate: formattedFillDate,
+                user_id: tempUserId,
+                navigationScreen: 'fillEnvelops',
+                groupId: groupId, // Same group ID for both transactions
+                selectedButton: selectedButton,
+                selectedOption: selectedOption || null,
+            };
+
+            // First transaction for 'Distribution' (Insert it second)
+            const firstTransaction = {
+                payee: payee,
+                transactionAmount: usedThisFill,
+                transactionType: usedThisFill > 0 ? 'Credit' : 'Expense', // Credit if positive, Expense if negative
+                envelopeName: 'Distribution',
+                transactionDate: formattedFillDate,
+                user_id: tempUserId,
+                navigationScreen: 'fillEnvelops',
+                groupId: groupId, // Same group ID for both transactions
+                selectedButton: selectedButton, // Pass selectedButton state
+                selectedOption: selectedOption || null, 
+            };
+
+            // Serialize the envelope details as required (since we are filling envelopes)
+            const envelopeDetails = JSON.stringify(updatedEnvelopes);
+            // console.log('envelopeDetails that are in group as json formate =0=0=0=0=0=0=0', envelopeDetails);
+
+            // Insert both transactions, with Available first
+            insertTransaction(secondTransaction, envelopeDetails);
+            insertTransaction(firstTransaction, envelopeDetails);
+        }
+    };
+
+    const insertTransaction = (transaction, envelopeDetails) => {
+        db.transaction((tx) => {
+            tx.executeSql(
+                `INSERT INTO Transactions (payee, transactionAmount, transactionType, envelopeName, transactionDate, user_id, navigationScreen, envelopeDetails, groupId, selectedButton, selectedOption)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+                [
+                    transaction.payee,
+                    transaction.transactionAmount,
+                    transaction.transactionType,
+                    transaction.envelopeName,
+                    transaction.transactionDate,
+                    transaction.user_id,
+                    transaction.navigationScreen || null, // default null if navigationScreen is not provided
+                    envelopeDetails, // Pass the serialized envelopeDetails
+                    transaction.groupId,  // Pass the groupId for linking
+                    transaction.selectedButton || null, // Pass selectedButton state (or null if empty)
+                    transaction.selectedOption || null,
+                ],
+                (_, result) => {
+                    console.log('Transaction inserted successfully with envelope details.');
+                },
+                (_, error) => {
+                    console.error('Transaction failed. Error code:', error.code, 'Error message:', error.message);
+                }
+            );
+        });
+    };
+
+    // update/delete code related to ==========  From Unallocated  ==========
+    // handle function for updating firstly old values and then new values when updating a transaction
+
+    // both work perfectly fine to update envelopes filledIncome
+    // function handleUpdateTransaction(transaction) {
+    //     // Log the transaction object to see its structure
+    //     console.log(' all values inside transaction to take values out of it -0-0-0-0-0-0-0-0-0-0-',transaction);
+
+    //     // Check if transaction and envelopeDetails are defined
+    //     if (!transaction || !transaction.envelopeDetails) {
+    //         console.error('Transaction or envelopeDetails is undefined');
+    //         return; // Exit the function if the necessary data is not available
+    //     }
+
+    //     const { envelopeDetails, user_id } = transaction;
+
+    //     // Parse the envelopeDetails JSON string into an array of objects
+    //     let envelopes;
+    //     try {
+    //         envelopes = JSON.parse(envelopeDetails);
+    //     } catch (error) {
+    //         console.error('Error parsing envelopeDetails:', error);
+    //         return; // Exit the function if parsing fails
+    //     }
+
+    //     // Prepare the data object to pass to the update function
+    //     const data = {
+    //         envelopes: envelopes,
+    //         user_id: user_id
+    //     };
+
+    //     // Call the function to update the envelopes
+    //     updateEnvelopesFilledIncome(data);
+    // }
+    // function updateEnvelopesFilledIncome(data) {
+    //     const { envelopes, user_id } = data;
+
+    //     // Start a transaction for updating envelopes
+    //     db.transaction((tx) => {
+    //         envelopes.forEach((envelope) => {
+    //             const { envelopeId, filledIncome } = envelope;
+
+    //             // Determine whether we should add or subtract from the filledIncome
+    //             let updateAmount = Math.abs(filledIncome); // Always work with positive values for update
+
+    //             // Construct the SQL query to update the filledIncome for the envelope
+    //             const query = filledIncome < 0
+    //                 ? `UPDATE envelopes SET filledIncome = filledIncome + ? WHERE envelopeId = ? AND user_id = ?`  // If negative, add it
+    //                 : `UPDATE envelopes SET filledIncome = filledIncome - ? WHERE envelopeId = ? AND user_id = ?`;  // If positive, subtract it
+
+    //             // Execute the SQL query for each envelope
+    //             tx.executeSql(
+    //                 query,
+    //                 [updateAmount, envelopeId, user_id],
+    //                 (tx, results) => {
+    //                     console.log(`Updated filledIncome for envelopeId: ${envelopeId} by amount: ${updateAmount}`);
+    //                 },
+    //                 (tx, error) => {
+    //                     console.error('Error updating envelope filledIncome:', error);
+    //                 }
+    //             );
+    //         });
+    //     },
+    //         (error) => {
+    //             console.error('Transaction error for updating filledIncome:', error);
+    //         },
+    //         () => {
+    //             console.log('Success: Envelope FilledIncome Updated');
+    //         });
+    // }
+
+    // works fine along with updating envelopes also update unallocated
+    function handleUpdateTransaction(transaction) {
+        // Log the transaction object to see its structure
+        console.log(' all values inside transaction to take values out of it -0-0-0-0-0-0-0-0-0-0-', transaction);
+
+        // Check if transaction and envelopeDetails are defined
+        if (!transaction || !transaction.envelopeDetails) {
+            console.error('Transaction or envelopeDetails is undefined');
+            return; // Exit the function if the necessary data is not available
+        }
+
+        const { envelopeDetails, user_id, transactionAmount } = transaction;
+
+        // Parse the envelopeDetails JSON string into an array of objects
+        let envelopes;
+        try {
+            envelopes = JSON.parse(envelopeDetails);
+        } catch (error) {
+            console.error('Error parsing envelopeDetails:', error);
+            return; // Exit the function if parsing fails
+        }
+
+        // Prepare the data object to pass to the update function
+        const data = {
+            envelopes: envelopes,
+            user_id: user_id,
+            transactionAmount: transactionAmount
+        };
+
+        // Call the function to update the envelopes and unallocated income
+        updateEnvelopesFilledIncome(data);
+    }
+    function updateEnvelopesFilledIncome(data) {
+        const { envelopes, user_id, transactionAmount } = data;
+
+        // Start a transaction for updating envelopes
+        db.transaction((tx) => {
+            // First, update the envelopes' filledIncome based on the envelopes array
+            envelopes.forEach((envelope) => {
+                const { envelopeId, filledIncome } = envelope;
+
+                // Determine whether we should add or subtract from the filledIncome
+                let updateAmount = Math.abs(filledIncome); // Always work with positive values for update
+
+                // Construct the SQL query to update the filledIncome for the envelope
+                const query = filledIncome < 0
+                    ? `UPDATE envelopes SET filledIncome = filledIncome + ? WHERE envelopeId = ? AND user_id = ?`  // If negative, add it
+                    : `UPDATE envelopes SET filledIncome = filledIncome - ? WHERE envelopeId = ? AND user_id = ?`;  // If positive, subtract it
+
+                // Execute the SQL query for each envelope
+                tx.executeSql(
+                    query,
+                    [updateAmount, envelopeId, user_id],
+                    (tx, results) => {
+                        console.log(`Updated filledIncome for envelopeId: ${envelopeId} by amount: ${updateAmount}`);
+                    },
+                    (tx, error) => {
+                        console.error('Error updating envelope filledIncome:', error);
+                    }
+                );
+            });
+
+            // Now, update the Unallocated table based on the transactionAmount
+            let unallocatedUpdateAmount = Math.abs(transactionAmount); // Always work with positive values for update
+
+            const unallocatedQuery = transactionAmount < 0
+                ? `UPDATE Unallocated SET unallocatedIncome = unallocatedIncome + ? WHERE user_id = ?`  // If negative, increase it
+                : `UPDATE Unallocated SET unallocatedIncome = unallocatedIncome - ? WHERE user_id = ?`;  // If positive, decrease it
+
+            // Execute the SQL query for Unallocated table
+            tx.executeSql(
+                unallocatedQuery,
+                [unallocatedUpdateAmount, user_id],
+                (tx, results) => {
+                    console.log(`Updated unallocatedIncome for user_id: ${user_id} by amount: ${unallocatedUpdateAmount}`);
+                },
+                (tx, error) => {
+                    console.error('Error updating unallocatedIncome:', error);
+                }
+            );
+        },
+            (error) => {
+                console.error('Transaction error for updating filledIncome and unallocatedIncome:', error);
+            },
+            () => {
+                console.log('Success: Envelope FilledIncome and Unallocated Income Updated');
+                navigation.navigate('TopTab');
+            });
+    }
+
+    // this along with envelopes old unallocated old also update envelopes new unallocated new and transaction new values
+    // not working expectedly
+    // function handleUpdateTransaction(transaction) {
+    //     console.log('Transaction details:', transaction);
+
+    //     if (!transaction || !transaction.envelopeDetails) {
+    //         console.error('Transaction or envelopeDetails is undefined');
+    //         return;
+    //     }
+
+    //     const { envelopeDetails, user_id, transactionAmount, groupId } = transaction;
+
+    //     let envelopes;
+    //     try {
+    //         envelopes = JSON.parse(envelopeDetails);
+    //     } catch (error) {
+    //         console.error('Error parsing envelopeDetails:', error);
+    //         return;
+    //     }
+
+    //     const data = {
+    //         envelopes,
+    //         user_id,
+    //         transactionAmount,
+    //         groupId, // Adding this to use in Transactions table updates
+    //     };
+
+    //     // Call the function to update envelopes, unallocated, and transactions
+    //     updateEnvelopesAndTables(data);
+    // }
+    // function updateEnvelopesAndTables(data) {
+    //     const { envelopes, user_id, transactionAmount, groupId } = data;
+
+    //     // New states for additional updates
+    //     const updatedEnvelopes = []; // Populate this with your updated state values
+    //     const usedThisFill = 0; // Replace with your actual `usedThisFill` value
+
+    //     db.transaction(
+    //         (tx) => {
+    //             // Updating the envelopes' filledIncome based on existing transaction details
+    //             envelopes.forEach((envelope) => {
+    //                 const { envelopeId, filledIncome } = envelope;
+
+    //                 let updateAmount = Math.abs(filledIncome);
+    //                 const query =
+    //                     filledIncome < 0
+    //                         ? `UPDATE envelopes SET filledIncome = filledIncome + ? WHERE envelopeId = ? AND user_id = ?`
+    //                         : `UPDATE envelopes SET filledIncome = filledIncome - ? WHERE envelopeId = ? AND user_id = ?`;
+
+    //                 tx.executeSql(
+    //                     query,
+    //                     [updateAmount, envelopeId, user_id],
+    //                     (tx, results) => {
+    //                         console.log(`Updated filledIncome for envelopeId: ${envelopeId}`);
+    //                     },
+    //                     (tx, error) => {
+    //                         console.error('Error updating envelope filledIncome:', error);
+    //                     }
+    //                 );
+    //             });
+
+    //             // Updating Unallocated table based on existing transactionAmount
+    //             let unallocatedUpdateAmount = Math.abs(transactionAmount);
+    //             const unallocatedQuery =
+    //                 transactionAmount < 0
+    //                     ? `UPDATE Unallocated SET unallocatedIncome = unallocatedIncome + ? WHERE user_id = ?`
+    //                     : `UPDATE Unallocated SET unallocatedIncome = unallocatedIncome - ? WHERE user_id = ?`;
+
+    //             tx.executeSql(
+    //                 unallocatedQuery,
+    //                 [unallocatedUpdateAmount, user_id],
+    //                 (tx, results) => {
+    //                     console.log(`Updated unallocatedIncome for user_id: ${user_id}`);
+    //                 },
+    //                 (tx, error) => {
+    //                     console.error('Error updating unallocatedIncome:', error);
+    //                 }
+    //             );
+
+    //             // Adding new envelope values
+    //             updatedEnvelopes.forEach((newEnvelope) => {
+    //                 const { envelopeId, filledIncome } = newEnvelope;
+
+    //                 tx.executeSql(
+    //                     `UPDATE envelopes SET filledIncome = filledIncome + ? WHERE envelopeId = ? AND user_id = ?`,
+    //                     [filledIncome, envelopeId, user_id],
+    //                     (tx, results) => {
+    //                         console.log(`Added filledIncome for envelopeId: ${envelopeId}`);
+    //                     },
+    //                     (tx, error) => {
+    //                         console.error('Error adding filledIncome for new envelope:', error);
+    //                     }
+    //                 );
+    //             });
+
+    //             // Adding to Unallocated table for new transactionAmount
+    //             if (usedThisFill !== 0) {
+    //                 tx.executeSql(
+    //                     `UPDATE Unallocated SET unallocatedIncome = unallocatedIncome - ? WHERE user_id = ?`,
+    //                     [Math.abs(usedThisFill), user_id],
+    //                     (tx, results) => {
+    //                         console.log(`Updated unallocatedIncome with new transactionAmount for user_id: ${user_id}`);
+    //                     },
+    //                     (tx, error) => {
+    //                         console.error('Error updating unallocatedIncome for new transactionAmount:', error);
+    //                     }
+    //                 );
+    //             }
+
+    //             // Updating Transactions table for the groupId
+    //             tx.executeSql(
+    //                 `UPDATE Transactions SET transactionAmount = transactionAmount + ?, transactionDate = ? WHERE groupId = ? AND user_id = ?`,
+    //                 [usedThisFill, new Date().toISOString(), groupId, user_id],
+    //                 (tx, results) => {
+    //                     console.log(`Updated Transactions table for groupId: ${groupId}`);
+    //                 },
+    //                 (tx, error) => {
+    //                     console.error('Error updating Transactions table:', error);
+    //                 }
+    //             );
+    //         },
+    //         (error) => {
+    //             console.error('Transaction error:', error);
+    //         },
+    //         () => {
+    //             console.log('Success: Envelopes, Unallocated, and Transactions updated.');
+    //             navigation.navigate('TopTab');
+    //         }
+    //     );
+    // }
+
+
+    // code to update transaction end here for From Unallocated
+
+    // Handle function for reverting envelopes and unallocated income
+    const handleDeleteTransaction = (transaction) => {
+        const {
+            envelopeDetails,
+            transactionAmount,
+            groupId,
+            user_id,
+        } = transaction;
+
+        if (!envelopeDetails || !user_id || !groupId || transactionAmount == null) {
+            console.error('Missing required transaction data.');
+            return;
+        }
+
+        // Parse the envelopeDetails to revert each envelope's filledIncome
+        const envelopeArray = JSON.parse(envelopeDetails); // Ensure it's a valid JSON string
+        console.log('all values in envelopeArray especially filledIncome: ', envelopeArray);
+        envelopeArray.forEach(({ envelopeId, filledIncome }) => {
+            if (envelopeId && filledIncome !== undefined) {
+                // Revert the exact filledIncome for each envelope
+                updateEnvelopeFilledIncome(envelopeId, filledIncome, user_id);
+            }
+        });
+
+        // Adjust the unallocated income
+        adjustUnallocatedIncome(transactionAmount, user_id);
+
+        // Call a function to remove records for this transaction from your group
+        deleteTransactionGroup(groupId);
+
+        console.log('Transaction reverted successfully.');
+    };
+
+    // Update filledIncome for individual envelopes
+    const updateEnvelopeFilledIncome = (envelopeId, revertAmount, userId) => {
+        db.transaction(
+            (tx) => {
+                // Determine whether to add or subtract based on the sign of revertAmount
+                const query = revertAmount < 0
+                    ? `UPDATE envelopes SET filledIncome = filledIncome + ABS(?) WHERE envelopeId = ? AND user_id = ?;`
+                    : `UPDATE envelopes SET filledIncome = filledIncome - ? WHERE envelopeId = ? AND user_id = ?;`;
+
+                tx.executeSql(
+                    query,
+                    [Math.abs(revertAmount), envelopeId, userId],
+                    (tx, results) => {
+                        console.log(`Updated filledIncome for envelopeId: ${envelopeId} by amount: ${revertAmount}`);
+                    },
+                    (tx, error) => {
+                        console.error('Error updating envelope filledIncome:', error);
+                    }
+                );
+            },
+            (error) => {
+                console.error('Transaction error for updating filledIncome:', error);
+            },
+            () => {
+                console.log('Success: Envelope FilledIncome Updated');
+            }
+        );
+    };
+
+    // Adjust the unallocated income based on the transactionAmount
+    const adjustUnallocatedIncome = (transactionAmount, userId) => {
+        db.transaction(
+            (tx) => {
+                tx.executeSql(
+                    `UPDATE Unallocated
+                 SET unallocatedIncome = unallocatedIncome + ?
+                 WHERE envelopeName = 'Available' AND user_id = ?;`,
+                    [transactionAmount, userId],
+                    (tx, results) => {
+                        console.log(`Updated unallocatedIncome by amount: ${transactionAmount}`);
+                    },
+                    (tx, error) => {
+                        console.error('Error updating Unallocated income:', error);
+                    }
+                );
+            },
+            (error) => {
+                console.error('Transaction error for updating Unallocated income:', error);
+            },
+            () => {
+                console.log('Success: Unallocated Income Updated');
+            }
+        );
+    };
+
+    // Delete the transaction group based on groupId
+    const deleteTransactionGroup = (groupId) => {
+        db.transaction(
+            (tx) => {
+                tx.executeSql(
+                    `DELETE FROM transactions
+                 WHERE groupId = ?;`,
+                    [groupId],
+                    (tx, results) => {
+                        console.log(`Deleted transaction group with groupId: ${groupId}`);
+                        navigation.navigate('TopTab');
+                    },
+                    (tx, error) => {
+                        console.error('Error deleting transaction group:', error);
+                    }
+                );
+            },
+            (error) => {
+                console.error('Transaction error for deleting transaction group:', error);
+            },
+            () => {
+                console.log('Success: Transaction Group Deleted');
+            }
+        );
+    };
+
+    // code of transactions end here for scenario of From Unallocated
+    // =========  keep unallocated  ========= insert
+    const handleAddTransactionKU = () => {
+        // Check if the transaction is "Credit" or "Expense"
+        const transactionType = unallocatedIncome <= 0 ? 'Expense' : 'Credit';
+        // Create the transaction object
+        const transaction = {
+            payee: payee,
+            transactionAmount: unallocatedIncome,  // Use unallocatedIncome instead of usedThisFill
+            transactionType: transactionType,
+            envelopeName: 'My Account',  // Set this dynamically for Unallocated
+            transactionDate: formattedFillDate,  // Currently selected date
+            user_id: tempUserId,  // Pass the correct user ID
+            navigationScreen: 'fillEnvelops',  // Set screen for navigation context
+            selectedButton: selectedButton,
+            selectedOption: selectedOption,
+        };
+        // console.log('Transaction details when inserting for keep unallocated;;;;;: ', transaction);
+        insertTransactionKU(transaction);
+    };
+
+    const insertTransactionKU = (transaction) => {
+        db.transaction((tx) => {
+            tx.executeSql(
+                `INSERT INTO Transactions (payee, transactionAmount, transactionType, envelopeName, transactionDate, user_id, navigationScreen, selectedButton, selectedOption)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+                [
+                    transaction.payee,
+                    transaction.transactionAmount,
+                    transaction.transactionType,
+                    transaction.envelopeName,
+                    transaction.transactionDate,
+                    transaction.user_id,
+                    transaction.navigationScreen || null,
+                    transaction.selectedButton || null,
+                    transaction.selectedOption || null,
+                ],
+                (_, result) => {
+                    console.log('Transaction inserted successfully without envelope details.');
+                },
+                (_, error) => {
+                    console.error('Transaction failed. Error code:', error.code, 'Error message:', error.message);
+                }
+            );
+        });
+    };
+
+    // =========  keep unallocated  ========= update or delete
+    useEffect(() => {
+        if (transaction && transaction.selectedOption === 'Keep Unallocated') {
+            setPayee(transaction.payee);
+            setSelectedOption(transaction.selectedOption);
+            setSelectedButton(transaction.selectedButton);
+            setUnallocatedIncome(transaction.transactionAmount);
+            setDate(new Date(transaction.transactionDate));  // Set date value, parsing if necessary
+        }
+    }, [transaction]);
+
+    // =========  keep unallocated  ========= delete
+    const handleDeleteTransactionKU = (transaction) => {
+        const {id, transactionAmount, user_id} = transaction;
+        if (!id || !user_id || transactionAmount == null) {
+            console.error('Missing required transaction data.');
+            return;
+        }
+        adjustUnallocatedIncomeKU(transactionAmount, user_id);
+        deleteTransactionKU(id);
+        console.log('Transaction deleted.');
+        navigation.navigate('TopTab');
+    };
+
+    // =========  keep unallocated  ========= update table query
+    const adjustUnallocatedIncomeKU = (transactionAmount, user_id) => {
+        db.transaction(
+            (tx) => {
+                const adjustmentAmount = transactionAmount >= 0 ? -transactionAmount : Math.abs(transactionAmount);
+
+                tx.executeSql(
+                    `UPDATE Unallocated
+                 SET unallocatedIncome = unallocatedIncome + ?
+                 WHERE envelopeName = 'Available' AND user_id = ?;`,
+                    [adjustmentAmount, user_id],
+                    (tx, results) => {
+                        console.log(
+                            `Updated unallocatedIncome ${transactionAmount >= 0 ? 'decreased' : 'increased'
+                            } by amount: ${Math.abs(transactionAmount)}`
+                        );
+                    },
+                    (tx, error) => {
+                        console.error('Error updating Unallocated income:', error);
+                    }
+                );
+            },
+            (error) => {
+                console.error('Transaction error for updating Unallocated income:', error);
+            },
+            () => {
+                console.log('Success: Unallocated Income Updated');
+            }
+        );
+    };
+
+    const deleteTransactionKU = (id) => {
+        db.transaction(
+            (tx) => {
+                tx.executeSql(
+                    `DELETE FROM transactions WHERE id = ?;`,
+                    [id],
+                    (tx, results) => {
+                        console.log(`Deleted transaction with id: ${id}`);
+                    },
+                    (tx, error) => {
+                        console.error('Error deleting transaction:', error);
+                    }
+                );
+            },
+            (error) => {
+                console.error('Transaction error for deleting transaction:', error);
+            },
+            () => {
+                console.log('Success: Transaction Deleted');
+            }
+        );
+    };
 
 
     return (
@@ -912,11 +1628,75 @@ const FillEnvelopes = () => {
                     <Appbar.Content
                         title="Fill Envelopes"
                         titleStyle={styles.appbar_title} />
-                    <Appbar.Action
-                        onPress={handleCheckPress}
-                        icon="check"
-                        color={colors.white}
-                    />
+
+                    {/* to insert/update transaction From Unallocated */}
+                    {selectedButton === 'unallocated' && (
+                        <Appbar.Action
+                            onPress={() => {
+                                if (editOrdelete) {
+                                    handleUpdateTransaction(transaction);
+                                } else {
+                                    handleCheckPress();
+                                }
+                            }}
+                            icon="check"
+                            color={colors.white}
+                        />
+                    )}
+                    {/* to insert/update transaction keep Unallocated */}
+                    {selectedButton === 'newIncome' && selectedOption === 'Keep Unallocated' && (
+                        <Appbar.Action
+                            onPress={() => {
+                                if (editOrdelete) {
+                                    // update function call here for Keep Unallocated
+                                } else {
+                                    handleCheckPress();
+                                }
+                            }}
+                            icon="check"
+                            color={colors.white}
+                        />
+                    )}
+                    {/* to insert/update transaction Fill Each Envelope */}
+                    {selectedButton === 'newIncome' && selectedOption === 'Fill Each Envelope' && (
+                        <Appbar.Action
+                            onPress={() => {
+                                if (editOrdelete) {
+                                    // update function call here for From Fill Each Envelope
+                                } else {
+                                    handleCheckPress();
+                                }
+                            }}
+                            icon="check"
+                            color={colors.white}
+                        />
+                    )}
+
+
+                    {/* to delete transactions of From Unallocated */}
+                    {editOrdelete && selectedButton === 'unallocated' && (
+                        <Appbar.Action
+                            onPress={() => handleDeleteTransaction(transaction)}
+                            icon="delete"
+                            color={colors.white}
+                        />
+                    )}
+                    {/* to delte transactions of Keep Unallocated */}
+                    {editOrdelete && selectedButton === 'newIncome' && selectedOption === 'Keep Unallocated' && (
+                        <Appbar.Action
+                            onPress={() => handleDeleteTransactionKU(transaction)}
+                            icon="delete"
+                            color={colors.white}
+                        />
+                    )}
+                    {/* to delte transactions of Fill Each Envelope */}
+                    {editOrdelete && selectedButton === 'newIncome' && selectedOption === 'Fill Each Envelope' && (
+                        <Appbar.Action
+                            // onPress={() => handleDeleteTransactionFEE(transaction)}
+                            icon="delete"
+                            color={colors.white}
+                        />
+                    )}
                     <Appbar.Action onPress={handleRightIconPress} icon="dots-vertical" color={colors.white} />
                 </Appbar.Header>
                 <Animated.View style={[styles.tooltipContainer, { transform: [{ translateX: slideAnim }] }]}>
@@ -926,7 +1706,7 @@ const FillEnvelopes = () => {
                 </Animated.View>
 
                 <ScrollView style={styles.scroll_view}>
-
+                    {!editOrdelete && (
                     <View style={styles.top_buttons_view}>
                         <Button
                             mode="contained"
@@ -954,6 +1734,7 @@ const FillEnvelopes = () => {
                             FROM UNALLOCATED
                         </Button>
                     </View>
+                    )}
 
                     <View style={styles.fill_from_view}>
                         <Text style={styles.fill_from_text}>
@@ -1346,14 +2127,14 @@ const FillEnvelopes = () => {
                     <RadioButton.Group onValueChange={value => setCustomAmountOption(value)} value={customAmountOption}>
                         {[
                             { label: 'No Change', value: 'noChange' },
-                            {
-                                label: `Set to Budget Amt (${selectedEnvelope?.amount || ''})`,
-                                value: 'equalAmount'
-                            },
+                            // {
+                            //     label: `Set to Budget Amt (${selectedEnvelope?.amount || ''})`,
+                            //     value: 'equalAmount'
+                            // },
                             { label: `Add to Budget Amt (${selectedEnvelope?.amount || ''})`, 
                                 value: 'addToAmount'
                             },
-                            { label: 'Set Specific Amount', value: 'customAmount' },
+                            // { label: 'Set Specific Amount', value: 'customAmount' },
                             { label: 'Add Specific Amount', value: 'addToCustomAmount' },
                         ].map((item, index) => (
                             <TouchableOpacity
@@ -1445,7 +2226,7 @@ const FillEnvelopes = () => {
                             source={Images.expenseplannerimage}
                             style={styles.snack_bar_img}
                         />
-                        <Text style={styles.snack_bar_text}>Enter payee name.</Text>
+                        <Text style={styles.snack_bar_text}>Enter payee name</Text>
                     </View>
                 </Snackbar>
 
@@ -1572,6 +2353,7 @@ const styles = StyleSheet.create({
     fill_from_view: {
         flex: 1,
         paddingVertical: hp('0.7%'),
+        marginTop: hp('0.4%'),
         flexDirection: 'row',
         backgroundColor: colors.lightGray,
     },

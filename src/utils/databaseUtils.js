@@ -21,5 +21,9 @@ export const dropTables = () => {
             () => console.log('Transactions table dropped successfully'),
             error => console.error('Error dropping Transactions table:', error)
         );
+        tx.executeSql('DROP TABLE IF EXISTS Unallocated;', [],
+            () => console.log('Unallocated table dropped successfully'),
+            error => console.error('Error dropping Transactions table:', error)
+        );
     });
 };

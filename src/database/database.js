@@ -20,7 +20,7 @@ const initializeDatabase = () => {
 
         // in case any table is not created correct first drop then create when sure about its values and structure
         // tx.executeSql(
-        //     "DROP TABLE IF EXISTS envelopes;",
+        //     "DROP TABLE IF EXISTS Transactions;",
         //     [],
         //     () => console.log('Table dropped'),
         //     (_, error) => console.error('Error dropping income table:', error)
@@ -130,6 +130,11 @@ const initializeDatabase = () => {
             transactionDate TEXT,
             transactionNote TEXT,
             user_id INTEGER,
+            navigationScreen TEXT,
+            envelopeDetails TEXT,
+            groupId TEXT,
+            selectedButton TEXT,
+            selectedOption TEXT,
             FOREIGN KEY (user_id) REFERENCES Users(id) ON DELETE CASCADE
             FOREIGN KEY (envelopeId) REFERENCES envelopes(envelopeId) ON DELETE CASCADE
             );`,

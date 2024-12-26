@@ -64,19 +64,24 @@ const Transactions = ({ isSearched, setIsSearched, searchModalVisible, setSearch
   const handleEditTransaction = (transaction) => {
     // console.log('transactionAmount is: ', transaction.transactionAmount);
     // console.log('singel transaction details are when try to edit: ', transaction);
-    navigation.navigate('AddEditDeleteTransaction', {
-      id: transaction.id, //
-      payee: transaction.payee, //
-      transactionAmount: transaction.transactionAmount,
-      transactionType: transaction.transactionType, // 
-      envelopeName: transaction.envelopeName, // 
-      // envelopeRemainingIncome: transaction.envelopeRemainingIncome, // check this if it is properly passed
-      envelopeId: transaction.envelopeId,
-      accountName: transaction.accountName, //
-      transactionDate: transaction.transactionDate, //
-      transactionNote: transaction.transactionNote, //
-      edit_transaction: true,
-    });
+    if (transaction.navigationScreen === 'fillEnvelops') {
+      // Navigate to FillEnvelopesAuthenticated with the full transaction object
+      navigation.navigate('FillEnvelopesAuthenticated', { transaction, editOrdelete: true });
+    } else {
+      navigation.navigate('AddEditDeleteTransaction', {
+        id: transaction.id, //
+        payee: transaction.payee, //
+        transactionAmount: transaction.transactionAmount,
+        transactionType: transaction.transactionType, // 
+        envelopeName: transaction.envelopeName, // 
+        // envelopeRemainingIncome: transaction.envelopeRemainingIncome, // check this if it is properly passed
+        envelopeId: transaction.envelopeId,
+        accountName: transaction.accountName, //
+        transactionDate: transaction.transactionDate, //
+        transactionNote: transaction.transactionNote, //
+        edit_transaction: true,
+      });
+    }
   };
 
   const formatDate = (dateString) => {
@@ -145,14 +150,20 @@ const Transactions = ({ isSearched, setIsSearched, searchModalVisible, setSearch
                           <Text
                             // numberOfLines={1}
                             // elellipsizeMode="tail"
-                            style={[styles.amt_txt, { color: item.transactionType === 'Credit' ? colors.brightgreen : colors.black }]}>
-                            {item.transactionType === 'Credit' ? `+ ${item.transactionAmount}` : item.transactionAmount}.00
+                            style={[styles.amt_txt, { color: item.transactionType === 'Credit' ? colors.brightgreen : colors.black }]}
+                          >
+                            {item.transactionType === 'Credit'
+                              ? `+ ${Math.abs(item.transactionAmount)}`  // Apply Math.abs() to Credit as well to not show values in minus
+                              : `${Math.abs(item.transactionAmount)}`     // Apply Math.abs() for non-Credit (Expense) to not show values in minus
+                            }.00
                           </Text>
                         </View>
                       </View>
                       <View style={styles.envelope_account_txt_view}>
                         <Text style={styles.envelope_name_txt}>{item.envelopeName}</Text>
-                        <Text style={styles.account_name_txt}> | My Account</Text>
+                        {item.accountName && (
+                          <Text style={styles.account_name_txt}> | {item.accountName}</Text>
+                        )}
                       </View>
                     </View>
                   </TouchableOpacity>

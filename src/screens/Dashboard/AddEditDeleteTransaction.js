@@ -311,7 +311,7 @@ const AddEditDeleteTransaction = () => {
       transactionNote: note,
       user_id: tempUserId,
     };
-    console.log('Transaction values to be added:', transaction);
+    // console.log('Transaction values to be added:', transaction);
     insertTransaction(transaction, formattedFromDate, formattedToDate);
   };
 
@@ -537,7 +537,7 @@ const AddEditDeleteTransaction = () => {
   };
 
 
-  // code to delte transaction
+  // code to delte transaction older
   // const handleDeleteTransaction = (formattedFromDate, formattedToDate) => {
   //   if (id) {
   //     db.transaction((tx) => {
@@ -999,17 +999,19 @@ const AddEditDeleteTransaction = () => {
   useEffect(() => {
     // console.log('Checking if route.params and envelopes are available...');
 
-    if (route.params?.envelopeName) {
-      console.log('Envelope Name found:', route.params.envelopeName);
-    } else {
-      console.log('Envelope Name not found in route.params');
-    }
+    // this is just for testing
+    // if (route.params?.envelopeName) {
+    //   console.log('Envelope Name found:', route.params.envelopeName);
+    // } else {
+    //   console.log('Envelope Name not found in route.params');
+    // }
 
-    if (envelopes.length > 0) {
-      console.log('Envelopes array is populated:');
-    } else {
-      console.log('Envelopes array is empty or not yet populated');
-    }
+    // this too is for testing purposes
+    // if (envelopes.length > 0) {
+    //   console.log('Envelopes array is populated:');
+    // } else {
+    //   console.log('Envelopes array is empty or not yet populated');
+    // }
 
     if (route.params?.envelopeName && envelopes.length > 0) {
       // console.log('Both envelopeId and envelopes are available. Marking data as ready.');
