@@ -283,16 +283,16 @@ const addEnvelope = (envelopeName, amount, budgetPeriod, tempUserId, formattedFr
             (_, result) => {
                 // Step 2: Insert the new envelope with orderIndex set to 0
                 tx.executeSql(
-                    'INSERT INTO envelopes (envelopeName, amount, budgetPeriod, user_id, fillDate ,orderIndex ) VALUES (?, ?, ?, ?, ?, ?)',
-                    [envelopeName, amount, budgetPeriod, tempUserId, formattedFromDate,0],
+                    'INSERT INTO envelopes (envelopeName, amount, budgetPeriod, user_id, fillDate , orderIndex, filledIncome) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                    [envelopeName, amount, budgetPeriod, tempUserId, formattedFromDate, 0, 0],
                     (_, result) => {
                         // Step 3: Fetch all envelopes to reflect the change
                         getAllEnvelopes(); // Update the state after addition
                     },
                     (_, error) => {
                         console.error('Error adding envelope:', error.message || error);
-                        console.log('Failed SQL command:', 'INSERT INTO envelopes (envelopeName, amount, budgetPeriod, orderIndex) VALUES (?, ?, ?, ?)',
-                            [envelopeName, amount, budgetPeriod, formattedFromDate,0]);
+                        console.log('Failed SQL command:', 'INSERT INTO envelopes (envelopeName, amount, budgetPeriod, orderIndex, filledIncome) VALUES (?, ?, ?, ?, ?)',
+                            [envelopeName, amount, budgetPeriod, formattedFromDate, 0, 0]);
                     }
                 );
             },
