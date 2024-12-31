@@ -223,7 +223,7 @@ const SetIncomeAmount = () => {
                             'UPDATE Income SET accountName = ?, budgetPeriod = ?, monthlyAmount = ?, budgetAmount = ?, incomeDate = ?, user_id = ? WHERE id = ?',
                             [income.accountName, income.budgetPeriod, income.monthlyAmount, income.budgetAmount, income.incomeDate, tempUserId, income.id,],
                             (tx, results) => {
-                                console.log('Updated income values are: ', { id: income.id, accountName: income.accountName, monthlyAmount: income.monthlyAmount, budgetAmount: income.budgetAmount, incomeDate: income.incomeDate, budgetPeriod: income.budgetPeriod, user_id: tempUserId });
+                                // console.log('Updated income values are: ', { id: income.id, accountName: income.accountName, monthlyAmount: income.monthlyAmount, budgetAmount: income.budgetAmount, incomeDate: income.incomeDate, budgetPeriod: income.budgetPeriod, user_id: tempUserId });
                             },
                             error => console.error('Error updating income:', error)
                         );
@@ -234,7 +234,7 @@ const SetIncomeAmount = () => {
                             (tx, results) => {
                                 if (results.insertId) {
                                     income.id = results.insertId;
-                                    console.log('Inserted income values are: ', { id: results.insertId, accountName: income.accountName, monthlyAmount: income.monthlyAmount, budgetAmount: income.budgetAmount, incomeDate: income.incomeDate, budgetPeriod: income.budgetPeriod, user_id: tempUserId });
+                                    // console.log('Inserted income values are: ', { id: results.insertId, accountName: income.accountName, monthlyAmount: income.monthlyAmount, budgetAmount: income.budgetAmount, incomeDate: income.incomeDate, budgetPeriod: income.budgetPeriod, user_id: tempUserId });
                                 }
                             },
                             error => console.error('Error inserting income:', error)

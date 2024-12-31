@@ -180,10 +180,10 @@ const Onboarding = () => {
   const [newPassword, setNewPassword] = useState('');
   const [savedEmail, setSavedEmail] = useState('');
 
-  console.log('saved eamil against which we will update password:', savedEmail);
+  // console.log('saved eamil against which we will update password:', savedEmail);
 
   const handleResetPassword = async (values) => {
-    console.log('email at which we want to send otp is: ', values);
+    // console.log('email at which we want to send otp is: ', values);
     await sendResetEmail(values.email);
     setSavedEmail(values.email);
   };

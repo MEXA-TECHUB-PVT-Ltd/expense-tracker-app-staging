@@ -269,7 +269,7 @@ const EnvelopeTransfer = () => {
 
     // for deleting and updating transactions
     const { transaction, editOrdelete } = route.params || {}; // Use a fallback to an empty object if route.params is undefined
-    // console.log('transactions values are: ====', transaction);
+    console.log('transactions values are: ====', transaction);
     // console.log('editOrdelete values are: ====', editOrdelete);
 
     useEffect(() => {
@@ -441,7 +441,6 @@ const EnvelopeTransfer = () => {
                 }
             });
 
-
             // Now applying the new values for the "from" and "to" envelopes
             // For "Expense" envelope (decrease filledIncome)
             // Check if selectedEnvelopeFrom is defined (for Expense transaction)
@@ -508,17 +507,21 @@ const EnvelopeTransfer = () => {
                         ]);
                         console.log('New envelope details:', newEnvelopeDetails);  // Log the new envelope details being prepared
 
-                        // Update each transaction with the new envelopeDetails, transactionAmount, and payee
+                        // Determine the envelopeName based on transactionType
+                        const newEnvelopeName = txn.transactionType === "Expense" ? selectedEnvelopeFrom : selectedEnvelopeTo;                    
+
+                        // Update each transaction with the new envelopeDetails, transactionAmount, payee, and envelopeName
                         tx.executeSql(
-                            `UPDATE Transactions SET envelopeDetails = ?, transactionAmount = ?, payee = ? WHERE groupId = ?`,
-                            [newEnvelopeDetails, transactionAmount, payee, groupId],
+                            `UPDATE Transactions SET envelopeDetails = ?, transactionAmount = ?, payee = ?, envelopeName = ? WHERE id = ?`,
+                            [newEnvelopeDetails, transactionAmount, payee, newEnvelopeName, txn.id],
                             (_, updateResult) => {
-                                console.log(`Transaction updated for groupId ${groupId}:`, updateResult);  // Log the result of the update
+                                console.log(`Transaction updated for txnId ${txn.id}:`, updateResult); // Log the result of the update
                             },
                             (error) => {
-                                console.error(`Error updating transaction for groupId ${groupId}:`, error);
+                                console.error(`Error updating transaction for txnId ${txn.id}:`, error);
                             }
                         );
+
                     });
                 },
                 (error) => {
@@ -526,12 +529,9 @@ const EnvelopeTransfer = () => {
                 }
             );
 
-
             navigation.navigate('TopTab');
         });
     };
-
-
     // code for updating transactions and reverting back amount to relevent envelopes end
 
     return (

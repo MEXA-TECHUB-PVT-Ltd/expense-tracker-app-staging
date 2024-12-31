@@ -9,7 +9,7 @@ const db = SQLite.openDatabase(
 // To get the path where the database is located
 db.transaction(tx => {
     tx.executeSql('PRAGMA database_list;', [], (tx, results) => {
-        console.log('Database Path:', results.rows.item(0).file);
+        // console.log('Database Path:', results.rows.item(0).file);
     });
 });
 
@@ -71,7 +71,7 @@ const initializeDatabase = () => {
             FOREIGN KEY (user_id) REFERENCES Users(id) ON DELETE CASCADE
             )`,
             [],
-            () => console.log('Envelopes Table created successfully'),
+            () => console.log('envelopes Table created successfully'),
             (_, error) => {
                 console.log('Error creating envelopes table:', error);
                 return true;
@@ -122,6 +122,7 @@ const initializeDatabase = () => {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             payee TEXT,
             transactionAmount REAL,
+            transactionAmountFee REAL,
             transactionType TEXT,
             envelopeName TEXT,
             envelopeRemainingIncome REAL,
@@ -182,60 +183,32 @@ const initializeDatabase = () => {
             );
         });
 
-        
-        // db.transaction(tx => {
-        //     // Create the table if it doesn't exist
-        //     tx.executeSql(
-        //         `CREATE TABLE IF NOT EXISTS Payees (
-        //     id INTEGER PRIMARY KEY AUTOINCREMENT,
-        //     name TEXT NOT NULL UNIQUE,
-        //     isDefault INTEGER DEFAULT 0
-        // );`,
-        //         [],
-        //         () => {
-        //             console.log("Payees table created successfully");
-        //             // Insert default payees
-        //             DEFAULT_PAYEES.forEach(payee => {
-        //                 tx.executeSql(
-        //                     `INSERT OR IGNORE INTO Payees (name, isDefault) VALUES (?, 1);`,
-        //                     [payee],
-        //                     () => console.log(`Default payee "${payee}" added`),
-        //                     (tx, error) => console.error(`Error adding default payee "${payee}"`, error)
-        //                 );
-        //             });
-        //         },
-        //         (tx, error) => console.error("Error creating Payees table:", error)
-        //     );
-        // });
-
-        
-
         // create FilledIncome table if not exists
-        tx.executeSql(
-            `CREATE TABLE IF NOT EXISTS FilledIncome (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            envelopeId INTEGER UNIQUE,
-            selectedEnvelopeName TEXT NOT NULL,
-            filledIncome REAL,
-            fillDate TEXT NOT NULL
-            );`, 
-            [],
-            () => console.log('FilledIncome table created successfully.'),
-            (_, error) => console.error('Error creating FilledIncome table:', error)
-        ); 
+        // tx.executeSql(
+        //     `CREATE TABLE IF NOT EXISTS FilledIncome (
+        //     id INTEGER PRIMARY KEY AUTOINCREMENT,
+        //     envelopeId INTEGER UNIQUE,
+        //     selectedEnvelopeName TEXT NOT NULL,
+        //     filledIncome REAL,
+        //     fillDate TEXT NOT NULL
+        //     );`, 
+        //     [],
+        //     () => console.log('FilledIncome table created successfully.'),
+        //     (_, error) => console.error('Error creating FilledIncome table:', error)
+        // ); 
         
         // create FilledIncomeIndividualTable
-        tx.executeSql(
-            `CREATE TABLE IF NOT EXISTS FilledIncomeIndividual (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            envelopeId INTEGER UNIQUE,
-            filledIncome REAL,
-            fillDate TEXT NOT NULL
-            );`,
-            [],
-            () => console.log('FilledIncomeIndividual table created successfully.'),
-            (_, error) => console.error('Error creating FilledIncome table:', error)
-        );    
+        // tx.executeSql(
+        //     `CREATE TABLE IF NOT EXISTS FilledIncomeIndividual (
+        //     id INTEGER PRIMARY KEY AUTOINCREMENT,
+        //     envelopeId INTEGER UNIQUE,
+        //     filledIncome REAL,
+        //     fillDate TEXT NOT NULL
+        //     );`,
+        //     [],
+        //     () => console.log('FilledIncomeIndividual table created successfully.'),
+        //     (_, error) => console.error('Error creating FilledIncome table:', error)
+        // );    
 
     });
 };
@@ -306,7 +279,7 @@ const addEnvelope = (envelopeName, amount, budgetPeriod, tempUserId, formattedFr
             console.error('Transaction Error:', error);
         },
         () => {
-            console.log('Transaction completed successfully');
+            // console.log('Transaction completed successfully');
         });
 };
 
@@ -321,7 +294,7 @@ const getAllEnvelopes = () => {
                 for (let i = 0; i < results.rows.length; i++) {
                     envelopes.push(results.rows.item(i));
                 }
-                console.log('All envelopes in the database:', envelopes);
+                // console.log('All envelopes in the database:', envelopes);
             },
             error => {
                 console.error('Error fetching envelopes:', error);
@@ -359,7 +332,7 @@ const deleteEnvelope = (envelopeId) => {
         tx.executeSql(
             'DELETE FROM envelopes WHERE envelopeId = ?',
             [envelopeId],
-            (_, result) => console.log('Envelope deleted:', result),
+            // (_, result) => console.log('Envelope deleted:', result),
             (_, error) => {
                 console.log('Error deleting envelope:', error);
                 return true;
