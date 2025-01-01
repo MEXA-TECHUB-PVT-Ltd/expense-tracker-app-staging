@@ -1015,7 +1015,8 @@ const FillEnvelopes = () => {
                 payee: payee,
                 transactionAmount: usedThisFill,
                 transactionType: 'Expense', // When no envelopes are filled, it's an 'Expense'
-                envelopeName: 'Distribution',
+                accountName: 'Distribution', 
+                // envelopeName: 'Distribution',  // instead of this use accountName
                 transactionDate: formattedFillDate,
                 user_id: tempUserId,
                 navigationScreen: 'fillEnvelops',
@@ -1036,7 +1037,7 @@ const FillEnvelopes = () => {
                 payee: payee,
                 transactionAmount: usedThisFill,
                 transactionType: 'Expense', // Treated as an 'Expense'
-                envelopeName: 'Distribution',
+                accountName: 'Distribution',
                 transactionDate: formattedFillDate,
                 user_id: tempUserId,
                 navigationScreen: 'fillEnvelops',
@@ -1058,7 +1059,8 @@ const FillEnvelopes = () => {
                 payee: payee,
                 transactionAmount: usedThisFill,
                 transactionType: usedThisFill > 0 ? 'Expense' : 'Credit', // Reverse the transaction type if negative
-                envelopeName: '(Available)',
+                accountName: '(Available)',
+                // envelopeName: '(Available)',
                 transactionDate: formattedFillDate,
                 user_id: tempUserId,
                 navigationScreen: 'fillEnvelops',
@@ -1072,7 +1074,8 @@ const FillEnvelopes = () => {
                 payee: payee,
                 transactionAmount: usedThisFill,
                 transactionType: usedThisFill > 0 ? 'Credit' : 'Expense', // Credit if positive, Expense if negative
-                envelopeName: 'Distribution',
+                accountName: 'Distribution',
+                // envelopeName: 'Distribution',
                 transactionDate: formattedFillDate,
                 user_id: tempUserId,
                 navigationScreen: 'fillEnvelops',
@@ -1094,13 +1097,13 @@ const FillEnvelopes = () => {
     const insertTransaction = (transaction, envelopeDetails) => {
         db.transaction((tx) => {
             tx.executeSql(
-                `INSERT INTO Transactions (payee, transactionAmount, transactionType, envelopeName, transactionDate, user_id, navigationScreen, envelopeDetails, groupId, selectedButton, selectedOption)
+                `INSERT INTO Transactions (payee, transactionAmount, transactionType, accountName, transactionDate, user_id, navigationScreen, envelopeDetails, groupId, selectedButton, selectedOption)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
                 [
                     transaction.payee,
                     transaction.transactionAmount,
                     transaction.transactionType,
-                    transaction.envelopeName,
+                    transaction.accountName,
                     transaction.transactionDate,
                     transaction.user_id,
                     transaction.navigationScreen || null, // default null if navigationScreen is not provided
@@ -1775,7 +1778,7 @@ const FillEnvelopes = () => {
                 transactionAmount: unallocatedIncome,
                 transactionAmountFee: usedThisFill, 
                 transactionType: unallocatedIncome <= 0 ? 'Expense' : 'Credit',
-                envelopeName: 'My Account',
+                accountName: 'My Account',
                 transactionDate: formattedFillDate,
                 user_id: tempUserId,
                 navigationScreen: 'fillEnvelops',
@@ -1795,7 +1798,7 @@ const FillEnvelopes = () => {
                 transactionAmount: unallocatedIncome,
                 transactionAmountFee: usedThisFill, 
                 transactionType: unallocatedIncome <= 0 ? 'Expense' : 'Credit',
-                envelopeName: 'My Account',
+                accountName: 'My Account',
                 transactionDate: formattedFillDate,
                 user_id: tempUserId,
                 navigationScreen: 'fillEnvelops',
@@ -1814,14 +1817,14 @@ const FillEnvelopes = () => {
     const insertTransactionFee = (transaction, envelopeDetails) => {
         db.transaction((tx) => {
             tx.executeSql(
-                `INSERT INTO Transactions (payee, transactionAmount, transactionAmountFee, transactionType, envelopeName, transactionDate, user_id, navigationScreen, envelopeDetails, groupId, selectedButton, selectedOption)
+                `INSERT INTO Transactions (payee, transactionAmount, transactionAmountFee, transactionType, accountName, transactionDate, user_id, navigationScreen, envelopeDetails, groupId, selectedButton, selectedOption)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
                 [
                     transaction.payee,
                     transaction.transactionAmount,
                     transaction.transactionAmountFee,
                     transaction.transactionType,
-                    transaction.envelopeName,
+                    transaction.accountName,
                     transaction.transactionDate,
                     transaction.user_id,
                     transaction.navigationScreen || null, // default null if navigationScreen is not provided

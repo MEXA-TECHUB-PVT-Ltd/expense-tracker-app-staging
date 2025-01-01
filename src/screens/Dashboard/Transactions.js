@@ -31,6 +31,7 @@ const Transactions = ({ isSearched, setIsSearched, searchModalVisible, setSearch
 
   // code to get all transactions in Transaction table 
   const [transactions, setTransactions] = useState([]);
+  console.log('transactions are: ', transactions);
   useFocusEffect(
     useCallback(() => {
       // console.log('Running getAllTransactions with tempUserId:', tempUserId);
@@ -164,8 +165,11 @@ const Transactions = ({ isSearched, setIsSearched, searchModalVisible, setSearch
                       </View>
                       <View style={styles.envelope_account_txt_view}>
                         <Text style={styles.envelope_name_txt}>{item.envelopeName}</Text>
-                        {item.accountName && (
+                        {item.envelopeName && item.accountName && (
                           <Text style={styles.account_name_txt}> | {item.accountName}</Text>
+                        )}
+                        {item.accountName && !item.envelopeName && (
+                          <Text style={styles.account_name_txt}>{item.accountName}</Text>
                         )}
                       </View>
                     </View>

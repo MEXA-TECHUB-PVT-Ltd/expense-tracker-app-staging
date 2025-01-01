@@ -18,6 +18,9 @@ const SingleEnvelopeDetails = ({ route }) => {
   const { envelope } = route.params;
   // console.log('value of envelope in singel envelope screen: ', envelope);
   const envelopeName = envelope.envelopeName;
+  console.log('envelope name: ', envelopeName);
+  const envelopeId = envelope.envelopeId;
+  console.log('envelopeId: ', envelopeId);
   const handleLeftIconPress = () => {
     navigation.goBack();
     setIsSearched(false);
@@ -81,36 +84,104 @@ const SingleEnvelopeDetails = ({ route }) => {
 
   // code to get all transactions in Transaction table 
   const [envelopeTransactions, setEnvelopeTransactions] = useState([]);
+  // console.log('envelope transactions are: ', envelopeTransactions);
   useFocusEffect(
     useCallback(() => {
-      getTransactionsByEnvelope(envelopeName, tempUserId);
-    }, [envelopeName, tempUserId])
+      getTransactionsByEnvelope(envelopeId, tempUserId);
+    }, [envelopeId, tempUserId])
   );
-  const getTransactionsByEnvelope = (envelopeName, tempUserId) => {
+
+  const getTransactionsByEnvelope = (envelopeId, tempUserId) => {
     db.transaction((tx) => {
       tx.executeSql(
-        `SELECT * FROM Transactions WHERE envelopeName = ? AND user_id = ? ORDER BY id DESC;`,
-        [envelopeName, tempUserId], // Pass envelopeName as a parameter to the query
+        `SELECT * FROM Transactions WHERE user_id = ? ORDER BY id DESC;`,
+        [tempUserId],
         (_, results) => {
           const rows = results.rows;
           let allTransactions = [];
+
           for (let i = 0; i < rows.length; i++) {
-            allTransactions.push(rows.item(i));
+            const transaction = rows.item(i);
+
+            // Parse envelopeDetails if available
+            if (transaction.envelopeDetails) {
+              const envelopeDetails = JSON.parse(transaction.envelopeDetails);
+
+              // Filter by the passed envelopeId inside envelopeDetails
+              const filteredDetails = envelopeDetails.filter(
+                (envelope) => envelope.envelopeId === envelopeId
+              );
+
+              // Add only filtered transactions
+              filteredDetails.forEach((envelope) => {
+                // Determine transactionType based on filledIncome value
+                const transactionType = envelope.filledIncome > 0 ? "Credit" : "Expense";
+
+                allTransactions.push({
+                  ...transaction,
+                  ...envelope,
+                  envelopeName: envelope.envelopeName || transaction.envelopeName, // Merge envelopeName
+                  transactionAmount: envelope.filledIncome || transaction.transactionAmount, // Adjust amount
+                  transactionType, // Set transactionType based on filledIncome
+                });
+              });
+            } else if (
+              transaction.envelopeId && // Filter by direct envelopeId
+              transaction.envelopeId === envelopeId
+            ) {
+              // Add transactions without envelopeDetails but matching envelopeId
+              allTransactions.push(transaction);
+            }
           }
-          setEnvelopeTransactions(allTransactions);
-          // console.log('Transactions for envelope:', envelopeName, 'are:', allTransactions);
+
+          // Filter out transactions where accountName is "(Available)"
+          const filteredTransactions = allTransactions.filter((transaction) => {
+            return transaction.accountName !== "(Available)";
+          });
+
+          // Set filtered transactions to state
+          setEnvelopeTransactions(filteredTransactions);
         },
         (error) => {
-          console.error('Error fetching transactions', error);
+          console.error("Error fetching transactions", error);
         }
       );
     });
   };
 
+  // older code working fine...but dont show fill each and from unallocated transactions for envelopes
+  // const getTransactionsByEnvelope = (envelopeName, tempUserId) => {
+  //   db.transaction((tx) => {
+  //     tx.executeSql(
+  //       `SELECT * FROM Transactions WHERE envelopeName = ? AND user_id = ? ORDER BY id DESC;`,
+  //       [envelopeName, tempUserId], // Pass envelopeName as a parameter to the query
+  //       (_, results) => {
+  //         const rows = results.rows;
+  //         let allTransactions = [];
+  //         for (let i = 0; i < rows.length; i++) {
+  //           allTransactions.push(rows.item(i));
+  //         }
+  //         setEnvelopeTransactions(allTransactions);
+  //         // console.log('Transactions for envelope:', envelopeName, 'are:', allTransactions);
+  //       },
+  //       (error) => {
+  //         console.error('Error fetching transactions', error);
+  //       }
+  //     );
+  //   });
+  // };
+
   const handleEditTransaction = (transaction) => {
     // console.log('transactionAmount is: ', transaction.transactionAmount);
-    console.log('singel transaction details are when try to edit: ', transaction);
-    navigation.navigate('AddEditDeleteTransaction', {
+    // console.log('singel transaction details are when try to edit: ', transaction);
+    if (transaction.navigationScreen === 'fillEnvelops') {
+      // Navigate to FillEnvelopesAuthenticated with the full transaction object
+      navigation.navigate('FillEnvelopesAuthenticated', { transaction, editOrdelete: true });
+    } else if (transaction.navigationScreen === 'envelopeTransfer') {
+      // Navigate to FillEnvelopesAuthenticated with the full transaction object
+      navigation.navigate('EnvelopeTransfer', { transaction, editOrdelete: true });
+    } else {
+       navigation.navigate('AddEditDeleteTransaction', {
       id: transaction.id, //
       payee: transaction.payee, //
       transactionAmount: transaction.transactionAmount,
@@ -122,7 +193,25 @@ const SingleEnvelopeDetails = ({ route }) => {
       user_id: transaction.user_id,
       edit_transaction: true,
     });
+    }
   };
+
+  // const handleEditTransaction = (transaction) => {
+  //   // console.log('transactionAmount is: ', transaction.transactionAmount);
+  //   console.log('singel transaction details are when try to edit: ', transaction);
+  //   navigation.navigate('AddEditDeleteTransaction', {
+  //     id: transaction.id, //
+  //     payee: transaction.payee, //
+  //     transactionAmount: transaction.transactionAmount,
+  //     transactionType: transaction.transactionType, // 
+  //     envelopeName: transaction.envelopeName, // 
+  //     accountName: transaction.accountName, //
+  //     transactionDate: transaction.transactionDate, //
+  //     transactionNote: transaction.transactionNote, //
+  //     user_id: transaction.user_id,
+  //     edit_transaction: true,
+  //   });
+  // };
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -297,8 +386,13 @@ const SingleEnvelopeDetails = ({ route }) => {
                         <View style={styles.envelope_account_txt_view}>
                           <View style={styles.txt_amt_view}>
                             <View style={styles.envelope_account_texts_view}>
-                              <Text style={styles.envelope_name_txt}>{item.envelopeName}</Text>
-                              <Text style={styles.account_name_txt}> | My Account</Text>
+
+                              {!item.envelopeDetails && (
+                                <Text style={styles.envelope_name_txt}>{item.envelopeName} | </Text>
+                              )}
+                              {/* <Text style={styles.envelope_name_txt}>{item.envelopeName}</Text> */}
+
+                              <Text style={styles.account_name_txt}>{item.accountName}</Text>
                             </View>
                             <View style={styles.amt_txt_view}>
                               <Text style={styles.account_amount_txt}>{item.envelopeRemainingIncome}</Text>

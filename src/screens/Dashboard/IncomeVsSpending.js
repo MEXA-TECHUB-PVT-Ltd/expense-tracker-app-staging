@@ -460,7 +460,10 @@ const IncomeVsSpending = () => {
 
     // new code in which it's considering only expense type transactions for calculating spending latest
     const spending = monthTransactions.reduce((sum, transaction) => {
-      if (transaction.transactionType === "Expense") return sum + transaction.transactionAmount;
+      if (
+        transaction.transactionType === "Expense" &&
+        transaction.envelopeName !== null
+      ) return sum + transaction.transactionAmount;
       return sum;
     }, 0);
 

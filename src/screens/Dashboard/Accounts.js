@@ -117,7 +117,11 @@ const Accounts = () => {
     React.useCallback(() => {
       // Calculate spending directly from the transactions state
       const totalSpent = transactions
-        .filter((transaction) => transaction.transactionType === "Expense")
+        .filter(
+          (transaction) => 
+          transaction.transactionType === "Expense" &&
+           transaction.envelopeName !== null
+        )
         .reduce((sum, transaction) => sum + transaction.transactionAmount, 0);
 
       setSpentIncome(totalSpent);

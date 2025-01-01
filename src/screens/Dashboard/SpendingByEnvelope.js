@@ -412,7 +412,11 @@ const SpendingByEnvelope = () => {
         let totalExpenseSpending = 0;
 
         transactions
-            .filter((transaction) => transaction.user_id === userId && transaction.transactionType === "Expense")
+            .filter((transaction) => 
+                transaction.user_id === userId && 
+            transaction.transactionType === "Expense" &&
+            transaction.envelopeName !== null
+        )
             .forEach((transaction) => {
                 const { envelopeName, transactionAmount } = transaction;
 

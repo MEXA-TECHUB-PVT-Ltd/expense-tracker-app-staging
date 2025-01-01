@@ -179,15 +179,15 @@ const MainStack = () => {
         const startOfCurrentMonth = moment().startOf('month');
         const currentYear = now.format('YYYY');
 
-        // console.log('Current Date:', now.format('YYYY-MM-DD HH:mm:ss'));
-        // console.log('Start of Current Month:', startOfCurrentMonth.format('YYYY-MM-DD HH:mm:ss'));
+        console.log('Current Date:', now.format('YYYY-MM-DD HH:mm:ss'));
+        console.log('Start of Current Month:', startOfCurrentMonth.format('YYYY-MM-DD HH:mm:ss'));
 
         // Fetch stored records
         const lastCopyMonth = await AsyncStorage.getItem('lastCopyMonth');
         const lastCopyYear = await AsyncStorage.getItem('lastCopyYear');
 
-        // console.log('Stored lastCopyMonth:', lastCopyMonth);
-        // console.log('Stored lastCopyYear:', lastCopyYear);
+        console.log('Stored lastCopyMonth:', lastCopyMonth);
+        console.log('Stored lastCopyYear:', lastCopyYear);
 
         // Handle first-time installation scenario
         if (!lastCopyMonth || !lastCopyYear) {
@@ -197,7 +197,7 @@ const MainStack = () => {
             await AsyncStorage.setItem('lastCopyMonth', startOfCurrentMonth.format('YYYY-MM'));
             await AsyncStorage.setItem('lastCopyYear', currentYear);
 
-            // console.log('Stored new lastCopyMonth and lastCopyYear in AsyncStorage.');
+            console.log('Stored new lastCopyMonth and lastCopyYear in AsyncStorage.');
             return;
         }
 

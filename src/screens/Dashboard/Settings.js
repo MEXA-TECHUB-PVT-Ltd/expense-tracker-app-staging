@@ -12,6 +12,7 @@ import { dropTables } from '../../utils/databaseUtils';
 import { removeUserData } from '../../utils/authUtils';
 import dimensions from '../../constants/dimensions';
 import { db } from '../../database/database';
+import { initializeDatabase } from '../../database/database';
 
 import RNFS from 'react-native-fs';
 
@@ -110,13 +111,16 @@ const About = () => {
         // conflicted either we drop them or either keep forgot password functionality
 
         dropTables();
+
+        initializeDatabase();
+
         await clearLastCopyMonth(); 
         await clearLastCopyYear();  
         await clearSelectedRange();
         await clearSelectedRangeSBE();
 
         dispatch(logout());
-        navigation.navigate('Onboarding');  // this is for cross confirmation although it navigates on basis of isAuthenticated state in redux
+        // navigation.navigate('Onboarding');  // this is for cross confirmation although it navigates on basis of isAuthenticated state in redux
         setLogoutModalVisible(false);
     };
 
