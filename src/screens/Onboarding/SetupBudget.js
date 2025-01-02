@@ -42,16 +42,16 @@ const SetupBudget = () => {
             tx.executeSql(
                 `DELETE FROM envelopes WHERE user_id = -1`,
                 [],
-                (_, result) => console.log('Deleted envelopes with user_id -1'),
-                (_, error) => console.log('Error deleting envelopes:', error)
+                // (_, result) => console.log('Deleted envelopes with user_id -1'),
+                // (_, error) => console.log('Error deleting envelopes:', error)
             );
 
             // Delete rows from Income table
             tx.executeSql(
                 `DELETE FROM Income WHERE user_id = -1`,
                 [],
-                (_, result) => console.log('Deleted income with user_id -1'),
-                (_, error) => console.log('Error deleting income:', error)
+                // (_, result) => console.log('Deleted income with user_id -1'),
+                // (_, error) => console.log('Error deleting income:', error)
             );
         });
     };
@@ -226,7 +226,7 @@ const SetupBudget = () => {
     const handleEditEnvelope = (envelope) => {
         // console.log('value of usr_id is: ', envelope.user_id);
         // Check if envelope_prop exists
-        console.log('all values of envelope for editing: ', envelope);
+        // console.log('all values of envelope for editing: ', envelope);
         if (envelope_prop) {
             navigation.navigate('AddEditDeleteEnvelope', {
                 envelopeId: envelope.envelopeId,

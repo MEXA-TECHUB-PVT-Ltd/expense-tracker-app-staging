@@ -94,7 +94,7 @@ const RegisterAccount = () => {
 
     // transaction for register user
     const registerUser = async (email, password, featureUpdates) => {
-        console.log('Registering user with values:', { email, password, featureUpdates });
+        // console.log('Registering user with values:', { email, password, featureUpdates });
 
         // Generate a salt and hash the password
         const salt = bcrypt.genSaltSync(3); // Generate salt with 3 rounds strengthening it
@@ -105,13 +105,13 @@ const RegisterAccount = () => {
                 'INSERT INTO Users (email, password, featureUpdates) VALUES (?, ?, ?)',
                 [email, hashedPassword, featureUpdates ? 1 : 0],
                 async (_, result) => {
-                    console.log('User registered successfully');
-                    console.log('Registered user values:', { email, hashedPassword, featureUpdates });
+                    // console.log('User registered successfully');
+                    // console.log('Registered user values:', { email, hashedPassword, featureUpdates });
                     setSnackbarVisible(true);
 
                     // Get the user_id (the last inserted ID)
                     const user_id = result.insertId;
-                    console.log('User ID from database:', user_id);
+                    // console.log('User ID from database:', user_id);
 
                     // Dispatch the user details to Redux with the actual user_id
                     dispatch(setUser({ email, user_id }));

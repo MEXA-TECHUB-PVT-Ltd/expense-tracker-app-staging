@@ -78,7 +78,7 @@ const MainStack = () => {
     useEffect(() => {
         const initializeUser = async () => {
             const user = await getUserData();
-            console.log("Fetched user data from AsyncStorage:", user);
+            // console.log("Fetched user data from AsyncStorage:", user);
 
             if (user?.email) {
                 fetchUserIdByEmail(user.email, dispatch, setUser);
@@ -179,25 +179,25 @@ const MainStack = () => {
         const startOfCurrentMonth = moment().startOf('month');
         const currentYear = now.format('YYYY');
 
-        console.log('Current Date:', now.format('YYYY-MM-DD HH:mm:ss'));
-        console.log('Start of Current Month:', startOfCurrentMonth.format('YYYY-MM-DD HH:mm:ss'));
+        // console.log('Current Date:', now.format('YYYY-MM-DD HH:mm:ss'));
+        // console.log('Start of Current Month:', startOfCurrentMonth.format('YYYY-MM-DD HH:mm:ss'));
 
         // Fetch stored records
         const lastCopyMonth = await AsyncStorage.getItem('lastCopyMonth');
         const lastCopyYear = await AsyncStorage.getItem('lastCopyYear');
 
-        console.log('Stored lastCopyMonth:', lastCopyMonth);
-        console.log('Stored lastCopyYear:', lastCopyYear);
+        // console.log('Stored lastCopyMonth:', lastCopyMonth);
+        // console.log('Stored lastCopyYear:', lastCopyYear);
 
         // Handle first-time installation scenario
         if (!lastCopyMonth || !lastCopyYear) {
-            console.log('No previous month or year found in async. Copying data for the new month and year and setting async values.');
+            // console.log('No previous month or year found in async. Copying data for the new month and year and setting async values.');
             await copyAndInsertNextMonthEnvelopesAndIncome(tempUserId, true);
 
             await AsyncStorage.setItem('lastCopyMonth', startOfCurrentMonth.format('YYYY-MM'));
             await AsyncStorage.setItem('lastCopyYear', currentYear);
 
-            console.log('Stored new lastCopyMonth and lastCopyYear in AsyncStorage.');
+            // console.log('Stored new lastCopyMonth and lastCopyYear in AsyncStorage.');
             return;
         }
 

@@ -28,19 +28,19 @@ const AddEditDeleteEnvelope = () => {
     const [budgetAmountFocused, setBudgetAmountFocused] = useState(false);
     const [envelopeName, setEnvelopeName] = useState('');
     const [amount, setAmount] = useState('');
-    console.log('value of amount is: ', amount);
+    // console.log('value of amount is: ', amount);
     const [menuVisible, setMenuVisible] = useState(false);
     const [budgetPeriod, setBudgetPeriod] = useState('Monthly');
 
     // const [date, setDate] = useState(new Date());
     const [optionalDate, setOptionalDate] = useState(null);
-    console.log('optional date is ========----====: ', optionalDate);
+    // console.log('optional date is ========----====: ', optionalDate);
 
     const [dueDate, setDueDate] = useState(new Date());
     const [formattedFromDate, setFormattedFromDate] = useState('');
 
-    console.log('value of dueDate: ' + dueDate);
-    console.log('value of formattedFromDate: ' + formattedFromDate);
+    // console.log('value of dueDate: ' + dueDate);
+    // console.log('value of formattedFromDate: ' + formattedFromDate);
 
     React.useEffect(() => {
         if (dueDate) {
@@ -60,7 +60,7 @@ const AddEditDeleteEnvelope = () => {
 
     // for calculating number of months const calculateMonthsDifference = (dueDate) => {
     const calculateMonthsDifference = (optionalDate) => {
-        console.log('value of optionalDate ========: ' + optionalDate);
+        // console.log('value of optionalDate ========: ' + optionalDate);
         if (!optionalDate) {
             return 0; // No dueDate means no months difference
         }
@@ -69,7 +69,7 @@ const AddEditDeleteEnvelope = () => {
         const dueDateObj = new Date(optionalDate); // Parse optionalDate if provided
 
         if (isNaN(dueDateObj)) {
-            console.warn('Invalid optionalDate:', optionalDate);
+            // console.log('Invalid optionalDate:', optionalDate);
             return 0; // Invalid date fallback
         }
 

@@ -170,12 +170,11 @@ const FillEnvelopes = () => {
   const showModal = () => setModalVisible(true);
   const hideModal = () => setModalVisible(false);
   const handleSelectOption = (option) => {
-    console.log('handleSelectOption called ********************************')
+    // console.log('handleSelectOption called ********************************')
     setSelectedOption(option);
     if (option === "Fill Individually") {
       setUpdatedEnvelopes([]);
       setEnvelopes([]);
-      console.log('inside clearing function in handleSelectOption ^^^^^^^^^^')
       clearIndividualEnvelopes();  // function call to set filledIncome of envelopes to 0 in db
       fetchTotalEnvelopesAmount(setTotalIncome, tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly); // check it again if we need to pass values here also..
       selectAllEnvelopes( tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly);
@@ -190,7 +189,7 @@ const FillEnvelopes = () => {
 
   useEffect(() => {
     if (selectedOption === "Fill ALL Envelopes") {
-      console.log('State cleared, now fetching new envelopes...');
+      // console.log('State cleared, now fetching new envelopes...');
       selectAllEnvelopes(
         tempUserId,
         formattedFromDate,
@@ -241,12 +240,12 @@ const FillEnvelopes = () => {
 
   // for flatlist
   const [envelopes, setEnvelopes] = useState([]);
-  console.log('state of envelopes is: ======================', envelopes);
+  // console.log('state of envelopes is: ======================', envelopes);
   const [updatedEnvelopes, setUpdatedEnvelopes] = useState([]); // to track updated envelopes using fill individually for authenticated users
   // console.log('  current state of updatedEnvelopes  UUUUUUUUUUUUUUUUUUUUUU', updatedEnvelopes);
 
   const fetchEnvelopes = useCallback(() => {
-    console.log('fetchEnvelopes function called fefeffeeeeeeeeeeeeeeeeeeeeeeeeeeefeeeee');
+    // console.log('fetchEnvelopes function called fefeffeeeeeeeeeeeeeeeeeeeeeeeeeeefeeeee');
     getAllEnvelopes(setEnvelopes, tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly);
   }, [tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly]);
 
@@ -279,7 +278,7 @@ const FillEnvelopes = () => {
             for (let i = 0; i < results.rows.length; i++) {
               envelopesArray.push(results.rows.item(i));
             }
-            console.log('values from database as envelopes state ===================: ', envelopesArray)
+            // console.log('values from database as envelopes state ===================: ', envelopesArray)
             callback(envelopesArray);
           } else {
             callback([]);
@@ -299,7 +298,7 @@ const FillEnvelopes = () => {
 
   // seperately get all envelopes and set in state envelopes 
   const selectAllEnvelopes = (tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly) => {
-    console.log("selectAllEnvelop called with values ==========================", tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly);
+    // console.log("selectAllEnvelop called with values ==========================", tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly);
     db.transaction(
       (tx) => {
         const sqlQuery = `
@@ -338,7 +337,7 @@ const FillEnvelopes = () => {
         console.log('Transaction Error:', error);
       },
       () => {
-        console.log(' selectAllEnvelopes query Success');
+        // console.log(' selectAllEnvelopes query Success');
       }
     );
   };
@@ -407,7 +406,7 @@ const FillEnvelopes = () => {
                 `UPDATE envelopes SET envelopeName = ?, amount = ?, budgetPeriod = ?, filledIncome = ?, fillDate = ? WHERE envelopeId = ? AND user_id = ?;`,
                 [envelopeName, amount, budgetPeriod, filledIncome, fillDate, envelopeId, user_id],
                 (tx, results) => {
-                  console.log(`Record updated for envelopeId: ${envelopeId} and user_id: ${user_id}`);
+                  // console.log(`Record updated for envelopeId: ${envelopeId} and user_id: ${user_id}`);
                 },
                 (tx, error) => {
                   console.error('Error updating record:', error);
@@ -427,7 +426,7 @@ const FillEnvelopes = () => {
         console.error('Transaction error:', error);
       },
       () => {
-        console.log('Transaction completed: updates only');
+        // console.log('Transaction completed: updates only');
         if (callback) callback(tempUserId); // Invoke the callback after transaction success
       });
   };
@@ -626,7 +625,7 @@ const FillEnvelopes = () => {
     db.transaction(
       (tx) => {
         // Update the existing record
-        console.log(`Attempting to update record for envelopeId: ${envelopeId}`);
+        // console.log(`Attempting to update record for envelopeId: ${envelopeId}`);
         tx.executeSql(
           `UPDATE envelopes 
                 SET envelopeName = ?, amount = ?, budgetPeriod = ?, filledIncome = ?, fillDate = ?, user_id = ? 
@@ -634,7 +633,7 @@ const FillEnvelopes = () => {
           [envelopeName, amount, budgetPeriod, filledIncome, formattedFillDate, tempUserId, envelopeId, tempUserId],
           (tx, results) => {
             if (results.rowsAffected > 0) {
-              console.log(`Record updated successfully for envelopeId: ${envelopeId}`);
+              // console.log(`Record updated successfully for envelopeId: ${envelopeId}`);
             } else {
               console.warn(`No record found for envelopeId: ${envelopeId} and user_id: ${tempUserId}`);
             }
@@ -648,7 +647,7 @@ const FillEnvelopes = () => {
         console.error('Transaction error:', error);
       },
       () => {
-        console.log('Success: Update transaction complete');
+        // console.log('Success: Update transaction complete');
         if (callback) callback(tempUserId);
       }
     );
@@ -696,7 +695,7 @@ const FillEnvelopes = () => {
             'UPDATE envelopes SET filledIncome = 0 WHERE user_id = ?;',
             [tempUserId],
             () => {
-              console.log('filledIncome cleared successfully.');
+              // console.log('filledIncome cleared successfully.');
             },
             (_, error) => {
               console.error('Error clearing database values:', error);
@@ -707,7 +706,7 @@ const FillEnvelopes = () => {
           console.error('Transaction error:', error);
         },
         () => {
-          console.log('Transaction completed successfully.');
+          // console.log('Transaction completed successfully.');
         }
       );
     } else {
