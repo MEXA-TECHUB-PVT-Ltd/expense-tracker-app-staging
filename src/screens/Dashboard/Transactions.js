@@ -67,6 +67,10 @@ const Transactions = ({ isSearched, setIsSearched, searchModalVisible, setSearch
     if (transaction.navigationScreen === 'fillEnvelops') {
       // Navigate to FillEnvelopesAuthenticated with the full transaction object
       navigation.navigate('FillEnvelopesAuthenticated', { transaction, editOrdelete: true });
+    } 
+    if (transaction.navigationScreen === 'envelopeTransfer') {
+      // Navigate to FillEnvelopesAuthenticated with the full transaction object
+      navigation.navigate('EnvelopeTransfer', { transaction, editOrdelete: true });
     } else {
       navigation.navigate('AddEditDeleteTransaction', {
         id: transaction.id, //

@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View, Animated, Pressable, TouchableOpacity, ScrollView, Image, Keyboard, FlatList, TouchableWithoutFeedback } from 'react-native'
-import React, { useState, useRef, useMemo, useCallback } from 'react'
+import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react'
 import { debounce } from 'lodash';
 import { useFocusEffect } from '@react-navigation/native';
 import Calculator from '../Onboarding/Calculator';
@@ -13,11 +13,15 @@ import dimensions from '../../constants/dimensions';
 import { VectorIcon } from '../../constants/vectoricons';
 import { db } from '../../database/database';
 import { useSelector } from 'react-redux';
+import { v4 as uuidv4 } from 'uuid';
+import 'react-native-get-random-values';
+import { useRoute } from '@react-navigation/native';
 
 const { width: screenWidth } = dimensions;
 
 const EnvelopeTransfer = () => {
     const navigation = useNavigation();
+    const route = useRoute();
     const handleLeftIconPress = () => {
         navigation.goBack();
     };
@@ -72,9 +76,11 @@ const EnvelopeTransfer = () => {
     const [envelopeMenuVisibleTo, setEnvelopeMenuVisibleTo] = useState(false);
     const [envelopeMenuVisibleFrom, setEnvelopeMenuVisibleFrom] = useState(false);
     const [selectedEnvelopeTo, setSelectedEnvelopeTo] = useState(false);
-    // console.log('selected envelope to is: ', selectedEnvelopeTo);
+    const [selectedEnvelopeToId, setSelectedEnvelopeToId] = useState(false);
+    // console.log('selected envelope to Id is: ', selectedEnvelopeToId);
     const [selectedEnvelopeFrom, setSelectedEnvelopeFrom] = useState(false);
-    // console.log('selected envelope from is: ', selectedEnvelopeFrom);
+    const [selectedEnvelopeFromId, setSelectedEnvelopeFromId] = useState(null);
+    // console.log('selected envelope from Id is: ', selectedEnvelopeFromId);
     const handleEnvelopeMenuToggleTo = useMemo(
         () => debounce(() => setEnvelopeMenuVisibleTo(prev => !prev), 10),
         []
@@ -156,34 +162,57 @@ const EnvelopeTransfer = () => {
     // console.log('value of note is: ', note);
 
     const [snackbarVisible, setSnackbarVisible] = useState(false);
+    const [snackbarVisibleDuplicated, setSnackbarVisibleDuplicated] = useState(false);
+
 
     // transactions code
     const handleIconPressWrapper = () => {
+        const groupId = uuidv4();
+
         handleIconPress(
             transactionAmount,
+            selectedEnvelopeFromId,
             selectedEnvelopeFrom,
+            selectedEnvelopeToId,
             selectedEnvelopeTo,
             payee,
             note,
             tempUserId,
-            transactionDate
+            transactionDate,
+            groupId
         );
     };
-    const handleIconPress = (transactionAmount, selectedEnvelopeFrom, selectedEnvelopeTo, payee, note, tempUserId, transactionDate) => {
+    const handleIconPress = (transactionAmount, selectedEnvelopeFromId, selectedEnvelopeFrom, selectedEnvelopeToId, selectedEnvelopeTo, payee, note, tempUserId, transactionDate, groupId) => {
         
-        if (!transactionAmount || !selectedEnvelopeFrom || !selectedEnvelopeTo || !payee || !tempUserId || !transactionDate) {
-            setSnackbarVisible(true);  // Set the SnackBar visible if any value is missing
+        if (!transactionAmount || !selectedEnvelopeFromId || !selectedEnvelopeToId || !payee || !tempUserId || !transactionDate) {
+            setSnackbarVisible(true);
             console.log("Missing required fields");
-            return; // Exit the function early, don't proceed with the transaction
+            return;
         }
+
+        // Envelope details to store in the database
+        const envelopeDetails = JSON.stringify([
+            {
+                envelopeId: selectedEnvelopeFromId,
+                envelopeName: selectedEnvelopeFrom,
+                amount: transactionAmount,
+                transactionType: 'Expense' // From envelope is an expense
+            },
+            {
+                envelopeId: selectedEnvelopeToId,
+                envelopeName: selectedEnvelopeTo,
+                amount: transactionAmount,
+                transactionType: 'Credit' // To envelope is a credit
+            }
+        ]);
         
-        // console.log('values inside envelope transfer transaction: ', transactionAmount, selectedEnvelopeFrom, selectedEnvelopeTo, payee, note, tempUserId, transactionDate);
+        console.log('values inside envelope transfer transaction ===========: ', transactionAmount, selectedEnvelopeFromId, selectedEnvelopeFrom, selectedEnvelopeToId, selectedEnvelopeFrom, payee, note, tempUserId, transactionDate, groupId);
         db.transaction(
             tx => {
                 // Deduct amount from selectedEnvelopeFrom
                 tx.executeSql(
-                    `UPDATE envelopes SET filledIncome = filledIncome - ? WHERE envelopeName = ?`,
-                    [transactionAmount, selectedEnvelopeFrom],
+                    `UPDATE envelopes SET filledIncome = filledIncome - ? WHERE envelopeId = ?`,
+                    [transactionAmount, selectedEnvelopeFromId],
                     () => console.log('Amount deducted from', selectedEnvelopeFrom),
                     (_, error) => {
                         console.error('Error deducting amount:', error);
@@ -193,8 +222,8 @@ const EnvelopeTransfer = () => {
 
                 // Add amount to selectedEnvelopeTo
                 tx.executeSql(
-                    `UPDATE envelopes SET filledIncome = filledIncome + ? WHERE envelopeName = ?`,
-                    [transactionAmount, selectedEnvelopeTo],
+                    `UPDATE envelopes SET filledIncome = filledIncome + ? WHERE envelopeId = ?`,
+                    [transactionAmount, selectedEnvelopeToId],
                     () => console.log('Amount added to', selectedEnvelopeTo),
                     (_, error) => {
                         console.error('Error adding amount:', error);
@@ -202,29 +231,31 @@ const EnvelopeTransfer = () => {
                     }
                 );
 
-                // Add expense transaction for selectedEnvelopeFrom
+                // Add expense transaction for selectedEnvelopeFrom (Now passing the right order)
                 tx.executeSql(
-                    `INSERT INTO Transactions (payee, transactionAmount, transactionType, envelopeName, transactionDate, transactionNote, user_id) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                    [payee, transactionAmount, 'Expense', selectedEnvelopeFrom, transactionDate, note, tempUserId],
+                    `INSERT INTO Transactions (payee, transactionAmount, transactionType, envelopeName, envelopeId, transactionDate, transactionNote, user_id, navigationScreen, groupId, envelopeDetails) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [payee, transactionAmount, 'Expense', selectedEnvelopeFrom, selectedEnvelopeFromId, transactionDate, note, tempUserId, 'envelopeTransfer', groupId, envelopeDetails],
                     () => console.log('Expense transaction added'),
                     (_, error) => {
                         console.error('Error inserting expense transaction:', error);
-                        return true; // Rollback transaction
+                        return true; // Rollback transaction if error occurs
                     }
                 );
 
-                // Add credit transaction for selectedEnvelopeTo
+                // Add credit transaction for selectedEnvelopeTo (Now passing the right order)
                 tx.executeSql(
-                    `INSERT INTO Transactions (payee, transactionAmount, transactionType, envelopeName, transactionDate, transactionNote, user_id) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                    [payee, transactionAmount, 'Credit', selectedEnvelopeTo, transactionDate, note, tempUserId],
+                    `INSERT INTO Transactions (payee, transactionAmount, transactionType, envelopeName, envelopeId, transactionDate, transactionNote, user_id, navigationScreen, groupId, envelopeDetails) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [payee, transactionAmount, 'Credit', selectedEnvelopeTo, selectedEnvelopeToId, transactionDate, note, tempUserId, 'envelopeTransfer', groupId, envelopeDetails],
                     () => console.log('Credit transaction added'),
                     (_, error) => {
                         console.error('Error inserting credit transaction:', error);
-                        return true; // Rollback transaction
+                        return true; // Rollback transaction if error occurs
                     }
                 );
+
+
             },
             error => {
                 console.error('Transaction failed, rolling back:', error);
@@ -236,7 +267,272 @@ const EnvelopeTransfer = () => {
         );
     };
 
+    // for deleting and updating transactions
+    const { transaction, editOrdelete } = route.params || {}; // Use a fallback to an empty object if route.params is undefined
+    // console.log('transactions values are: ====', transaction);
+    // console.log('editOrdelete values are: ====', editOrdelete);
 
+    useEffect(() => {
+        // Only run if transaction exists
+        if (transaction) {
+            // console.log('transaction ', transaction);
+            // Parse the envelopeDetails string into an array of objects
+            const envelopeDetails = JSON.parse(transaction.envelopeDetails);
+            // console.log('EnvelopeDetails: ', envelopeDetails);
+
+            // Return early if envelopeDetails is empty
+            if (!envelopeDetails) {
+                console.log("No envelope details available to process in useEffect.");
+                return;
+            }
+
+            // Find the envelope with transactionType "Expense" and set it as selectedEnvelopeFrom
+            const envelopeFrom = envelopeDetails.find(item => item.transactionType === 'Expense');
+            const envelopeTo = envelopeDetails.find(item => item.transactionType === 'Credit');
+
+            if (envelopeFrom) {
+                setSelectedEnvelopeFrom(envelopeFrom.envelopeName); // set selectedEnvelopeFrom for Expense envelope
+                setSelectedEnvelopeFromId(parseInt(envelopeFrom.envelopeId, 10));
+            }
+
+            if (envelopeTo) {
+                setSelectedEnvelopeTo(envelopeTo.envelopeName); // set selectedEnvelopeTo for Credit envelope
+                setSelectedEnvelopeToId(parseInt(envelopeTo.envelopeId, 10));
+            }
+
+            // Set other fields
+            setPayee(transaction.payee);                         // set payee
+            setTransactionAmount(transaction.transactionAmount); // set transactionAmount
+        }
+    }, [transaction]); // Run whenever transaction changes
+
+    // code for deleting transactions and reverting back amount to relevent envelopes code start 
+    const handleDeleteWrapper = () => {
+        // Step 1: Retrieve the envelopeDetails for the given groupId (we assume the transaction data has been retrieved)
+        if (!transaction.envelopeDetails) {
+            console.warn("No envelope details available to process in delete transaction.");
+            return;
+        }
+        const envelopeDetails = JSON.parse(transaction.envelopeDetails);
+        const groupId = transaction.groupId;
+
+        // Step 2: Ensure envelopeDetails contains two entries
+        if (envelopeDetails.length > 0) {
+            const expenseEnvelope = envelopeDetails.find(e => e.transactionType === 'Expense');
+            const creditEnvelope = envelopeDetails.find(e => e.transactionType === 'Credit');
+
+            // Step 3: Adjust balances for both envelopes
+            if (expenseEnvelope) {
+                updateEnvelopeBalance(expenseEnvelope.envelopeId, expenseEnvelope.amount, 'increase'); // Restore amount for Expense
+            }
+            if (creditEnvelope) {
+                updateEnvelopeBalance(creditEnvelope.envelopeId, creditEnvelope.amount, 'decrease'); // Reduce amount for Credit
+            }
+        }
+
+        // Step 4: Delete the transactions using the groupId
+        deleteTransactions(groupId);
+    };
+
+    // Helper function to update the envelope balance
+    const updateEnvelopeBalance = (envelopeId, amount, action) => {
+        const adjustedAmount = action === 'increase' ? amount : -amount;
+        db.transaction(
+            tx => {
+                tx.executeSql(
+                    `UPDATE envelopes SET filledIncome = filledIncome + ? WHERE envelopeId = ?`,
+                    [adjustedAmount, envelopeId],
+                    () => {
+                        console.log(`Envelope balance updated: ${action} amount ${adjustedAmount} for envelopeId ${envelopeId}`);
+                    },
+                    (_, error) => {
+                        console.error('Error updating envelope balance:', error);
+                        return true; // Rollback on error
+                    }
+                );
+            },
+            error => {
+                console.error('Error in updating envelope balance:', error);
+            },
+            () => {
+                console.log('Envelope balance update completed');
+            }
+        );
+    };
+
+    // Function to delete transactions based on groupId
+    const deleteTransactions = (groupId) => {
+        db.transaction(
+            tx => {
+                // Delete transactions from the Transactions table based on groupId
+                tx.executeSql(
+                    `DELETE FROM Transactions WHERE groupId = ?`,
+                    [groupId],
+                    () => {
+                        console.log(`Transactions with groupId ${groupId} deleted successfully`);
+                    },
+                    (_, error) => {
+                        console.error('Error deleting transactions:', error);
+                        return true; // Rollback on error
+                    }
+                );
+            },
+            error => {
+                console.error('Error in transaction deletion:', error);
+            },
+            () => {
+                console.log('Transaction delete completed');
+                navigation.navigate('Transactions'); // Navigate back or handle navigation as needed
+            }
+        );
+    };
+
+    // code for deleting transactions and reverting back amount to relevent envelopes code end
+
+    // code for updating transactions code start
+    const handleUpdateTransaction = (selectedEnvelopeFrom, selectedEnvelopeFromId, selectedEnvelopeTo, selectedEnvelopeToId, transactionAmount, payee, transactionDate) => {
+        if (!selectedEnvelopeFrom || !selectedEnvelopeTo  || !transactionAmount || !payee || !transactionDate) {
+            setSnackbarVisible(true);
+            return;
+        }
+        if (selectedEnvelopeFrom === selectedEnvelopeTo) {
+            setSnackbarVisibleDuplicated(true);
+            return;
+        }
+        // console.log('transaction object inside update function', transaction);
+        if (!transaction.envelopeDetails) {
+            console.warn("No envelope details available to process in update transaction.");
+            return;
+        }
+        const envelopeDetails = JSON.parse(transaction.envelopeDetails);
+        // console.log('EnvelopeDetails are: =======', envelopeDetails);
+
+        db.transaction((tx) => {
+            // Reverting the old values in envelopes table
+            envelopeDetails.forEach((envelope) => {
+                let { amount, envelopeId, envelopeName, transactionType } = envelope;
+                envelopeId = parseInt(envelopeId, 10);
+                amount = parseFloat(amount);
+                envelopeName = String(envelopeName);
+                transactionType = String(transactionType);
+
+                if (transactionType === "Expense") {
+                    // Increase filledIncome back for the old "Expense" envelope
+                    tx.executeSql(
+                        `UPDATE envelopes SET filledIncome = filledIncome + ? WHERE envelopeId = ?`,
+                        [amount, envelopeId],
+                        () => console.log(`Amount increased by ${amount} for envelopeId ${envelopeId}`),
+                        (_, error) => {
+                            console.error('Error adding amount:', error);
+                            return true;
+                        }
+                    );
+                } else if (transactionType === "Credit") {
+                    // Decrease filledIncome back for the old "Credit" envelope
+                    tx.executeSql(
+                        `UPDATE envelopes SET filledIncome = filledIncome - ? WHERE envelopeId = ?`,
+                        [amount, envelopeId],
+                        () => console.log(`Amount decreased by ${amount} for envelopeId ${envelopeId}`),
+                        (_, error) => {
+                            console.error('Error adding amount:', error);
+                            return true;
+                        }
+                    );
+                }
+            });
+
+
+            // Now applying the new values for the "from" and "to" envelopes
+            // For "Expense" envelope (decrease filledIncome)
+            // Check if selectedEnvelopeFrom is defined (for Expense transaction)
+            if (selectedEnvelopeFrom) {
+                tx.executeSql(
+                    `UPDATE envelopes SET filledIncome = filledIncome - ? WHERE envelopeName = ?`,
+                    [transactionAmount, selectedEnvelopeFrom],
+                    () => console.log(`Amount decreased by ${transactionAmount} from envelope ${selectedEnvelopeFrom}`),
+                    (_, error) => {
+                        console.error('Error adding amount:', error);
+                        return true;
+                    }
+                );
+            }
+
+            // Check if selectedEnvelopeTo is defined (for Credit transaction)
+            if (selectedEnvelopeTo) {
+                tx.executeSql(
+                    `UPDATE envelopes SET filledIncome = filledIncome + ? WHERE envelopeName = ?`,
+                    [transactionAmount, selectedEnvelopeTo],
+                    () => console.log(`Amount increased by ${transactionAmount} from envelope ${selectedEnvelopeTo}`),
+                    (_, error) => {
+                        console.error('Error adding amount:', error);
+                        return true;
+                    }
+                );
+            }
+
+            // After updating envelopes, now we need to update the Transactions table
+            // Select transactions with the same groupId
+            const groupId = transaction.groupId; // Extract groupId from the transaction
+            console.log('groupId: ', groupId);
+            tx.executeSql(
+                `SELECT * FROM Transactions WHERE groupId = ?`,
+                [groupId],
+                (_, result) => {
+                    // Check if the result contains rows
+                    if (!result.rows || result.rows.length === 0) {
+                        console.error("No transactions found for groupId:", groupId);
+                        return;  // Exit if no transactions found
+                    }
+
+                    // Iterate over rows directly using result.rows.length and result.rows.item()
+                    let transactions = [];
+                    for (let i = 0; i < result.rows.length; i++) {
+                        const txn = result.rows.item(i);  // Access each row item directly
+                        transactions.push(txn);  // Store the transaction into the transactions array
+                    }
+
+                    console.log('Fetched transactions:', transactions); 
+
+                    if (transactions.length === 0) {
+                        console.error("No transactions found for groupId:", groupId);
+                        return; // Exit if no transactions found
+                    }
+
+                    transactions.forEach((txn, index) => {
+                        console.log(`Processing transaction ${index + 1} with txnId: ${txn.id}`);  // Log each transaction being processed
+
+                        // Prepare the new envelope details with the updated amounts
+                        const newEnvelopeDetails = JSON.stringify([
+                            { envelopeId: selectedEnvelopeFromId, envelopeName: selectedEnvelopeFrom, amount: transactionAmount, transactionType: "Expense" },
+                            { envelopeId: selectedEnvelopeToId, envelopeName: selectedEnvelopeTo, amount: transactionAmount, transactionType: "Credit" }
+                        ]);
+                        console.log('New envelope details:', newEnvelopeDetails);  // Log the new envelope details being prepared
+
+                        // Update each transaction with the new envelopeDetails, transactionAmount, and payee
+                        tx.executeSql(
+                            `UPDATE Transactions SET envelopeDetails = ?, transactionAmount = ?, payee = ? WHERE groupId = ?`,
+                            [newEnvelopeDetails, transactionAmount, payee, groupId],
+                            (_, updateResult) => {
+                                console.log(`Transaction updated for groupId ${groupId}:`, updateResult);  // Log the result of the update
+                            },
+                            (error) => {
+                                console.error(`Error updating transaction for groupId ${groupId}:`, error);
+                            }
+                        );
+                    });
+                },
+                (error) => {
+                    console.error('Error fetching transactions for groupId:', error);
+                }
+            );
+
+
+            navigation.navigate('TopTab');
+        });
+    };
+
+
+    // code for updating transactions and reverting back amount to relevent envelopes end
 
     return (
         <Pressable style={{ flex: 1 }} onPress={handleOutsidePress}>
@@ -244,7 +540,22 @@ const EnvelopeTransfer = () => {
                 <Appbar.Header style={styles.appBar}>
                     <Appbar.BackAction onPress={handleLeftIconPress} size={24} color={colors.white} />
                     <Appbar.Content title="Envelope Transfer" titleStyle={styles.appbar_title} />
-                    <Appbar.Action onPress={handleIconPressWrapper} icon="check" color={colors.white} />
+                    <Appbar.Action
+                        onPress={() =>
+                            editOrdelete
+                                ? handleUpdateTransaction(selectedEnvelopeFrom, selectedEnvelopeFromId, selectedEnvelopeTo, selectedEnvelopeToId, transactionAmount, payee, transactionDate)
+                                : handleIconPressWrapper()
+                        }
+                        icon="check"
+                        color={colors.white}
+                    />
+                    {editOrdelete && (
+                        <Appbar.Action
+                            onPress={handleDeleteWrapper}
+                            icon="delete"
+                            color={colors.white}
+                        />
+                    )}
                     <Appbar.Action onPress={handleRightIconPress} icon="dots-vertical" color={colors.white} />
                 </Appbar.Header>
 
@@ -279,6 +590,7 @@ const EnvelopeTransfer = () => {
                                         <Menu.Item
                                             onPress={() => {
                                                 setSelectedEnvelopeFrom(item.envelopeName);
+                                                setSelectedEnvelopeFromId(item.envelopeId);
                                                 setEnvelopeMenuVisibleFrom(false);
                                                 setEnvelopeRemainingIncome(item.filledIncome);
                                             }}
@@ -315,6 +627,7 @@ const EnvelopeTransfer = () => {
                                         <Menu.Item
                                             onPress={() => {
                                                 setSelectedEnvelopeTo(item.envelopeName);
+                                                setSelectedEnvelopeToId(item.envelopeId);
                                                 setEnvelopeMenuVisibleTo(false);
                                                 setEnvelopeRemainingIncome(item.filledIncome);
                                             }}
@@ -449,6 +762,30 @@ const EnvelopeTransfer = () => {
                             style={styles.snack_bar_img}
                         />
                         <Text style={styles.snack_bar_text}>All fields required!</Text>
+                    </View>
+                </Snackbar>
+
+                <Snackbar
+                    visible={snackbarVisibleDuplicated}
+                    onDismiss={() => setSnackbarVisibleDuplicated(false)}
+                    duration={1000}
+                    style={[
+                        styles.snack_bar,
+                        {
+                            position: 'absolute',
+                            bottom: 20,
+                            left: 20,
+                            right: 20,
+                            zIndex: 1000,
+                        }
+                    ]}
+                >
+                    <View style={styles.img_txt_view}>
+                        <Image
+                            source={Images.expenseplannerimage}
+                            style={styles.snack_bar_img}
+                        />
+                        <Text style={styles.snack_bar_text}>Cannot transfer to/from same envelope.</Text>
                     </View>
                 </Snackbar>
 
@@ -607,25 +944,57 @@ const styles = StyleSheet.create({
     },
 
     // snackbar styles
+    // snack_bar: {
+    //     backgroundColor: colors.gray,
+    //     borderRadius: 50,
+    //     zIndex: 1000,
+    // },
+    // img_txt_view: {
+    //     flexDirection: 'row',
+    //     alignItems: 'center',
+    // },
+    // snack_bar_img: {
+    //     width: wp('10%'),
+    //     height: hp('3%'),
+    //     marginRight: 10,
+    //     resizeMode: 'contain',
+    // },
+    // snack_bar_text: {
+    //     color: colors.white,
+    //     fontSize: hp('2%'),
+    // },
+
     snack_bar: {
         backgroundColor: colors.gray,
         borderRadius: 50,
         zIndex: 1000,
+        minHeight: hp('6%'), // Set a minimum height, can expand if the text is long
+        paddingHorizontal: 10, // Optional: adds some padding for spacing inside
+        justifyContent: 'center', // Centers content vertically
+        overflow: 'hidden', // Prevents overflowing content
     },
+
     img_txt_view: {
         flexDirection: 'row',
         alignItems: 'center',
+        flexWrap: 'wrap', // Allows text to wrap if it's too long
     },
+
     snack_bar_img: {
         width: wp('10%'),
         height: hp('3%'),
         marginRight: 10,
         resizeMode: 'contain',
     },
+
     snack_bar_text: {
         color: colors.white,
         fontSize: hp('2%'),
-    },
+        flexWrap: 'wrap', // Allows text to wrap if it's too long
+        flexShrink: 1, // Ensures the text will shrink if needed but will not overflow
+        maxWidth: '80%', // You can limit the text width to ensure good layout
+    }
+
    
 
 })

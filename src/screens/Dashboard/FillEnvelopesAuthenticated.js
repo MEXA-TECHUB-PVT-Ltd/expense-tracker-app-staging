@@ -654,13 +654,9 @@ const FillEnvelopes = () => {
             }
 
             const unallocated = unallocatedIncome; // income we are adding as new income
-            // console.log('value of unallocated when amount not set but envelopes filled', unallocated);
             const remainingUnallocated = leftUnallocated; // income that is leftover after filling envelopes & we want it as unallocated
-            // console.log('remaining unallocated to be filled in scenario 1 set amount not filled envelope:     ', remainingUnallocated);
             const usedthisFill = usedThisFill; // for scenario two... amount that is one time filled in envelopes
-            // console.log('used this fill: ', usedthisFill);
             // const totalUnallocated = totalUnallocatedIncome; // for scenario two... now dont need  initially remaingin unallocated income from db
-            // console.log('total unallocated: ', totalUnallocated);
             const fillDate = formattedFillDate;
             const userId = tempUserId;
 
@@ -674,6 +670,7 @@ const FillEnvelopes = () => {
                 if (userId && remainingUnallocated) {
                     updateUnallocatedIncomeFU(remainingUnallocated, fillDate, userId); // Works correctly
                 }
+                handleAddTransactionFee(); // add transaction also...it will work same like for keep unallocated..check values to pass to it...
             }
 
             // Scenario 2: Don't set amount but fill envelopes (update envelopes and then unallocatedIncome)
@@ -705,6 +702,7 @@ const FillEnvelopes = () => {
                 if (userId && remainingUnallocated !== undefined) {
                     updateUnallocatedIncomeFU(remainingUnallocated, formattedFillDate, userId); // set or insert unallocated amount not update  works correctly
                 }
+                handleAddTransactionFee(); // also add transaction for it...
             }
 
             // Scenario 3: Set amount and also fill envelopes (update both envelopes and unallocatedIncome)
@@ -731,8 +729,11 @@ const FillEnvelopes = () => {
                 // const remainingUnallocated = leftUnallocated + (unallocatedIncome - usedThisFill); // Subtract the used fill amount
 
                 if (userId && remainingUnallocated !== undefined) {
-                    updateUnallocatedIncomeFU(remainingUnallocated, formattedFillDate, userId);
+                    updateUnallocatedIncomeFU(remainingUnallocated, formattedFillDate, userId); // verify if we need to run this too...
                 }
+
+                handleAddTransactionFee();
+                navigation.navigate('TopTab'); // navigate if necessary like if not navigated in functions above..
             }
         } else if (selectedButton === 'unallocated') {
 
@@ -765,7 +766,7 @@ const FillEnvelopes = () => {
                     updateUnallocatedIncomeFU(remainingUnallocated, fillDate, userId); // works correctly
                 }
 
-                handleAddTransaction();
+                handleAddTransaction(); // only this one is extra like which is for addinga a transaction also....
 
                 navigation.navigate('TopTab');
             }
@@ -775,7 +776,7 @@ const FillEnvelopes = () => {
     };
 
 
-    // for keep unallocated
+    // for keep unallocated insert or update unallocated income in db
     const updateUnallocatedIncome = (amountToFill, fillDate, userId) => {
         db.transaction(tx => {
             // Check if a record exists for the given user_id
@@ -819,7 +820,6 @@ const FillEnvelopes = () => {
     };
 
     // for fill individual envelope but only update unallocated table not set it
-
     // const updateUnallocatedIncomeFIE = (remainingUnallocated, fillDate, userId) => {
     //     db.transaction(tx => {
     //         // Check if a record exists for the given user_id
@@ -914,7 +914,7 @@ const FillEnvelopes = () => {
     // From unallocated option
     const { transaction, editOrdelete } = route.params; // when we will try to edit or delete transactions on basis of groupId
     // console.log(editOrdelete);
-    // console.log('full log of transaction that is passed in routes from transactions screen is: =-=-=-=-=-=-= ', transaction);
+    console.log('full log of transaction : =-=-=-=-=-=-= ', transaction);
     useEffect(() => {
         if (transaction) {
             const { payee, selectedButton, selectedOption, envelopeDetails, transactionAmount } = transaction;
@@ -939,6 +939,11 @@ const FillEnvelopes = () => {
                 } catch (error) {
                     console.error('Error parsing envelopeDetails:', error);
                 }
+            }
+
+            // Check conditions for setting unallocatedIncome
+            if (selectedButton === "newIncome" && selectedOption === "Fill Each Envelope") {
+                setUnallocatedIncome(transactionAmount);
             }
 
             // Set usedThisFill with transactionAmount
@@ -1049,7 +1054,7 @@ const FillEnvelopes = () => {
 
         } else if (usedThisFill > 0 || usedThisFill < 0) {
             // Case 2: Envelopes filled and usedThisFill > 0 or < 0
-            // Second transaction for 'Available' (Insert it first)
+            // Second transaction for 'Available' (Insert it first for order in Transactions screen)
             const secondTransaction = {
                 payee: payee,
                 transactionAmount: usedThisFill,
@@ -1063,7 +1068,7 @@ const FillEnvelopes = () => {
                 selectedOption: selectedOption || null,
             };
 
-            // First transaction for 'Distribution' (Insert it second)
+            // First transaction for 'Distribution' (Insert it second just for showing it up in Transactions screen)
             const firstTransaction = {
                 payee: payee,
                 transactionAmount: usedThisFill,
@@ -1118,7 +1123,7 @@ const FillEnvelopes = () => {
     // update/delete code related to ==========  From Unallocated  ==========
     // handle function for updating firstly old values and then new values when updating a transaction
 
-    // both work perfectly fine to update envelopes filledIncome
+    // both work perfectly fine to just update envelopes filledIncome
     // function handleUpdateTransaction(transaction) {
     //     // Log the transaction object to see its structure
     //     console.log(' all values inside transaction to take values out of it -0-0-0-0-0-0-0-0-0-0-',transaction);
@@ -1457,8 +1462,7 @@ const FillEnvelopes = () => {
             return;
         }
 
-        // Parse the envelopeDetails to revert each envelope's filledIncome
-        const envelopeArray = JSON.parse(envelopeDetails); // Ensure it's a valid JSON string
+        const envelopeArray = JSON.parse(envelopeDetails);
         console.log('all values in envelopeArray especially filledIncome: ', envelopeArray);
         envelopeArray.forEach(({ envelopeId, filledIncome }) => {
             if (envelopeId && filledIncome !== undefined) {
@@ -1466,14 +1470,8 @@ const FillEnvelopes = () => {
                 updateEnvelopeFilledIncome(envelopeId, filledIncome, user_id);
             }
         });
-
-        // Adjust the unallocated income
         adjustUnallocatedIncome(transactionAmount, user_id);
-
-        // Call a function to remove records for this transaction from your group
         deleteTransactionGroup(groupId);
-
-        console.log('Transaction reverted successfully.');
     };
 
     // Update filledIncome for individual envelopes
@@ -1537,7 +1535,7 @@ const FillEnvelopes = () => {
             (tx) => {
                 tx.executeSql(
                     `DELETE FROM transactions
-                 WHERE groupId = ?;`,
+                    WHERE groupId = ?;`,
                     [groupId],
                     (tx, results) => {
                         console.log(`Deleted transaction group with groupId: ${groupId}`);
@@ -1556,9 +1554,9 @@ const FillEnvelopes = () => {
             }
         );
     };
-
     // code of transactions end here for scenario of From Unallocated
-    // =========  keep unallocated  ========= insert
+
+    // =========  keep unallocated  ========= insert start
     const handleAddTransactionKU = () => {
         // Check if the transaction is "Credit" or "Expense"
         const transactionType = unallocatedIncome <= 0 ? 'Expense' : 'Credit';
@@ -1603,8 +1601,9 @@ const FillEnvelopes = () => {
             );
         });
     };
+    // code to insert transaction for ===== Keep Unallocated ==== ends
 
-    // =========  keep unallocated  ========= update or delete
+    // =========  keep unallocated  ========= delete start here
     useEffect(() => {
         if (transaction && transaction.selectedOption === 'Keep Unallocated') {
             setPayee(transaction.payee);
@@ -1615,7 +1614,7 @@ const FillEnvelopes = () => {
         }
     }, [transaction]);
 
-    // =========  keep unallocated  ========= delete
+    // =========  keep unallocated  ========= delete function
     const handleDeleteTransactionKU = (transaction) => {
         const {id, transactionAmount, user_id} = transaction;
         if (!id || !user_id || transactionAmount == null) {
@@ -1628,7 +1627,7 @@ const FillEnvelopes = () => {
         navigation.navigate('TopTab');
     };
 
-    // =========  keep unallocated  ========= update table query
+    // ===== keep unallocated ===== update table query when delete a transaction
     const adjustUnallocatedIncomeKU = (transactionAmount, user_id) => {
         db.transaction(
             (tx) => {
@@ -1658,7 +1657,7 @@ const FillEnvelopes = () => {
             }
         );
     };
-
+    // function and query to delete keep unallocated transaction
     const deleteTransactionKU = (id) => {
         db.transaction(
             (tx) => {
@@ -1681,7 +1680,149 @@ const FillEnvelopes = () => {
             }
         );
     };
+    // code to delete transaction for case ===== Keep Unallocated ===== end
 
+    // code to update transaction for case ===== Keep Unallocated ===== start
+    const handleUpdateTransactionKU = (transaction) => {
+        const { id, transactionAmount, user_id } = transaction;
+        const newpayee = payee;
+        const newUnallocatedIncome = unallocatedIncome;
+        const transactionDate = formattedFillDate;
+        updateTransactionKU(id, transactionAmount, user_id, newpayee, newUnallocatedIncome, transactionDate);
+        navigation.navigate('TopTab');
+    };
+    const updateTransactionKU = (id, transactionAmount, user_id, newpayee, newUnallocatedIncome, transactionDate) => {
+        db.transaction(
+            (tx) => {
+                // Query 1: Update transactionAmount and payee 
+                tx.executeSql(
+                    `UPDATE Transactions 
+                    SET transactionAmount = ?, payee = ?, transactionDate = ? 
+                    WHERE id = ?;`,
+                    [newUnallocatedIncome, newpayee, transactionDate, id],
+                    (_, results) => {
+                        console.log(`Updated transaction amount, payee, and transaction date with id: ${id}`);
+                    },
+                    (_, error) => {
+                        console.error('Error updating transaction amount:', error);
+                    }
+                );
+              
+                // Query 2: Adjust unallocatedIncome based on transactionAmount
+                tx.executeSql(
+                    `UPDATE Unallocated 
+                SET unallocatedIncome = unallocatedIncome + ? 
+                WHERE envelopeName = 'Available' AND user_id = ?;`,
+                    [transactionAmount > 0 ? -transactionAmount : Math.abs(transactionAmount), user_id],
+                    (_, results) => {
+                        console.log(
+                            `UnallocatedIncome ${transactionAmount > 0 ? 'decreased' : 'increased'
+                            } by ${Math.abs(transactionAmount)}`
+                        );
+                    },
+                    (_, error) => {
+                        console.error('Error updating Unallocated income for transactionAmount:', error);
+                    }
+                );
+                // Query 3: Adjust unallocatedIncome based on newUnallocatedIncome
+                tx.executeSql(
+                    `UPDATE Unallocated 
+                SET unallocatedIncome = unallocatedIncome + ? 
+                WHERE envelopeName = 'Available' AND user_id = ?;`,
+                    [newUnallocatedIncome, user_id],
+                    (_, results) => {
+                        console.log(
+                            `UnallocatedIncome ${newUnallocatedIncome > 0 ? 'increased' : 'decreased'
+                            } by ${Math.abs(newUnallocatedIncome)}`
+                        );
+                    },
+                    (_, error) => {
+                        console.error('Error updating Unallocated income for newUnallocatedIncome:', error);
+                    }
+                );
+            },
+            (error) => {
+                console.error('Transaction error for updating transaction:', error);
+            },
+            () => {
+                console.log('Success: Transaction Updated');
+            }
+        );
+    };
+    // code for updating transaction of ===== Keep Unallocated ===== ends here
+
+    // code for inserting transaction of ===== fill each envelope ===== start
+    const handleAddTransactionFee = () => {
+        const groupId = uuidv4();
+
+        // Case 2: where envelopes are filled also unallocatedIncome set or not..although it is by default to 0
+        if (updatedEnvelopes && updatedEnvelopes.length > 0) {
+            const transaction = {
+                payee: payee,
+                transactionAmount: unallocatedIncome,
+                transactionType: unallocatedIncome <= 0 ? 'Expense' : 'Credit',
+                envelopeName: 'My Account',
+                transactionDate: formattedFillDate,
+                user_id: tempUserId,
+                navigationScreen: 'fillEnvelops',
+                groupId: groupId,
+                selectedButton: selectedButton,
+                selectedOption: 'Fill Each Envelope',
+            };
+
+            const envelopeDetails = JSON.stringify(updatedEnvelopes);
+            insertTransactionFee(transaction, envelopeDetails);
+        } else {
+            // Case 1: No envelopes filled, just set payee and transaction details
+            const transaction = {
+                payee: payee,
+                transactionAmount: unallocatedIncome,
+                transactionType: unallocatedIncome <= 0 ? 'Expense' : 'Credit',
+                envelopeName: 'My Account',
+                transactionDate: formattedFillDate,
+                user_id: tempUserId,
+                navigationScreen: 'fillEnvelops',
+                groupId: groupId,
+                selectedButton: selectedButton,
+                selectedOption: 'Keep Unallocated',
+            };
+
+            const envelopeDetails = JSON.stringify([]);
+            insertTransactionFee(transaction, envelopeDetails);
+        }
+    };
+
+    // The insertTransaction function (as provided earlier):
+    const insertTransactionFee = (transaction, envelopeDetails) => {
+        db.transaction((tx) => {
+            tx.executeSql(
+                `INSERT INTO Transactions (payee, transactionAmount, transactionType, envelopeName, transactionDate, user_id, navigationScreen, envelopeDetails, groupId, selectedButton, selectedOption)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+                [
+                    transaction.payee,
+                    transaction.transactionAmount,
+                    transaction.transactionType,
+                    transaction.envelopeName,
+                    transaction.transactionDate,
+                    transaction.user_id,
+                    transaction.navigationScreen || null, // default null if navigationScreen is not provided
+                    envelopeDetails, // Pass the serialized envelopeDetails (empty or filled)
+                    transaction.groupId,  // Pass the groupId for linking
+                    transaction.selectedButton || null, // Pass selectedButton state (or null if empty)
+                    transaction.selectedOption || null, // Pass selectedOption state (or null if empty)
+                ],
+                (_, result) => {
+                    console.log('Transaction inserted successfully with envelope details.');
+                },
+                (_, error) => {
+                    console.error('Transaction failed. Error code:', error.code, 'Error message:', error.message);
+                }
+            );
+        });
+    };
+
+
+    // code for inserting transaction of ===== fill each envelope ===== end here
 
     return (
         <TouchableWithoutFeedback style={{ flex: 1 }} onPress={isTooltipVisible ? handleOutsidePress : null}>
@@ -1711,7 +1852,7 @@ const FillEnvelopes = () => {
                         <Appbar.Action
                             onPress={() => {
                                 if (editOrdelete) {
-                                    // update function call here for Keep Unallocated
+                                    handleUpdateTransactionKU(transaction);
                                 } else {
                                     handleCheckPress();
                                 }
