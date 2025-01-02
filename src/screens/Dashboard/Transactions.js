@@ -31,7 +31,7 @@ const Transactions = ({ isSearched, setIsSearched, searchModalVisible, setSearch
 
   // code to get all transactions in Transaction table 
   const [transactions, setTransactions] = useState([]);
-  console.log('transactions are: ', transactions);
+  // console.log('transactions are: ', transactions);
   useFocusEffect(
     useCallback(() => {
       // console.log('Running getAllTransactions with tempUserId:', tempUserId);

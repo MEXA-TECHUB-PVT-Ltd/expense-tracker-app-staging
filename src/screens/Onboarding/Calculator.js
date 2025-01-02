@@ -27,73 +27,61 @@ const Calculator = ({ visible, textInputValue, onValueChange, onClose }) => {
         }
     };
 
-    // const handleOperation = (op) => {
-    //     if (display === '0') return;
-    //     setPreviousValue(display);
-    //     setOperation(op);
-    //     setDisplay('0');
-    // };
     const handleOperation = (op) => {
         if (op === '-' && display === '0') {
-            // Set display to '-' for negative input
+            // Allow negative input
             setDisplay('-');
             setIsResult(false);
             return;
         }
-        // Standard operation handling
-        if (display === '0') return;
-        setPreviousValue(display);
-        setOperation(op);
-        setDisplay('0');
+
+        const currentValue = parseFloat(display);
+        if (operation && previousValue !== null) {
+            // Perform intermediate calculation
+            const result = performCalculation(parseFloat(previousValue), currentValue, operation);
+            setPreviousValue(result); // Update previousValue with the result
+            setDisplay('0'); // Reset display for new input
+        } else {
+            setPreviousValue(currentValue); // Store current value as previousValue
+            setDisplay('0');
+        }
+
+        setOperation(op); // Set the current operation
+        setIsResult(false);
     };
+
+    const performCalculation = (prev, current, op) => {
+        switch (op) {
+            case '+':
+                return prev + current;
+            case '-':
+                return prev - current;
+            case '×':
+                return prev * current;
+            case '÷':
+                return current === 0 ? 0 : prev / current;
+            default:
+                return current;
+        }
+    };
+
     const calculate = () => {
         const currentValue = parseFloat(display);
         const previous = parseFloat(previousValue);
 
-        // If no operation is set
-        if (!operation) {
-            // Check if the user has entered a new value after pressing "C" or clearing
-            if (display === '0') {
-                // If the display is '0', set the TextInput value to '0'
-                setDisplay('0');
-                onValueChange('0'); // Update TextInput with '0'
-            } else {
-                // Update TextInput with whatever is currently displayed
-                onValueChange(display); // Update with the current display value
-            }
-            onClose(); // Close the calculator
+        if (isNaN(currentValue) || isNaN(previous) || !operation) {
+            onValueChange(display); // Update with the current display value if no operation
+            onClose();
             return;
         }
 
-        // If an operation is set, perform the calculation
-        if (isNaN(currentValue) || isNaN(previous)) return;
+        const result = performCalculation(previous, currentValue, operation);
 
-        let result;
-        switch (operation) {
-            case '+':
-                result = previous + currentValue;
-                break;
-            case '-':
-                result = previous - currentValue;
-                break;
-            case '×':
-                result = previous * currentValue;
-                break;
-            case '÷':
-                result = previous / currentValue;
-                break;
-            default:
-                return;
-        }
-
-        // Update display and value after calculation
-        setDisplay(String(result));
+        setDisplay(String(result)); // Show the result
         onValueChange(String(result)); // Update the TextInput with the result
-        setOperation(null);
-        setPreviousValue(null);
-        setIsResult(true);
-
-        // Close the calculator after calculation
+        setOperation(null); // Clear the operation
+        setPreviousValue(null); // Clear the previous value
+        setIsResult(true); // Mark the calculation as completed
         onClose();
     };
 
@@ -134,7 +122,8 @@ const Calculator = ({ visible, textInputValue, onValueChange, onClose }) => {
                 <View style={styles.calculator} onTouchEnd={(e) => e.stopPropagation()}>
                     <TextInput
                         style={styles.display}
-                        value={display}
+                        value={String(display)} // convert to properly show text so that accidently it dont show text
+                        // value={display}
                         editable={false} // The display is not editable
                     />
 
