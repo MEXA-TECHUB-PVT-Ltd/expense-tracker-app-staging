@@ -1014,10 +1014,10 @@ const AddEditDeleteTransaction = () => {
     // }
 
     if (route.params?.envelopeName && envelopes.length > 0) {
-      console.log('Both envelopeId and envelopes are available. Marking data as ready.');
+      // console.log('envelopeId and envelopes are available. Marking data as ready.');
       setIsDataReady(true);
     } else {
-      console.log('Data is not ready yet.');
+      // console.log('Data is not ready yet.');
     }
   }, [route.params, envelopes]);
 
@@ -1026,20 +1026,20 @@ const AddEditDeleteTransaction = () => {
       // console.log('useFocusEffect triggered.');
 
       if (isDataReady) {
-        console.log('Data is ready. Searching for the selected envelope...');
+        // console.log('Data is ready. Searching for the selected envelope...');
         const selectedEnvelope = envelopes.find(
           envelope => envelope.envelopeName === route.params.envelopeName
         );
 
         if (selectedEnvelope) {
-          console.log('Selected envelope found:', selectedEnvelope);
+          // console.log('Selected envelope found:', selectedEnvelope);
           setSelectedEnvelopeFilledIncome(selectedEnvelope.filledIncome);
-          console.log('Envelope filled income set:', selectedEnvelope.filledIncome);
+          // console.log('Envelope filled income set:', selectedEnvelope.filledIncome);
         } else {
-          console.log('No envelope matches the provided envelopeName:', route.params.envelopeName);
+          // console.log('No envelope matches the provided envelopeName:', route.params.envelopeName);
         }
       } else {
-        console.log('Data is not ready. Skipping envelope selection logic.');
+        // console.log('Data is not ready. Skipping envelope selection logic.');
       }
     }, [isDataReady, route.params?.envelopeName, envelopes])
   );

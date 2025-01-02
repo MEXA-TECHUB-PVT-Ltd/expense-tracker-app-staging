@@ -18,9 +18,9 @@ const SingleEnvelopeDetails = ({ route }) => {
   const { envelope } = route.params;
   // console.log('value of envelope in singel envelope screen: ', envelope);
   const envelopeName = envelope.envelopeName;
-  console.log('envelope name: ', envelopeName);
+  // console.log('envelope name: ', envelopeName);
   const envelopeId = envelope.envelopeId;
-  console.log('envelopeId: ', envelopeId);
+  // console.log('envelopeId: ', envelopeId);
   const handleLeftIconPress = () => {
     navigation.goBack();
     setIsSearched(false);

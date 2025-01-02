@@ -166,6 +166,7 @@ const FillEnvelopes = () => {
   const [selectedOption, setSelectedOption] = useState(null);
   // console.log('selected option is: ', selectedOption);
   const [isFillAllSelected, setIsFillAllSelected] = useState(false);
+  // console.log('selected ifFillAllSelected is: ', isFillAllSelected);
 
   const showModal = () => setModalVisible(true);
   const hideModal = () => setModalVisible(false);
@@ -181,6 +182,7 @@ const FillEnvelopes = () => {
 
     } else if (option === "Fill ALL Envelopes") {
       setFilledIncomes([]);
+      setTotalIncome(0);
       clearFilledIncome(); // function call to set filledIncome of envelopes to 0 in state
       selectAllEnvelopes( tempUserId, formattedFromDate, formattedToDate, formattedFromDateYearly, formattedToDateYearly);
     }
@@ -240,7 +242,7 @@ const FillEnvelopes = () => {
 
   // for flatlist
   const [envelopes, setEnvelopes] = useState([]);
-  // console.log('state of envelopes is: ======================', envelopes);
+  // console.log('state of envelopes is for flatlist fill individuall and fill all: ======================', envelopes);
   const [updatedEnvelopes, setUpdatedEnvelopes] = useState([]); // to track updated envelopes using fill individually for authenticated users
   // console.log('  current state of updatedEnvelopes  UUUUUUUUUUUUUUUUUUUUUU', updatedEnvelopes);
 
@@ -321,7 +323,7 @@ const FillEnvelopes = () => {
               for (let i = 0; i < results.rows.length; i++) {
                 envelopesArray.push(results.rows.item(i));
               }
-              // console.log('Values fetched from database as envelopes:', envelopesArray);
+              // console.log('Values fetched from database as envelopes =-=-=-=-=-=-=-:', envelopesArray);
               setEnvelopes(envelopesArray); // Update the state directly
             } else {
               setEnvelopes([]); // Set state to an empty array if no results
@@ -359,7 +361,7 @@ const FillEnvelopes = () => {
 
   // Automatically fill all envelopes when selectedOption changes to 'fillAll'
   const [filledIncomes, setFilledIncomes] = useState([]);
-  // console.log('values inside filledIncomes', filledIncomes);
+  // console.log('values inside filledIncomes :', filledIncomes);
 
   const handleCheckPress = () => {
     if (isFillAllSelected) {
@@ -370,6 +372,7 @@ const FillEnvelopes = () => {
   useEffect(() => {
     if (selectedOption === 'Fill ALL Envelopes' && date) {
       setIsFillAllSelected(true);  // Mark that the user has selected Fill All
+      setFilledIncomes([]);
       // handleFillAll();
     }
   }, [selectedOption, date]);
@@ -695,7 +698,7 @@ const FillEnvelopes = () => {
             'UPDATE envelopes SET filledIncome = 0 WHERE user_id = ?;',
             [tempUserId],
             () => {
-              // console.log('filledIncome cleared successfully.');
+              console.log('filledIncome cleared successfully.');
             },
             (_, error) => {
               console.error('Error clearing database values:', error);
@@ -715,7 +718,7 @@ const FillEnvelopes = () => {
   };
 
 
-  // function to clear filledIncome of envelopes state when swithc to fill individually
+  // function to clear filledIncome of envelopes state when switch to fill individually
   const clearFilledIncome = () => {
     const updatedEnvelopes = envelopes.map(item => ({
       ...item,
@@ -730,23 +733,63 @@ const FillEnvelopes = () => {
   const [snackbarVisibleFillPositive, setSnackbarVisibleFillPositive] = useState(false);
 
   const handleNextPress = () => {
-    // Check if updatedEnvelopes is empty
-    if (updatedEnvelopes.length === 0) {
-      // If empty, show the Snackbar by setting setSnackbarVisibleFill to true
+    
+    if (!selectedOption) {
+      // Show Snackbar for missing selectedOption
       setSnackbarVisibleFill(true);
-    } else {
-      // Check if at least one envelope has filledIncome > 0
-      const hasNonZeroFilledIncome = updatedEnvelopes.some(envelope => envelope.filledIncome > 0);
+      return; // Exit the function
+    }
+
+    if (selectedOption === 'Fill Individually') {
+      // Logic for "Fill Individually" option
+      if (updatedEnvelopes.length === 0) {
+        // If empty, show the Snackbar
+        setSnackbarVisibleFill(true);
+      } else {
+        // Check if at least one envelope has filledIncome > 0
+        const hasNonZeroFilledIncome = updatedEnvelopes.some(envelope => envelope.filledIncome > 0);
+
+        if (hasNonZeroFilledIncome) {
+          // Navigate to 'RegisterAccount' if at least one envelope is filled
+          navigation.navigate('RegisterAccount');
+        } else {
+          // Show Snackbar if all envelopes are zero
+          setSnackbarVisibleFill(true);
+        }
+      }
+    } else if (selectedOption === 'Fill ALL Envelopes') {
+      console.log('Fill ALL Envelopes option selected.');
+      const hasNonZeroFilledIncome = filledIncomes.some(income => income.filledIncome > 0);
 
       if (hasNonZeroFilledIncome) {
-        // If at least one envelope has a non-zero filledIncome, navigate to 'RegisterAccount'
+        // Navigate to 'RegisterAccount' if at least one envelope is filled
         navigation.navigate('RegisterAccount');
       } else {
-        // If all envelopes have filledIncome as 0, show the Snackbar with a different message
+        // Show Snackbar if all envelopes are zero or if filledIncomes is empty
         setSnackbarVisibleFill(true);
       }
     }
   };
+
+
+  // const handleNextPress = () => {
+  //   // Check if updatedEnvelopes is empty
+  //   if (updatedEnvelopes.length === 0) {
+  //     // If empty, show the Snackbar by setting setSnackbarVisibleFill to true
+  //     setSnackbarVisibleFill(true);
+  //   } else {
+  //     // Check if at least one envelope has filledIncome > 0
+  //     const hasNonZeroFilledIncome = updatedEnvelopes.some(envelope => envelope.filledIncome > 0);
+
+  //     if (hasNonZeroFilledIncome) {
+  //       // If at least one envelope has a non-zero filledIncome, navigate to 'RegisterAccount'
+  //       navigation.navigate('RegisterAccount');
+  //     } else {
+  //       // If all envelopes have filledIncome as 0, show the Snackbar with a different message
+  //       setSnackbarVisibleFill(true);
+  //     }
+  //   }
+  // };
 
 
   return (
@@ -1416,20 +1459,22 @@ const styles = StyleSheet.create({
   snack_bar: {
     backgroundColor: colors.gray,
     borderRadius: 50,
-    paddingHorizontal: 15, // Add horizontal padding
-    minHeight: hp('5%'), // Ensure minimum height and increase if needed
+    paddingHorizontal: 15,
+    minHeight: hp('5%'), // Ensuring minimum height for responsiveness
+    maxHeight: hp('8%'), // Optionally set a max height if needed for larger screens
     zIndex: 1000,
   },
 
   img_txt_view: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap', // Allow text to wrap
-    justifyContent: 'flex-start', // Align text to the start if it overflows
+    flexDirection: 'row', // Ensure items are in a row
+    alignItems: 'center', // Align items vertically in the center
+    flexWrap: 'nowrap', // Prevent wrapping to ensure they stay in one line
+    justifyContent: 'flex-start', // Align text and image to the start
+    width: '100%', // Ensure the view takes full width of the Snackbar
   },
 
   snack_bar_img: {
-    width: wp('10%'),
+    width: wp('10%'), // Fixed width for image
     height: hp('4%'),
     marginRight: 10,
     resizeMode: 'contain',
@@ -1438,10 +1483,12 @@ const styles = StyleSheet.create({
   snack_bar_text: {
     color: colors.white,
     fontSize: hp('2%'),
-    flexShrink: 1, // Ensures the text doesn't overflow out of the container
-    lineHeight: hp('2.2%'), // Adjust line height for better readability
-    textAlign: 'left', // Align text to the left
-  },
+    flexShrink: 1, // Ensures text will shrink to fit when necessary
+    lineHeight: hp('2.2%'),
+    textAlign: 'left',
+    width: '80%', // Allow the text to take up a fixed width, adjusting with the screen size
+  }
+
 
 
 });
