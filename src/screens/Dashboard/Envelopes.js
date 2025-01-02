@@ -1357,7 +1357,8 @@ const Envelopes = () => {
       /> */}
 
       <SectionList
-        sections={groupedEnvelopes}
+        // sections={groupedEnvelopes}
+        sections={groupedEnvelopes.filter(section => section.data.length > 0)} // only shows sections that has some data
         keyExtractor={(item) => item.envelopeId.toString()}
         renderItem={({ item, section }) => {
           // Check if the current item belongs to the "Goal" section and meets the condition

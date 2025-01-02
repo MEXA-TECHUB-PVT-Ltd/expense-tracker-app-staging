@@ -297,7 +297,11 @@ const Reports = () => {
 
       // Group transactions by envelopeName and calculate spending only for Expense transactions this is new code latest
       const groupedTransactions = transactions.reduce((acc, transaction) => {
-        if (transaction.user_id === tempUserId && transaction.transactionType === "Expense") {
+        if (
+          transaction.user_id === tempUserId && 
+          transaction.transactionType === "Expense" &&
+          transaction.envelopeName !== null // where envelopeName is null it will not count it...
+        ) {
           const { envelopeName, transactionAmount } = transaction;
 
           if (!acc[envelopeName]) {
@@ -347,7 +351,10 @@ const Reports = () => {
     const generatePieData = async () => {
       const data = await Promise.all(
         spendingByEnvelope
-          .filter(item => (item.envelopeSpending || 0) > 0)  // Filter out negative spending
+          .filter(item => 
+            item.envelopeName !== "(Available)" &&  // extra check to exclude this envelope being count in spending
+            item.envelopeName !== "My Account" && // extra check to exclude this envelope being count in spending
+            (item.envelopeSpending || 0) > 0)  // Filter out negative spending
           .map(async (item) => {
             const envelopeSpending = item.envelopeSpending || 0;
             const envelopeColor = await getOrAssignEnvelopeColor(item.envelopeName);  // Get or generate the color
@@ -481,7 +488,11 @@ const Reports = () => {
 
             <View style={styles.txt_amt_parent_view}>
               {spendingByEnvelope
-                // .filter(item => item.envelopeSpending > 0) // this was filtering negative envelopes just to dont show them...
+              .filter(item => 
+                item.envelopeName !== "(Available)" &&
+                item.envelopeName !== "My Account"
+                // item.envelopeSpending > 0  // this was filtering negative envelopes just to dont show them...
+              ) 
               .map((item, index) => {
                 const envelopeName = item.envelopeName;
                 const envelopeSpending = item.envelopeSpending || 0;

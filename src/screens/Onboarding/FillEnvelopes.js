@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { View, Text, Image, StyleSheet, ScrollView, Animated, FlatList, Pressable, BackHandler, Keyboard, TouchableWithoutFeedback, TouchableOpacity } from 'react-native';
-import { Appbar, Button, Checkbox, TextInput, RadioButton, Modal, Portal, Provider, Menu, Divider, Card, ProgressBar } from 'react-native-paper';
+import { Appbar, Button, Checkbox, TextInput, RadioButton, Modal, Portal, Provider, Menu, Divider, Card, ProgressBar, Snackbar } from 'react-native-paper';
 import colors from '../../constants/colors';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
@@ -725,6 +725,29 @@ const FillEnvelopes = () => {
     setEnvelopes(updatedEnvelopes);
   };
 
+  // to navigate user to register account screen function with check
+  const [snackbarVisibleFill, setSnackbarVisibleFill] = useState(false);
+  const [snackbarVisibleFillPositive, setSnackbarVisibleFillPositive] = useState(false);
+
+  const handleNextPress = () => {
+    // Check if updatedEnvelopes is empty
+    if (updatedEnvelopes.length === 0) {
+      // If empty, show the Snackbar by setting setSnackbarVisibleFill to true
+      setSnackbarVisibleFill(true);
+    } else {
+      // Check if at least one envelope has filledIncome > 0
+      const hasNonZeroFilledIncome = updatedEnvelopes.some(envelope => envelope.filledIncome > 0);
+
+      if (hasNonZeroFilledIncome) {
+        // If at least one envelope has a non-zero filledIncome, navigate to 'RegisterAccount'
+        navigation.navigate('RegisterAccount');
+      } else {
+        // If all envelopes have filledIncome as 0, show the Snackbar with a different message
+        setSnackbarVisibleFill(true);
+      }
+    }
+  };
+
 
   return (
     <TouchableWithoutFeedback style={{ flex: 1 }} onPress={isTooltipVisible ? handleOutsidePress : null}>
@@ -1074,7 +1097,7 @@ const FillEnvelopes = () => {
             <View style={styles.right_icon_btn_view}>
               <Button
                 mode="text" // Use 'contained' for a filled button
-                onPress={() => navigation.navigate('RegisterAccount')}
+                onPress={handleNextPress}
                 // onPress={() => console.log('later press')}
                 style={styles.nextButton}
                 labelStyle={styles.nextText}
@@ -1086,6 +1109,32 @@ const FillEnvelopes = () => {
             </View>
           </View>
         )}
+
+        <Snackbar
+          visible={snackbarVisibleFill}
+          onDismiss={() => setSnackbarVisibleFill(false)}
+          duration={1000}
+          style={[
+            styles.snack_bar,
+            {
+              position: 'absolute',
+              bottom: 40,
+              left: 20,
+              right: 20,
+              zIndex: 1000,
+            }
+          ]}
+        >
+          <View style={styles.img_txt_view}>
+            <Image
+              source={Images.expenseplannerimage}
+              style={styles.snack_bar_img}
+            />
+            <Text style={styles.snack_bar_text}>Fill at least one envelope with non-zero value</Text>
+          </View>
+        </Snackbar>
+
+
       </View>
     </TouchableWithoutFeedback>
   );
@@ -1362,6 +1411,38 @@ const styles = StyleSheet.create({
     fontSize: hp('2%'),
     color: colors.androidbluebtn,
   },
+
+  // snackbar styles
+  snack_bar: {
+    backgroundColor: colors.gray,
+    borderRadius: 50,
+    paddingHorizontal: 15, // Add horizontal padding
+    minHeight: hp('5%'), // Ensure minimum height and increase if needed
+    zIndex: 1000,
+  },
+
+  img_txt_view: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap', // Allow text to wrap
+    justifyContent: 'flex-start', // Align text to the start if it overflows
+  },
+
+  snack_bar_img: {
+    width: wp('10%'),
+    height: hp('4%'),
+    marginRight: 10,
+    resizeMode: 'contain',
+  },
+
+  snack_bar_text: {
+    color: colors.white,
+    fontSize: hp('2%'),
+    flexShrink: 1, // Ensures the text doesn't overflow out of the container
+    lineHeight: hp('2.2%'), // Adjust line height for better readability
+    textAlign: 'left', // Align text to the left
+  },
+
 
 });
 
